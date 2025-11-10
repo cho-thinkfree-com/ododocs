@@ -118,9 +118,8 @@ body {
 
 .callout-block .callout-type-selector {
   display: flex;
-  flex-direction: row;
-  flex-wrap: nowrap;
   gap: 0.25rem;
+  flex-grow: 1;
 }
 
 .callout-block .callout-delete-button {
