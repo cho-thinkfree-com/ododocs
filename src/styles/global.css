@@ -101,13 +101,7 @@ body {
   border-radius: 4px;
 }
 
-.callout-block .callout-header {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin-bottom: 0.5rem;
-  width: 100%;
-}
+
 
 .callout-block .callout-icon {
   flex-shrink: 0;
