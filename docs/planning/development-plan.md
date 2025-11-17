@@ -10,6 +10,8 @@
 - `[x]` 핵심 의존성 추가 (`@tiptap/react`, `@tiptap/starter-kit`, `@mui/material`, `mui-tiptap`, 확장 세트). (2025-11-04, AI)
 - `[ ]` `AGENTS.md` 지침에 맞춰 lint/format/test 스크립트 구성.
 - `[x]` 기본 레이아웃 셸 구현 (RichTextEditorProvider 결선, 제목 필드/TOC 슬롯 구성). (2025-11-05, AI)
+- [ ] 프론트엔드 프레임워크 방향성 결정: 현재 Vite + 분리된 백엔드 구조를 우선 유지하고, Next.js 통합 전환은 별도 판단 시점에 검토.
+- [ ] 백엔드 프레임워크 방향성 결정: Fastify 기반 API 서버를 기준 삼아 Prisma/서비스 구조를 발전시키고, Swagger/미들웨어 정리 일정을 계획.
 
 ## Milestone 1: Core Editor Shell
 - `[x]` `tiptap-mui`의 `RichTextEditorProvider`, `MenuControlsContainer`, `RichTextField` 통합. (2025-11-05, AI)
@@ -240,7 +242,7 @@
 - `[x]` **D3 – Document Actions & Validation**: 문서 GET/PATCH/DELETE + 리비전 조회, 낙관적 잠금, 플랜 훅/테스트 완료 (2025-11-17).
 - `[x]` **E1 – Share Links (View/Comment)**: 공유 링크 생성/조회/토큰 검증 + 비밀번호/만료/테스트 완료 (2025-11-17).
 - `[x]` **E2 – External Collaborators (Edit)**: 외부 협업자 프로필, 게스트 세션 토큰, allow_external_edit 플로우 및 테스트 완료 (2025-11-17).
-- `[ ]` **F1 – Audit Logging**: 감사 로그 스키마/조회/주요 액션 기록 예정.
+- `[~]` **F1 – Audit Logging**: (2025-11-18, AI) AuditLog/ExternalCollaborator/ShareLinkSession 스키마 + Prisma repo/서비스, 문서 권한/공유 링크/멤버십(초대·가입·역할변경·탈퇴) 이벤트 기록 및 Vitest 커버리지 작성. HTTP `/audit` 엔드포인트는 이후 HTTP 계층 도입 시 구현 예정.
 - `[ ]` **F2 – Governance & Rate Limiting**: 거버넌스/레이트 리밋/삭제 안전장치/템플릿 정책 예정.
 
 
