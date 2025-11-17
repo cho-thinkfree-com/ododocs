@@ -6,6 +6,12 @@
 - Capture sharing flows (internal + external) including whether external recipients can edit.
 - Keep the plan DB-agnostic so we can start on SQLite and later migrate to PostgreSQL/Supabase.
 
+## Auth & Persistence Abstraction Requirements
+- All authentication logic must sit behind interface-driven services so backing stores can change (custom ID/password, OAuth provider, Supabase Auth, etc.) without rewriting consumers.
+- Introduce `AuthProvider` abstraction with pluggable strategies (LocalPasswordProvider, OAuthProvider, SupabaseProvider). Each implements signup/login/logout/refresh flows with consistent DTOs.
+- Session persistence (tokens, password reset, verification) should use repository interfaces; initial implementation targets SQLite but drivers for PostgreSQL/Supabase must be swappable.
+- Avoid coupling password hashing/token issuance directly in controllers—keep them in service layer so future OAuth-only mode can bypass unused logic cleanly.
+
 ## Core Entities
 
 ### Account (Global User)
@@ -38,6 +44,11 @@
 - Fields: `id`, `workspace_id`, `folder_id`, `title`, `slug`, `status (draft|published|archived)`, `visibility (private|workspace|shared|public)`, `owner_membership_id`, timestamps.
 - Content stored separately (`document_revisions` with `editor_state_json`, `version`, `created_by`).
 - `Document 1:N DocumentPermission`.
+
+### Tag & DocumentTag
+- `Tag`: `id`, `workspace_id`, `name`, `color`, `created_by`, `created_at`.
+- `DocumentTag`: join table (`document_id`, `tag_id`, `assigned_by`, `assigned_at`).
+- Tags scoped per workspace, used for filtering/search facets.
 
 ### DocumentPermission
 - Fields: `document_id`, `principal_type (workspace|membership|account|share_link)`, `principal_id`, `role (viewer|commenter|editor|owner)`.
@@ -96,6 +107,12 @@
 3. **Targeted**: Add entries to `DocumentPermission` referencing specific memberships/accounts with viewer/commenter/editor.
 4. **Folder-level policies** (future): propagate ACLs down tree with override markers.
 
+### 4b. Tagging & Search
+- Tag CRUD endpoints allow owners/admins/members to organize documents; Tag palette is workspace-scoped.
+- Search service supports filtering by text (title/content), tag, folder, owner, status, and visibility. Query builders must enforce ACLs before returning results.
+- Indexing strategy: start with relational queries over SQLite/PostgreSQL; later optional full-text search engine can plug in behind a search interface.
+- Tests must cover tag assignment/removal, search filtering, and ACL enforcement (users only see documents they have access to, even if tags match).
+
 ### 5. External Sharing
 - Owner/admin/member (with permission) can generate share links.
 - UI exposes `view/comment/edit`, optional expiration, password.
@@ -127,6 +144,86 @@
    - Audit logs, rate limits, domain allowlist, workspace join workflows.
 
 Documenting this plan before implementation ensures we can review each relationship (Account ↔ Workspace ↔ Membership, Document ↔ Permissions, ShareLink ↔ ExternalCollaborator) and adjust before coding.
+
+## Backend Milestones & Required Tests
+Milestones are intentionally small so each can be implemented + tested before moving on. Every milestone must provide its own automated test suite (unit + integration) and leave the system in a runnable state for the next milestone.
+
+### Milestone A1 – Account Storage
+- Scope: Account table, password hashing, unique email constraint, created/updated timestamps.
+- Tests: account creation success, duplicate email rejection, password hashing correctness, serialization/deserialization in SQLite.
+- Dependency for A2+ because later auth/session logic relies on stored accounts.
+
+### Milestone A2 – Session & Auth API
+- Scope: Signup/login/logout endpoints, session tokens (refresh + access), brute-force throttling, logout all sessions.
+- Tests: signup validation, login success/fail (bad password, unknown email), session issuance/revocation, throttling triggered after repeated failures.
+- Requires A1 complete; once done, enables QA to manually sign up/login without workspace features.
+
+### Milestone A3 – Account Deletion & Recovery
+- Scope: Password reset requests, token verification, account deletion workflow (blocked if owning workspace), soft delete flags.
+- Tests: reset token issuance/expiration, password update flow, deletion blocked when owner, successful deletion when not owner, session invalidation post deletion.
+- After A3, auth layer is stable for Workspace milestones.
+
+### Milestone B1 – Workspace Creation Basics
+- Scope: Workspace table, create/list/read endpoints, owner auto-assignment (creator becomes owner), SQLite migrations.
+- Tests: workspace create/list for a user, verify owner assigned, enforce owner uniqueness (no duplicate owner rows), soft delete flag prevents accidental purge.
+- Depends on A2 (needs authenticated user). Provides base for metadata/edit flows.
+
+### Milestone B2 – Workspace Metadata & Delete
+- Scope: Update workspace name/description/locale/cover, delete (soft) workspace, ensure owner constraints before deletion.
+- Tests: metadata update permissions (owner/admin), delete fails when non-owner, delete success with confirmation, ensure deleted workspaces hidden from listings.
+- Enables later membership/invite UI to rely on editable workspace info.
+
+### Milestone C1 – Membership Model
+- Scope: WorkspaceMembership table, role field, workspace-scoped profile, owner/admin/member enums.
+- Tests: adding membership rows, enforcing one owner per workspace, retrieving memberships, preventing duplicate membership entries per account/workspace.
+- Required before invitations/join flows.
+
+### Milestone C2 – Invitations & Join Requests
+- Scope: Invitation API (send, accept, decline), join request pending queue, domain allowlist auto-join.
+- Tests: invite flow (token validation, expiry), acceptance sets membership active, decline removes pending invite, domain auto-join bypasses approval, join requests require admin approval.
+- Builds on C1; upon completion, workspace population flows are functional.
+
+### Milestone C3 – Role Transitions & Ownership Transfer
+- Scope: Promote/demote members, transfer ownership, enforce owner uniqueness, member removal.
+- Tests: role change authorization (only owner can transfer), transfer success path, demote admin to member, removing members updates audit log, owner cannot demote without new owner.
+- Sets stage for document permissions to rely on accurate roles.
+
+### Milestone D1 – Folder & Document Metadata
+- Scope: Folder tree CRUD, Document table (title, folder, visibility), DocumentRevision table storing editor JSON.
+- Tests: folder nesting, move operations, document create/update metadata, revision append test, retrieving latest revision.
+- Provides persistence base for ACL features.
+
+### Milestone D2 – Document Permissions (Internal)
+- Scope: DocumentPermission table, workspace default access flags, permission evaluation service for owner/admin/member.
+- Tests: private/workspace/shared scenarios, ACL overrides for specific members, denial when insufficient role, ensuring default access cascades.
+- After D2, internal editing and viewing is fully governed.
+
+### Milestone D3 – Document Actions & Validation
+- Scope: API endpoints for create/update/delete documents using permission checks, optimistic locking, plan limit hooks.
+- Tests: create/edit/delete success/failure per role, concurrent edit conflict detection, plan limit enforcement stubs.
+- Prepares for external sharing by ensuring internal actions are stable.
+
+### Milestone E1 – Share Links (View/Comment)
+- Scope: ShareLink table, generate/revoke links, password + expiration logic, viewer/commenter support for anonymous users.
+- Tests: create share link, password validation, expired link rejection, access log entry on view/comment, revoke hides document immediately.
+- Allows safe public viewing/commenting before edit rights exist.
+
+### Milestone E2 – External Collaborators (Edit)
+- Scope: ExternalCollaborator profiles, linking to share links, allow_external_edit flag, guest session tokens.
+- Tests: guest signup via link, edit allowed only when flag true, guest audit log entries, revocation invalidates guest sessions.
+- Completes external sharing story.
+
+### Milestone F1 – Audit Logging
+- Scope: Audit log table, capture membership changes, share link actions, document permission edits.
+- Tests: verify log entries created for each critical action, querying logs by workspace/user.
+- Required before governance/monitoring features.
+
+### Milestone F2 – Governance & Rate Limiting
+- Scope: Access logs, rate limit enforcement, workspace delete safety checks, template sharing policies.
+- Tests: rate limit triggers, workspace delete blocked when docs exist and confirmation missing, template sharing respects ACL, access logs queryable.
+- Final milestone ensures operational safety/compliance.
+
+Milestones must be developed sequentially (A1 → F2). Each milestone’s tests double as the regression suite the next milestone will run before adding new ones, guaranteeing we can continue development without regressions.
 
 ## Testing & TDD Requirements
 - Follow strict TDD: write backend tests (unit + integration) before implementing each phase so DB schemas/services stay verifiable.
