@@ -29,6 +29,7 @@ export interface AccountWithPassword extends AccountEntity {
 export interface AccountRepository {
   create(data: CreateAccountInput): Promise<AccountEntity>
   findByEmail(email: string): Promise<AccountEntity | null>
+  findById(id: string): Promise<AccountEntity | null>
   findAuthRecordByEmail(email: string): Promise<AccountWithPassword | null>
   findAuthRecordById(id: string): Promise<AccountWithPassword | null>
   updatePasswordHash(accountId: string, passwordHash: string): Promise<void>
@@ -63,6 +64,11 @@ export class PrismaAccountRepository implements AccountRepository {
     const account = await this.prisma.account.findUnique({
       where: { email },
     })
+    return account ? toEntity(account) : null
+  }
+
+  async findById(id: string): Promise<AccountEntity | null> {
+    const account = await this.prisma.account.findUnique({ where: { id } })
     return account ? toEntity(account) : null
   }
 
