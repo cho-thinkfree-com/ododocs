@@ -316,6 +316,11 @@
 
 > 독립 실행 가능 항목(PDF Export 등)도 앞선 단계가 준비됐다면 별도 티켓으로 뽑을 수 있지만, 기본적으로 표의 순서를 따르는 것이 디버깅과 QA에 유리하다.
 
+### 다음 백엔드 작업
+- **S14 감사 API 연결**: Fastify 라우터에 `/api/workspaces/{workspaceId}/audit`를 등록하여 `WorkspaceAuditService#list`과 `WorkspaceAccessService`를 거쳐 owner/admin 검증 → `querySchema` 기반 쿼리 파싱 → 페이지네이션 응답을 순서대로 처리합니다. OpenAPI/문서(`docs/api/step-S14.md`, `docs/api/openapi/step-S14.yaml`)와 일치하는 응답/오류 스펙을 정리하고 필터·권한·페이지네이션 테스트를 작성하세요.
+- **S15 이후 준비**: Step S15~S27은 검색/필터, Export, Realtime, AI 등 새로운 API를 다루므로, 먼저 `docs/api/step-S{n}.md`에서 요구사항과 검증 시나리오를 정의하고 `tests/checklists/S{n}.md`에 TDD 흐름을 기록한 뒤 실제 구현/테스트로 넘어갑니다. 우선순위 변경 시 해당 문서와 체크리스트를 함께 갱신합니다.
+- **Fastify 공통 레이어 정리**: 인증, 권한, 에러, 로깅, OpenAPI/Swagger 노출, Prisma 트랜잭션 처리를 Fastify 미들웨어 또는 플러그인으로 정리하여 Step 구현을 지원합니다. audit/share link/document permission 같은 서비스가 공통 request context(account/workspace)를 재사용하는지 확인하고, 예외 시나리오(권한 거부, 500)와 관련 테스트를 보강하세요.
+
 ### 실행 산출물 & 가이드
 - **API 계약서**  
   - 각 Step 착수 시 `docs/api/step-S{번호}.md`에 엔드포인트, 요청/응답 JSON, 인증 방식(HttpOnly 세션, 필요 시 내부 JWT)과 에러 코드를 정의한다.  
