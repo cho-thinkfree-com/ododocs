@@ -75,4 +75,50 @@ export type EditorStrings = {
 
 export type AppStrings = {
   editor: EditorStrings
+  auth: AuthStrings
+  workspace: WorkspaceStrings
+}
+
+export type AuthStrings = {
+  landing: {
+    heroTitle: string
+    heroDescription: string
+    featureIntro: string
+    features: string[]
+    loginLabel: string
+    signupLabel: string
+    loginTitle: string
+    signupTitle: string
+    emailLabel: string
+    passwordLabel: string
+    passwordHint: string
+    legalNameLabel: string
+    loginButton: string
+    signupButton: string
+    errorFallback: string
+  }
+}
+
+export type WorkspaceStrings = {
+  selectorTitle: string
+  selectorHint: string
+  noWorkspaces: string
+  workspaceOverview: string
+  descriptionLabel: string
+  visibilityLabel: string
+  ownerLabel: string
+  documentsTitle: string
+  documentSearchPlaceholder: string
+  searchButton: string
+  noDocuments: string
+  membersTitle: string
+  membersRestricted: string
+  updateTitle: string
+  updateButton: string
+  updateSuccess: string
+  closeTitle: string
+  closeButton: string
+  closeWarning: string
+  openEditor: string
+  switchWorkspace: string
 }

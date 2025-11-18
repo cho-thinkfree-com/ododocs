@@ -14,6 +14,8 @@ import { DocumentService } from '../../../server/src/modules/documents/documentS
 import { DocumentPermissionRepository } from '../../../server/src/modules/documents/documentPermissionRepository'
 import { DocumentAccessService, DocumentAccessDeniedError } from '../../../server/src/modules/documents/documentAccessService'
 import { DocumentPermissionService } from '../../../server/src/modules/documents/documentPermissionService'
+import { AuditLogRepository } from '../../../server/src/modules/audit/auditLogRepository'
+import { AuditLogService } from '../../../server/src/modules/audit/auditLogService'
 
 describe('DocumentAccessService', () => {
   let prisma = createPrismaClient()
@@ -39,19 +41,22 @@ describe('DocumentAccessService', () => {
     const accountRepository = new PrismaAccountRepository(prisma)
     accountService = new AccountService(accountRepository)
     const workspaceRepository = new WorkspaceRepository(prisma)
-    workspaceService = new WorkspaceService(workspaceRepository)
     membershipRepository = new MembershipRepository(prisma)
     const workspaceAccess = new WorkspaceAccessService(workspaceRepository, membershipRepository)
+    workspaceService = new WorkspaceService(workspaceRepository, workspaceAccess)
     const folderRepository = new FolderRepository(prisma)
     const documentRepository = new DocumentRepository(prisma)
     const revisionRepository = new DocumentRevisionRepository(prisma)
     const permissionRepository = new DocumentPermissionRepository(prisma)
+    const auditLogRepository = new AuditLogRepository(prisma)
+    const auditLogService = new AuditLogService(auditLogRepository)
     documentAccessService = new DocumentAccessService(documentRepository, permissionRepository, membershipRepository)
     documentPermissionService = new DocumentPermissionService(
       documentRepository,
       permissionRepository,
       membershipRepository,
       documentAccessService,
+      auditLogService,
     )
     documentService = new DocumentService(documentRepository, revisionRepository, folderRepository, membershipRepository, workspaceAccess)
 

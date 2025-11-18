@@ -336,6 +336,52 @@
           }
         ]
       }
+    },
+    "auth": {
+      "landing": {
+        "heroTitle": "Workspace-grade writing for teams",
+        "heroDescription": "Coordinate documents, exports, and activity across your workspaces with a single experience.",
+        "featureIntro": "Get started with these capabilities.",
+        "features": [
+          "Realtime collaboration and version history",
+          "Export to Markdown/PDF/HTML with one click",
+          "Workspace-level activity and member controls"
+        ],
+        "loginLabel": "Login",
+        "signupLabel": "Sign up",
+        "loginTitle": "Sign in to your workspace",
+        "signupTitle": "Create a workspace account",
+        "emailLabel": "Email",
+        "passwordLabel": "Password",
+        "passwordHint": "10-128 characters",
+        "legalNameLabel": "Name (optional)",
+        "loginButton": "Log in",
+        "signupButton": "Create account & log in",
+        "errorFallback": "Something went wrong while authenticating."
+      }
+    },
+    "workspace": {
+      "selectorTitle": "Your workspaces",
+      "selectorHint": "Select a workspace to explore documents, members, and settings.",
+      "noWorkspaces": "No workspaces yet. Create one to get started.",
+      "workspaceOverview": "Workspace overview",
+      "descriptionLabel": "Description",
+      "visibilityLabel": "Visibility",
+      "ownerLabel": "Owner",
+      "documentsTitle": "Documents",
+      "documentSearchPlaceholder": "Search documents",
+      "noDocuments": "No documents matched your search.",
+      "membersTitle": "Members",
+      "membersRestricted": "Only owners or admins can view member lists.",
+      "updateTitle": "Workspace settings",
+      "updateButton": "Update workspace",
+      "updateSuccess": "Workspace updated",
+      "closeTitle": "Retire workspace",
+      "closeButton": "Close workspace",
+      "closeWarning": "Closing removes the workspace for everyone. This action is permanent.",
+      "openEditor": "Open editor",
+      "switchWorkspace": "Switch workspace",
+      "searchButton": "Search documents"
     }
   },
   "ko-KR": {
@@ -675,6 +721,52 @@
       "toc": {
         "emptyPlaceholder": "제목을 추가해 목차를 생성하세요."
       }
+    },
+    "auth": {
+      "landing": {
+        "heroTitle": "팀을 위한 협업 문서 워크스페이스",
+        "heroDescription": "문서, 내보내기, 활동 로그를 한 곳에서 관리하는 경험을 제공해요.",
+        "featureIntro": "다음 기능을 갖추고 있습니다.",
+        "features": [
+          "실시간 공동작성과 변경 이력",
+          "PDF/HTML/Markdown 내보내기",
+          "워크스페이스 활동 및 멤버 제어"
+        ],
+        "loginLabel": "로그인",
+        "signupLabel": "회원가입",
+        "loginTitle": "계정으로 로그인",
+        "signupTitle": "계정 만들기",
+        "emailLabel": "이메일",
+        "passwordLabel": "비밀번호",
+        "passwordHint": "10~128자",
+        "legalNameLabel": "이름 (선택)",
+        "loginButton": "로그인",
+        "signupButton": "회원가입하고 로그인",
+        "errorFallback": "인증 중 문제가 발생했습니다."
+      }
+    },
+    "workspace": {
+      "selectorTitle": "내 워크스페이스",
+      "selectorHint": "문서, 멤버, 설정을 확인할 워크스페이스를 선택하세요.",
+      "noWorkspaces": "가입된 워크스페이스가 없습니다.",
+      "workspaceOverview": "워크스페이스 정보",
+      "descriptionLabel": "설명",
+      "visibilityLabel": "공개 범위",
+      "ownerLabel": "소유자",
+      "documentsTitle": "문서",
+      "documentSearchPlaceholder": "문서 검색",
+      "noDocuments": "조건에 맞는 문서가 없습니다.",
+      "membersTitle": "멤버",
+      "membersRestricted": "소유자 또는 관리자만 멤버 정보를 볼 수 있습니다.",
+      "updateTitle": "워크스페이스 설정",
+      "updateButton": "정보 업데이트",
+      "updateSuccess": "워크스페이스 정보가 저장되었습니다.",
+      "closeTitle": "워크스페이스 폐쇄",
+      "closeButton": "워크스페이스 닫기",
+      "closeWarning": "이 작업은 되돌릴 수 없으며 모든 사용자가 이용할 수 없게 됩니다.",
+      "openEditor": "편집기 열기",
+      "switchWorkspace": "워크스페이스 전환",
+      "searchButton": "문서 검색"
     }
   }
 }

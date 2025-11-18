@@ -11,12 +11,7 @@ import {
 } from '@mui/material'
 import { useMemo, useState, type ChangeEvent, type FormEvent } from 'react'
 import { useAuth } from '../../context/AuthContext'
-
-const featureList = [
-  '실시간 공동작성, 문서 버전은 자동 기록',
-  '파일 없이 markdown/pdf/html export 예약',
-  '프로젝트 단위 워크스페이스 + 활동 로그',
-]
+import { useI18n } from '../../lib/i18n'
 
 const AuthLanding = () => {
   const theme = useTheme()
@@ -25,6 +20,8 @@ const AuthLanding = () => {
   const [form, setForm] = useState({ email: '', password: '', legalName: '' })
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const { strings } = useI18n()
+  const landing = strings.auth.landing
 
   const handleModeSwitch = (nextMode: 'login' | 'signup') => {
     setMode(nextMode)
@@ -52,8 +49,6 @@ const AuthLanding = () => {
       setSubmitting(false)
     }
   }
-
-  const introTitle = useMemo(() => '팀을 위한 실시간 문서 워크스페이스', [])
 
   return (
     <Box
@@ -90,13 +85,14 @@ const AuthLanding = () => {
           }}
         >
           <Typography variant='h3' component='h1'>
-            {introTitle}
+            {landing.heroTitle}
           </Typography>
           <Typography variant='body1' sx={{ color: theme.palette.text.secondary }}>
-            문서 내보내기 · 공유 · 피드백을 한 곳에서 처리하고, AI/사람 모두가 자연스럽게 협업할 수 있도록 설계된 플랫폼입니다.
+            {landing.heroDescription}
           </Typography>
+          <Typography variant='subtitle1'>{landing.featureIntro}</Typography>
           <Stack spacing={1}>
-            {featureList.map((feature) => (
+            {landing.features.map((feature) => (
               <Typography key={feature} variant='body2' sx={{ display: 'flex', gap: 1 }}>
                 <Typography component='span' color='primary.main' fontWeight={600}>
                   •
@@ -111,13 +107,13 @@ const AuthLanding = () => {
               variant={mode === 'login' ? 'contained' : 'text'}
               onClick={() => handleModeSwitch('login')}
             >
-              로그인
+              {landing.loginLabel}
             </Button>
             <Button
               variant={mode === 'signup' ? 'contained' : 'text'}
               onClick={() => handleModeSwitch('signup')}
             >
-              가입하기
+              {landing.signupLabel}
             </Button>
           </Stack>
         </Box>
@@ -134,14 +130,14 @@ const AuthLanding = () => {
             gap: 2.5,
           }}
         >
-          <Typography variant='h5'>{mode === 'login' ? '계정으로 로그인' : '새로운 계정 만들기'}</Typography>
+          <Typography variant='h5'>{mode === 'login' ? landing.loginTitle : landing.signupTitle}</Typography>
           <Typography variant='body2' color='text.secondary'>
-            이메일과 비밀번호를 입력하면 바로 편집기를 사용할 수 있습니다.
+            {landing.heroDescription}
           </Typography>
           {error && <Alert severity='error'>{error}</Alert>}
           <Box component='form' onSubmit={handleSubmit} sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
             <TextField
-              label='이메일'
+              label={landing.emailLabel}
               type='email'
               value={form.email}
               onChange={handleChange('email')}
@@ -149,24 +145,24 @@ const AuthLanding = () => {
               fullWidth
             />
             <TextField
-              label='비밀번호'
+              label={landing.passwordLabel}
               type='password'
               value={form.password}
               onChange={handleChange('password')}
-              helperText='10~128자'
+              helperText={landing.passwordHint}
               required
               fullWidth
             />
             {mode === 'signup' && (
               <TextField
-                label='이름 (선택)'
+                label={landing.legalNameLabel}
                 value={form.legalName}
                 onChange={handleChange('legalName')}
                 fullWidth
               />
             )}
             <Button type='submit' variant='contained' size='large' disabled={submitting} fullWidth>
-              {mode === 'login' ? '로그인' : '회원가입 후 로그인'}
+              {mode === 'login' ? landing.loginButton : landing.signupButton}
             </Button>
           </Box>
         </Card>

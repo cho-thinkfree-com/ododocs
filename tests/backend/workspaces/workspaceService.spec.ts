@@ -5,6 +5,10 @@ import { PrismaAccountRepository } from '../../../server/src/modules/accounts/ac
 import { AccountService } from '../../../server/src/modules/accounts/accountService'
 import { WorkspaceRepository } from '../../../server/src/modules/workspaces/workspaceRepository'
 import { WorkspaceService, WorkspaceNotFoundError } from '../../../server/src/modules/workspaces/workspaceService'
+import { MembershipAccessDeniedError } from '../../../server/src/modules/workspaces/membershipService'
+import { WorkspaceAccessService } from '../../../server/src/modules/workspaces/workspaceAccess'
+import { MembershipRepository } from '../../../server/src/modules/workspaces/membershipRepository'
+import type { WorkspaceMembershipRole } from '@prisma/client'
 import { createTestDatabase } from '../support/testDatabase'
 
 describe('WorkspaceService', () => {
@@ -12,6 +16,7 @@ describe('WorkspaceService', () => {
   let dbHandle: ReturnType<typeof createTestDatabase> | null = null
   let accountService: AccountService
   let workspaceService: WorkspaceService
+  let membershipRepository: MembershipRepository
   let ownerId: string
 
   beforeEach(async () => {
@@ -20,7 +25,9 @@ describe('WorkspaceService', () => {
     const accountRepository = new PrismaAccountRepository(prisma)
     accountService = new AccountService(accountRepository)
     const workspaceRepository = new WorkspaceRepository(prisma)
-    workspaceService = new WorkspaceService(workspaceRepository)
+    membershipRepository = new MembershipRepository(prisma)
+    const accessService = new WorkspaceAccessService(workspaceRepository, membershipRepository)
+    workspaceService = new WorkspaceService(workspaceRepository, accessService)
 
     const account = await accountService.registerAccount({ email: 'owner@example.com', password: 'Sup3rSecure!' })
     ownerId = account.id
@@ -102,9 +109,21 @@ describe('WorkspaceService', () => {
     const workspace = await workspaceService.create(ownerId, { name: 'Protected' })
     const other = await accountService.registerAccount({ email: 'other@example.com', password: 'Sup3rSecure!' })
     await expect(workspaceService.update(other.id, workspace.id, { name: 'Hack' })).rejects.toBeInstanceOf(
-      WorkspaceNotFoundError,
+      MembershipAccessDeniedError,
     )
     await expect(workspaceService.softDelete(other.id, workspace.id)).rejects.toBeInstanceOf(WorkspaceNotFoundError)
+  })
+
+  it('allows admin members to update workspace metadata', async () => {
+    const workspace = await workspaceService.create(ownerId, { name: 'Team' })
+    const admin = await accountService.registerAccount({ email: 'admin@example.com', password: 'Sup3rSecure!' })
+    await membershipRepository.create({
+      workspaceId: workspace.id,
+      accountId: admin.id,
+      role: 'admin' as WorkspaceMembershipRole,
+    })
+    const updated = await workspaceService.update(admin.id, workspace.id, { description: 'Admin updated' })
+    expect(updated.description).toBe('Admin updated')
   })
 
   it('soft deletes workspaces and is idempotent', async () => {

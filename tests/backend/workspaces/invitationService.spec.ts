@@ -4,11 +4,14 @@ import { PrismaAccountRepository } from '../../../server/src/modules/accounts/ac
 import { AccountService } from '../../../server/src/modules/accounts/accountService'
 import { WorkspaceRepository } from '../../../server/src/modules/workspaces/workspaceRepository'
 import { WorkspaceService } from '../../../server/src/modules/workspaces/workspaceService'
+import { WorkspaceAccessService } from '../../../server/src/modules/workspaces/workspaceAccess'
 import { MembershipRepository } from '../../../server/src/modules/workspaces/membershipRepository'
 import { WorkspaceInvitationService, InvitationExistsError, InvitationAcceptanceError } from '../../../server/src/modules/workspaces/invitationService'
 import { InvitationRepository } from '../../../server/src/modules/workspaces/invitationRepository'
 import { createTestDatabase } from '../support/testDatabase'
 import { hashToken } from '../../../server/src/lib/tokenGenerator'
+import { AuditLogRepository } from '../../../server/src/modules/audit/auditLogRepository'
+import { AuditLogService } from '../../../server/src/modules/audit/auditLogService'
 
 describe('WorkspaceInvitationService', () => {
   let prisma = createPrismaClient()
@@ -17,6 +20,7 @@ describe('WorkspaceInvitationService', () => {
   let workspaceService: WorkspaceService
   let invitationService: WorkspaceInvitationService
   let membershipRepository: MembershipRepository
+  let auditLogService: AuditLogService
   let ownerId: string
   let workspaceId: string
 
@@ -26,14 +30,19 @@ describe('WorkspaceInvitationService', () => {
     const accountRepository = new PrismaAccountRepository(prisma)
     accountService = new AccountService(accountRepository)
     const workspaceRepository = new WorkspaceRepository(prisma)
-    workspaceService = new WorkspaceService(workspaceRepository)
+    membershipRepository = new MembershipRepository(prisma)
+    const accessService = new WorkspaceAccessService(workspaceRepository, membershipRepository)
+    workspaceService = new WorkspaceService(workspaceRepository, accessService)
     membershipRepository = new MembershipRepository(prisma)
     const invitationRepository = new InvitationRepository(prisma)
+    const auditLogRepository = new AuditLogRepository(prisma)
+    auditLogService = new AuditLogService(auditLogRepository)
     invitationService = new WorkspaceInvitationService(
       invitationRepository,
       membershipRepository,
       workspaceRepository,
       accountRepository,
+      auditLogService,
     )
 
     const owner = await accountService.registerAccount({ email: 'owner@example.com', password: 'Sup3rSecure!' })
@@ -61,6 +70,14 @@ describe('WorkspaceInvitationService', () => {
 
     const members = await membershipRepository.list(workspaceId)
     expect(members.some((m) => m.accountId === invitee.id)).toBe(true)
+
+    const logs = await auditLogService.list({ workspaceId, page: 1, pageSize: 20 })
+    expect(
+      logs.logs.some(
+        (log) =>
+          log.action === 'membership.added' && (log.metadata as Record<string, unknown> | null)?.['source'] === 'invitation_acceptance',
+      ),
+    ).toBe(true)
   })
 
   it('prevents duplicate invitations and mismatched acceptance', async () => {

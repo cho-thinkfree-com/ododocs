@@ -5,6 +5,7 @@ import { AccountService } from '../../../server/src/modules/accounts/accountServ
 import { WorkspaceRepository } from '../../../server/src/modules/workspaces/workspaceRepository'
 import { WorkspaceService } from '../../../server/src/modules/workspaces/workspaceService'
 import { MembershipRepository } from '../../../server/src/modules/workspaces/membershipRepository'
+import { WorkspaceAccessService } from '../../../server/src/modules/workspaces/workspaceAccess'
 import {
   MembershipAccessDeniedError,
   MembershipExistsError,
@@ -13,6 +14,8 @@ import {
   OwnerDemotionError,
 } from '../../../server/src/modules/workspaces/membershipService'
 import { createTestDatabase } from '../support/testDatabase'
+import { AuditLogRepository } from '../../../server/src/modules/audit/auditLogRepository'
+import { AuditLogService } from '../../../server/src/modules/audit/auditLogService'
 
 describe('MembershipService', () => {
   let prisma = createPrismaClient()
@@ -21,6 +24,7 @@ describe('MembershipService', () => {
   let workspaceService: WorkspaceService
   let membershipRepository: MembershipRepository
   let membershipService: MembershipService
+  let auditLogService: AuditLogService
   let ownerId: string
   let workspaceId: string
 
@@ -30,9 +34,13 @@ describe('MembershipService', () => {
     const accountRepository = new PrismaAccountRepository(prisma)
     accountService = new AccountService(accountRepository)
     const workspaceRepository = new WorkspaceRepository(prisma)
-    workspaceService = new WorkspaceService(workspaceRepository)
     membershipRepository = new MembershipRepository(prisma)
-    membershipService = new MembershipService(membershipRepository, workspaceRepository)
+    const accessService = new WorkspaceAccessService(workspaceRepository, membershipRepository)
+    workspaceService = new WorkspaceService(workspaceRepository, accessService)
+    membershipRepository = new MembershipRepository(prisma)
+    const auditLogRepository = new AuditLogRepository(prisma)
+    auditLogService = new AuditLogService(auditLogRepository)
+    membershipService = new MembershipService(membershipRepository, workspaceRepository, auditLogService)
 
     const owner = await accountService.registerAccount({ email: 'owner@example.com', password: 'Sup3rSecure!' })
     ownerId = owner.id
@@ -108,6 +116,24 @@ describe('MembershipService', () => {
     await expect(
       membershipService.updateMember(ownerId, workspaceId, ownerId, { role: 'admin' }),
     ).rejects.toBeInstanceOf(OwnerDemotionError)
+
+    const logs = await auditLogService.list({ workspaceId, page: 1, pageSize: 10 })
+    const actions = logs.logs.map((log) => log.action)
+    expect(actions).toContain('membership.added')
+    expect(actions).toContain('membership.updated')
+  })
+
+  it('logs membership lifecycle events for add/update/remove', async () => {
+    const member = await accountService.registerAccount({ email: 'audit@example.com', password: 'Sup3rSecure!' })
+    await membershipService.addMember(ownerId, workspaceId, { accountId: member.id, status: 'active' })
+    await membershipService.updateMember(ownerId, workspaceId, member.id, { displayName: 'Audit Member' })
+    await membershipService.removeMember(ownerId, workspaceId, member.id)
+
+    const logs = await auditLogService.list({ workspaceId, page: 1, pageSize: 20 })
+    const actions = logs.logs.map((log) => log.action)
+    expect(actions).toContain('membership.added')
+    expect(actions).toContain('membership.updated')
+    expect(actions).toContain('membership.removed')
   })
 
   it('removes members and blocks removing owner', async () => {
@@ -138,6 +164,9 @@ describe('MembershipService', () => {
     expect(members.find((m) => m.accountId === admin.id)?.role).toBe('owner')
     const workspace = await workspaceService.getById(workspaceId)
     expect(workspace?.ownerAccountId).toBe(admin.id)
+
+    const logs = await auditLogService.list({ workspaceId, page: 1, pageSize: 20 })
+    expect(logs.logs.some((log) => log.action === 'membership.ownership_transferred')).toBe(true)
   })
 
   it('allows admin to change member role and members to leave', async () => {
@@ -151,5 +180,10 @@ describe('MembershipService', () => {
     await membershipService.leaveWorkspace(member.id, workspaceId)
     list = await membershipService.listMembers(ownerId, workspaceId)
     expect(list.some((m) => m.accountId === member.id)).toBe(false)
+
+    const logs = await auditLogService.list({ workspaceId, page: 1, pageSize: 50 })
+    const actions = logs.logs.map((log) => log.action)
+    expect(actions).toContain('membership.role_changed')
+    expect(actions).toContain('membership.left')
   })
 })

@@ -14,6 +14,8 @@ import { DocumentService } from '../../../server/src/modules/documents/documentS
 import { DocumentPermissionRepository } from '../../../server/src/modules/documents/documentPermissionRepository'
 import { DocumentPermissionService } from '../../../server/src/modules/documents/documentPermissionService'
 import { DocumentAccessService, DocumentAccessDeniedError } from '../../../server/src/modules/documents/documentAccessService'
+import { AuditLogRepository } from '../../../server/src/modules/audit/auditLogRepository'
+import { AuditLogService } from '../../../server/src/modules/audit/auditLogService'
 import { MembershipAccessDeniedError } from '../../../server/src/modules/workspaces/membershipService'
 
 describe('DocumentPermissionService', () => {
@@ -25,6 +27,7 @@ describe('DocumentPermissionService', () => {
   let documentService: DocumentService
   let documentPermissionService: DocumentPermissionService
   let documentAccessService: DocumentAccessService
+  let auditLogService: AuditLogService
   let ownerAccountId: string
   let memberAccountId: string
   let adminAccountId: string
@@ -39,19 +42,22 @@ describe('DocumentPermissionService', () => {
     const accountRepository = new PrismaAccountRepository(prisma)
     accountService = new AccountService(accountRepository)
     const workspaceRepository = new WorkspaceRepository(prisma)
-    workspaceService = new WorkspaceService(workspaceRepository)
     membershipRepository = new MembershipRepository(prisma)
     const workspaceAccess = new WorkspaceAccessService(workspaceRepository, membershipRepository)
+    workspaceService = new WorkspaceService(workspaceRepository, workspaceAccess)
     const folderRepository = new FolderRepository(prisma)
     const documentRepository = new DocumentRepository(prisma)
     const revisionRepository = new DocumentRevisionRepository(prisma)
     const permissionRepository = new DocumentPermissionRepository(prisma)
+    const auditLogRepository = new AuditLogRepository(prisma)
+    auditLogService = new AuditLogService(auditLogRepository)
     documentAccessService = new DocumentAccessService(documentRepository, permissionRepository, membershipRepository)
     documentPermissionService = new DocumentPermissionService(
       documentRepository,
       permissionRepository,
       membershipRepository,
       documentAccessService,
+      auditLogService,
     )
     documentService = new DocumentService(documentRepository, revisionRepository, folderRepository, membershipRepository, workspaceAccess)
 
@@ -108,6 +114,9 @@ describe('DocumentPermissionService', () => {
 
     const listed = await documentPermissionService.listPermissions(ownerAccountId, workspaceId, documentId)
     expect(listed.workspaceDefaultAccess).toBe('viewer')
+
+    const logs = await auditLogService.list({ workspaceId, page: 1, pageSize: 10 })
+    expect(logs.logs.some((log) => log.action === 'document_permission.workspace_access_updated')).toBe(true)
   })
 
   it('grants and revokes membership permissions', async () => {
@@ -124,6 +133,10 @@ describe('DocumentPermissionService', () => {
     await documentPermissionService.revokePermission(ownerAccountId, workspaceId, documentId, permission.id)
     listed = await documentPermissionService.listPermissions(ownerAccountId, workspaceId, documentId)
     expect(listed.permissions).toHaveLength(0)
+
+    const logs = await auditLogService.list({ workspaceId, page: 1, pageSize: 20 })
+    expect(logs.logs.some((log) => log.action === 'document_permission.granted')).toBe(true)
+    expect(logs.logs.some((log) => log.action === 'document_permission.revoked')).toBe(true)
   })
 
   it('prevents non-managers from updating permissions', async () => {

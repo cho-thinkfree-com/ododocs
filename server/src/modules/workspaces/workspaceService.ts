@@ -2,6 +2,7 @@ import { z } from 'zod'
 import type { WorkspaceVisibility } from '@prisma/client'
 import { WorkspaceRepository, type WorkspaceEntity } from './workspaceRepository'
 import { ensureUniqueSlug } from '../../lib/slug'
+import { WorkspaceAccessService } from './workspaceAccess'
 
 const visibilityEnum: [WorkspaceVisibility, ...WorkspaceVisibility[]] = ['private', 'listed', 'public']
 
@@ -39,7 +40,10 @@ const updateWorkspaceSchema = z
   .refine((value) => Object.keys(value).length > 0, { message: 'At least one field required' })
 
 export class WorkspaceService {
-  constructor(private readonly repository: WorkspaceRepository) {}
+  constructor(
+    private readonly repository: WorkspaceRepository,
+    private readonly workspaceAccess: WorkspaceAccessService,
+  ) {}
 
   async create(ownerAccountId: string, rawInput: z.input<typeof createWorkspaceSchema>): Promise<WorkspaceEntity> {
     const input = createWorkspaceSchema.parse(rawInput)
@@ -64,11 +68,8 @@ export class WorkspaceService {
     return this.repository.findById(id)
   }
 
-  async update(ownerAccountId: string, workspaceId: string, rawInput: z.input<typeof updateWorkspaceSchema>) {
-    const workspace = await this.repository.findById(workspaceId)
-    if (!workspace || workspace.ownerAccountId !== ownerAccountId) {
-      throw new WorkspaceNotFoundError()
-    }
+  async update(actorAccountId: string, workspaceId: string, rawInput: z.input<typeof updateWorkspaceSchema>) {
+    await this.workspaceAccess.assertAdminOrOwner(actorAccountId, workspaceId)
     const input = updateWorkspaceSchema.parse(rawInput)
     return this.repository.update(workspaceId, input)
   }
@@ -78,7 +79,9 @@ export class WorkspaceService {
     if (!workspace || workspace.ownerAccountId !== ownerAccountId) {
       throw new WorkspaceNotFoundError()
     }
-    if (workspace.deletedAt) return
+    if (workspace.deletedAt) {
+      return
+    }
     await this.repository.softDelete(workspaceId)
   }
 }

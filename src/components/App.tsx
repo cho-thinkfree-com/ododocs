@@ -1,6 +1,6 @@
 import { CssBaseline, ThemeProvider, createTheme } from '@mui/material'
-import EditorLayout from './layout/EditorLayout'
 import AuthLanding from './auth/AuthLanding'
+import WorkspaceDashboard from './workspace/WorkspaceDashboard'
 import { AuthProvider, useAuth } from '../context/AuthContext'
 
 const theme = createTheme()
@@ -18,7 +18,7 @@ const App = () => {
 
 const AppContent = () => {
   const { isAuthenticated } = useAuth()
-  return isAuthenticated ? <EditorLayout /> : <AuthLanding />
+  return isAuthenticated ? <WorkspaceDashboard /> : <AuthLanding />
 }
 
 export default App

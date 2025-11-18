@@ -16,6 +16,8 @@ import { DocumentPermissionService } from '../../../server/src/modules/documents
 import { DocumentAccessService, DocumentAccessDeniedError } from '../../../server/src/modules/documents/documentAccessService'
 import { DocumentActionService, DocumentUpdateConflictError } from '../../../server/src/modules/documents/documentActionService'
 import type { DocumentPlanLimitService } from '../../../server/src/modules/documents/planLimitService'
+import { AuditLogRepository } from '../../../server/src/modules/audit/auditLogRepository'
+import { AuditLogService } from '../../../server/src/modules/audit/auditLogService'
 import { MembershipAccessDeniedError } from '../../../server/src/modules/workspaces/membershipService'
 
 class PlanLimitStub implements DocumentPlanLimitService {
@@ -55,13 +57,15 @@ describe('DocumentActionService', () => {
     const accountRepository = new PrismaAccountRepository(prisma)
     accountService = new AccountService(accountRepository)
     const workspaceRepository = new WorkspaceRepository(prisma)
-    workspaceService = new WorkspaceService(workspaceRepository)
     membershipRepository = new MembershipRepository(prisma)
     const workspaceAccess = new WorkspaceAccessService(workspaceRepository, membershipRepository)
+    workspaceService = new WorkspaceService(workspaceRepository, workspaceAccess)
     const folderRepository = new FolderRepository(prisma)
     const documentRepository = new DocumentRepository(prisma)
     const revisionRepository = new DocumentRevisionRepository(prisma)
     const permissionRepository = new DocumentPermissionRepository(prisma)
+    const auditLogRepository = new AuditLogRepository(prisma)
+    const auditLogService = new AuditLogService(auditLogRepository)
     documentAccessService = new DocumentAccessService(documentRepository, permissionRepository, membershipRepository)
     planStub = new PlanLimitStub()
     documentService = new DocumentService(
@@ -77,6 +81,7 @@ describe('DocumentActionService', () => {
       permissionRepository,
       membershipRepository,
       documentAccessService,
+      auditLogService,
     )
     documentActionService = new DocumentActionService(
       documentRepository,

@@ -21,6 +21,8 @@ import {
 import { DocumentShareLinkRepository } from '../../../server/src/modules/documents/documentShareLinkRepository'
 import { DocumentShareLinkSessionRepository } from '../../../server/src/modules/documents/documentShareLinkSessionRepository'
 import { ExternalCollaboratorRepository } from '../../../server/src/modules/documents/externalCollaboratorRepository'
+import { AuditLogRepository } from '../../../server/src/modules/audit/auditLogRepository'
+import { AuditLogService } from '../../../server/src/modules/audit/auditLogService'
 import { MembershipAccessDeniedError } from '../../../server/src/modules/workspaces/membershipService'
 
 const today = () => new Date(Date.now() + 60 * 60 * 1000).toISOString()
@@ -39,6 +41,7 @@ describe('ShareLinkService', () => {
   let adminAccountId: string
   let memberAccountId: string
   let memberMembershipId: string
+  let auditLogService: AuditLogService
 
   beforeEach(async () => {
     dbHandle = createTestDatabase()
@@ -46,9 +49,9 @@ describe('ShareLinkService', () => {
     const accountRepository = new PrismaAccountRepository(prisma)
     accountService = new AccountService(accountRepository)
     const workspaceRepository = new WorkspaceRepository(prisma)
-    workspaceService = new WorkspaceService(workspaceRepository)
     membershipRepository = new MembershipRepository(prisma)
     const workspaceAccess = new WorkspaceAccessService(workspaceRepository, membershipRepository)
+    workspaceService = new WorkspaceService(workspaceRepository, workspaceAccess)
     const folderRepository = new FolderRepository(prisma)
     const documentRepository = new DocumentRepository(prisma)
     const revisionRepository = new DocumentRevisionRepository(prisma)
@@ -56,6 +59,8 @@ describe('ShareLinkService', () => {
     const shareLinkRepository = new DocumentShareLinkRepository(prisma)
     const sessionRepository = new DocumentShareLinkSessionRepository(prisma)
     const collaboratorRepository = new ExternalCollaboratorRepository(prisma)
+    const auditLogRepository = new AuditLogRepository(prisma)
+    auditLogService = new AuditLogService(auditLogRepository)
     const documentAccessService = new DocumentAccessService(documentRepository, permissionRepository, membershipRepository)
     documentService = new DocumentService(documentRepository, revisionRepository, folderRepository, membershipRepository, workspaceAccess)
     shareLinkService = new ShareLinkService(
@@ -65,6 +70,7 @@ describe('ShareLinkService', () => {
       collaboratorRepository,
       membershipRepository,
       documentAccessService,
+      auditLogService,
     )
 
     const owner = await accountService.registerAccount({ email: 'owner+share@example.com', password: 'Sup3rSecure!' })
@@ -105,6 +111,10 @@ describe('ShareLinkService', () => {
     await shareLinkService.revoke(ownerAccountId, workspaceId, shareLink.id)
     const after = await shareLinkService.list(ownerAccountId, workspaceId, documentId)
     expect(after[0].revokedAt).not.toBeNull()
+
+    const logs = await auditLogService.list({ workspaceId, page: 1, pageSize: 10 })
+    expect(logs.logs.some((log) => log.action === 'share_link.created')).toBe(true)
+    expect(logs.logs.some((log) => log.action === 'share_link.revoked')).toBe(true)
   })
 
   it('requires admin/owner to manage share links', async () => {
@@ -150,6 +160,11 @@ describe('ShareLinkService', () => {
     })
     expect(acceptance.sessionToken).toBeDefined()
     await shareLinkService.revokeGuestSessions(ownerAccountId, workspaceId, shareLink.id)
+
+    const logs = await auditLogService.list({ workspaceId, page: 1, pageSize: 20 })
+    expect(logs.logs.some((log) => log.action === 'share_link.updated')).toBe(true)
+    expect(logs.logs.some((log) => log.action === 'share_link.external_accepted')).toBe(true)
+    expect(logs.logs.some((log) => log.action === 'share_link.external_sessions_revoked')).toBe(true)
   })
 
   it('rejects guest acceptance when external edit disabled', async () => {

@@ -9,6 +9,9 @@ import { JoinRequestRepository } from '../../../server/src/modules/workspaces/jo
 import { JoinRequestNotAllowedError, WorkspaceJoinRequestService } from '../../../server/src/modules/workspaces/joinRequestService'
 import { MembershipExistsError } from '../../../server/src/modules/workspaces/membershipService'
 import { createTestDatabase } from '../support/testDatabase'
+import { WorkspaceAccessService } from '../../../server/src/modules/workspaces/workspaceAccess'
+import { AuditLogRepository } from '../../../server/src/modules/audit/auditLogRepository'
+import { AuditLogService } from '../../../server/src/modules/audit/auditLogService'
 
 describe('WorkspaceJoinRequestService', () => {
   let prisma = createPrismaClient()
@@ -17,6 +20,7 @@ describe('WorkspaceJoinRequestService', () => {
   let workspaceService: WorkspaceService
   let membershipRepository: MembershipRepository
   let joinRequestService: WorkspaceJoinRequestService
+  let auditLogService: AuditLogService
   let ownerId: string
   let workspaceId: string
 
@@ -26,14 +30,19 @@ describe('WorkspaceJoinRequestService', () => {
     const accountRepository = new PrismaAccountRepository(prisma)
     accountService = new AccountService(accountRepository)
     const workspaceRepository = new WorkspaceRepository(prisma)
-    workspaceService = new WorkspaceService(workspaceRepository)
+    membershipRepository = new MembershipRepository(prisma)
+    const accessService = new WorkspaceAccessService(workspaceRepository, membershipRepository)
+    workspaceService = new WorkspaceService(workspaceRepository, accessService)
     membershipRepository = new MembershipRepository(prisma)
     const joinRequestRepository = new JoinRequestRepository(prisma)
+    const auditLogRepository = new AuditLogRepository(prisma)
+    auditLogService = new AuditLogService(auditLogRepository)
     joinRequestService = new WorkspaceJoinRequestService(
       joinRequestRepository,
       membershipRepository,
       workspaceRepository,
       accountRepository,
+      auditLogService,
     )
 
     const owner = await accountService.registerAccount({ email: 'owner@example.com', password: 'Sup3rSecure!' })
@@ -74,6 +83,13 @@ describe('WorkspaceJoinRequestService', () => {
 
     const members = await membershipRepository.list(workspaceId)
     expect(members.some((m) => m.accountId === member.id)).toBe(true)
+
+    const logs = await auditLogService.list({ workspaceId, page: 1, pageSize: 20 })
+    expect(
+      logs.logs.some(
+        (log) => log.action === 'membership.added' && (log.metadata as Record<string, unknown> | null)?.['source'] === 'join_request_approval',
+      ),
+    ).toBe(true)
   })
 
   it('auto-approves when domain is allowed and prevents duplicate requests', async () => {
@@ -83,6 +99,13 @@ describe('WorkspaceJoinRequestService', () => {
 
     const auto = await joinRequestService.requestJoin(member.id, workspaceId)
     expect(auto.autoApproved).toBe(true)
+
+    const logs = await auditLogService.list({ workspaceId, page: 1, pageSize: 20 })
+    expect(
+      logs.logs.some(
+        (log) => log.action === 'membership.added' && (log.metadata as Record<string, unknown> | null)?.['source'] === 'join_request_auto',
+      ),
+    ).toBe(true)
 
     await expect(joinRequestService.requestJoin(member.id, workspaceId)).rejects.toBeInstanceOf(MembershipExistsError)
   })
