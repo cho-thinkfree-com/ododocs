@@ -111,20 +111,86 @@ export interface DocumentSummary {
   summary?: string | null
   createdAt: string
   updatedAt: string
+  tags: string[]
+}
+
+export interface DocumentCreateInput {
+  title: string
+  folderId?: string | null
+  visibility?: string
+  status?: string
+}
+
+export interface FolderSummary {
+  id: string
+  workspaceId: string
+  name: string
+  parentId?: string | null
+  pathCache: string
+}
+
+export interface FolderCreateInput {
+  name: string
+  parentId?: string | null
+}
+
+export interface ShareLinkResponse {
+  shareLink: {
+    id: string
+    token: string
+    accessLevel: string
+  }
+  token: string
 }
 
 export const login = (input: LoginInput) => requestJSON<LoginResult>('/api/auth/login', { method: 'POST', body: input })
 export const signup = (input: SignupInput) => requestJSON<AccountResponse>('/api/auth/signup', { method: 'POST', body: input })
 
-export const getWorkspaces = (token: string) => requestJSON<WorkspaceSummary[]>('/api/workspaces', { token })
+export const getWorkspaces = (token: string) =>
+  requestJSON<{ items: WorkspaceSummary[] }>('/api/workspaces', { token }).then((payload) => payload.items ?? [])
 
 export const getWorkspaceMembers = (workspaceId: string, token: string) =>
   requestJSON<{ items: MembershipSummary[] }>(`/api/workspaces/${workspaceId}/members`, { token })
 
-export const getWorkspaceDocuments = (workspaceId: string, token: string, search?: string) =>
-  requestJSON<{ documents: DocumentSummary[]; folders: unknown[] }>(`/api/workspaces/${workspaceId}/documents`, {
+export const getWorkspaceDocuments = (
+  workspaceId: string,
+  token: string,
+  options?: { search?: string; folderId?: string },
+) =>
+  requestJSON<{ documents: DocumentSummary[]; folders: FolderSummary[] }>(
+    `/api/workspaces/${workspaceId}/documents`,
+    {
+      token,
+      query: {
+        search: options?.search,
+        folderId: options?.folderId,
+      },
+    },
+  )
+
+export const createDocument = (workspaceId: string, token: string, body: DocumentCreateInput) =>
+  requestJSON<DocumentSummary>(`/api/workspaces/${workspaceId}/documents`, { method: 'POST', token, body })
+
+export const renameDocument = (documentId: string, token: string, body: { title: string }) =>
+  requestJSON<DocumentSummary>(`/api/documents/${documentId}`, { method: 'PATCH', token, body })
+
+export const createFolder = (workspaceId: string, token: string, body: FolderCreateInput) =>
+  requestJSON<FolderSummary>(`/api/workspaces/${workspaceId}/folders`, { method: 'POST', token, body })
+
+export const addDocumentTag = (documentId: string, token: string, tag: string) =>
+  requestJSON<{ name: string }>(`/api/documents/${documentId}/tags`, { method: 'POST', token, body: { name: tag } })
+
+export const removeDocumentTag = (documentId: string, tag: string, token: string) =>
+  requestJSON<void>(`/api/documents/${documentId}/tags/${encodeURIComponent(tag)}`, {
+    method: 'DELETE',
     token,
-    query: search ? { search } : undefined,
+  })
+
+export const createShareLink = (documentId: string, token: string) =>
+  requestJSON<ShareLinkResponse>(`/api/documents/${documentId}/share-links`, {
+    method: 'POST',
+    token,
+    body: { accessLevel: 'viewer' },
   })
 
 export const updateWorkspace = (workspaceId: string, token: string, body: { name?: string; description?: string }) =>
@@ -132,3 +198,6 @@ export const updateWorkspace = (workspaceId: string, token: string, body: { name
 
 export const closeWorkspace = (workspaceId: string, token: string) =>
   requestJSON<void>(`/api/workspaces/${workspaceId}`, { method: 'DELETE', token })
+
+export const createWorkspace = (token: string, body: { name: string }) =>
+  requestJSON<WorkspaceSummary>('/api/workspaces', { method: 'POST', token, body })

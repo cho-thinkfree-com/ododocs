@@ -10,7 +10,7 @@
 - All authentication logic must sit behind interface-driven services so backing stores can change (custom ID/password, OAuth provider, Supabase Auth, etc.) without rewriting consumers.
 - Introduce `AuthProvider` abstraction with pluggable strategies (LocalPasswordProvider, OAuthProvider, SupabaseProvider). Each implements signup/login/logout/refresh flows with consistent DTOs.
 - Session persistence (tokens, password reset, verification) should use repository interfaces; initial implementation targets SQLite but drivers for PostgreSQL/Supabase must be swappable.
-- Avoid coupling password hashing/token issuance directly in controllers—keep them in service layer so future OAuth-only mode can bypass unused logic cleanly.
+- Avoid coupling password hashing/token issuance directly in controllers?�keep them in service layer so future OAuth-only mode can bypass unused logic cleanly.
 
 ## Core Entities
 
@@ -33,7 +33,7 @@
 - Membership history log for audit (role changes, invitations, removals).
 
 ### WorkspaceRolePolicy
-- Reference table enumerating each role’s capabilities (update workspace meta, manage members, create documents, manage ACLs, delete workspace, transfer ownership).
+- Reference table enumerating each role?�s capabilities (update workspace meta, manage members, create documents, manage ACLs, delete workspace, transfer ownership).
 - Enables future enterprise roles without rewriting code.
 
 ### Folder
@@ -60,7 +60,7 @@
 - Optionally tied to email invites for tracking (when known). Each link tracked for analytics (views/edits).
 
 ### ExternalCollaborator
-- Used when allowing non-members to edit. Represents a lightweight “guest” account with fields: `id`, `email`, `display_name`, `status`.
+- Used when allowing non-members to edit. Represents a lightweight ?�guest??account with fields: `id`, `email`, `display_name`, `status`.
 - Linked to `ShareLink` activations to enforce one guest per invitation when edit rights granted.
 
 ## Role & Permission Model
@@ -71,8 +71,8 @@
 
 ### Permission Evaluation Order
 1. If requester is `owner` or `admin`, allow unless item explicitly locked (`locked_by_owner` flag).
-2. If document visibility is `public` and share link is valid, grant access per link’s access level.
-3. If requester is workspace member, check `DocumentPermission` entries; fallback to document’s `workspace_default_access`.
+2. If document visibility is `public` and share link is valid, grant access per link?�s access level.
+3. If requester is workspace member, check `DocumentPermission` entries; fallback to document?�s `workspace_default_access`.
 4. If requester is `ExternalCollaborator`, ensure their share link still valid and `allow_external_edit` covers requested action.
 5. Deny by default.
 
@@ -124,33 +124,33 @@
 
 ### Frontend Implementation Plan (C Milestones)
 - **Members Dashboard**
-  - Workspace detail view gets a “Members” tab listing owner/admin/member sections. Data source: `/api/workspaces/{id}/members`.
+  - Workspace detail view gets a ?�Members??tab listing owner/admin/member sections. Data source: `/api/workspaces/{id}/members`.
   - Each row shows avatar, display name, role badge, status chip (active/invited/pending), last active timestamp, and contextual actions.
   - Actions:
     - Role dropdown (owner rows disabled; admin dropdown disabled for non-admin viewers).
     - Remove button (hidden/disabled for owner).
-    - Self row displays “Leave workspace”.
-  - Empty state: “No members yet” illustration with CTA to invite.
+    - Self row displays ?�Leave workspace??
+  - Empty state: ?�No members yet??illustration with CTA to invite.
   - Mutations call member APIs and refresh the list; optimistic updates show immediate feedback with inline error fallback.
 - **Members Row UX**
   - Hover state reveals action icons (edit role, remove).
-  - Tooltips explain why actions are disabled (e.g., “Only owners can promote to admin”).
+  - Tooltips explain why actions are disabled (e.g., ?�Only owners can promote to admin??.
   - Status indicator colors:
     - Active: green
     - Invited: blue
     - Pending join: orange
   - Show additional metadata in an expandable panel (e.g., timezone, preferred locale).
 - **Invitations**
-  - Above members table, “Invite Members” form accepts multiple emails with tokenized input and POSTs to `/invitations`.
-  - Pending invitations table displays email, invitedBy, expiry, resend count with “Resend”/“Cancel” controls.
+  - Above members table, ?�Invite Members??form accepts multiple emails with tokenized input and POSTs to `/invitations`.
+  - Pending invitations table displays email, invitedBy, expiry, resend count with ?�Resend???�Cancel??controls.
   - Invitation acceptance page (public route) reads `token`, requires login, then POST `/api/invitations/{token}/accept` and shows success or error state.
-  - Domain allowlist UI (Workspace settings → “Domains”) includes list of current domains, add/remove actions, and descriptive text about auto-join behavior.
+  - Domain allowlist UI (Workspace settings ???�Domains?? includes list of current domains, add/remove actions, and descriptive text about auto-join behavior.
 - **Join Requests**
-  - Public landing for listed/public workspaces includes “Request to Join” button opening a modal (optional message). Submits to `/join-requests`.
+  - Public landing for listed/public workspaces includes ?�Request to Join??button opening a modal (optional message). Submits to `/join-requests`.
   - If server response indicates `autoApproved`, show success dialog and send user directly into the workspace.
-  - Owner/Admin “Join Requests” tab lists pending requests with user info, message, timestamp, and Approve/Deny buttons.
+  - Owner/Admin ?�Join Requests??tab lists pending requests with user info, message, timestamp, and Approve/Deny buttons.
 - **Ownership & Role Settings**
-  - Owners see an “Ownership” panel summarizing current owner and providing “Transfer Ownership” workflow (searchable dropdown + confirmation modal).
+  - Owners see an ?�Ownership??panel summarizing current owner and providing ?�Transfer Ownership??workflow (searchable dropdown + confirmation modal).
   - Owner leaving workspace triggers warning banner requiring transfer or delete.
   - Admin-only surfaces highlight available actions so users understand permissions.
 - **Feedback & Permissions**
@@ -160,7 +160,7 @@
 
 ### UI Style Guidelines
 - Adopt a modern, neutral palette (light/dark) with accent colors for primary actions; rely on semantic tokens (`surface`, `border`, `text`) so themes switch cleanly.
-- Use 8px spacing grid, rounded corners (8–12px), subtle elevation/shadow to separate cards/forms.
+- Use 8px spacing grid, rounded corners (8??2px), subtle elevation/shadow to separate cards/forms.
 - Typography hierarchy: semi-bold headings, medium-weight body, consistent line heights; use condensed type for metadata to keep rows tidy.
 - Interaction states: clear hover/pressed feedback, skeleton loaders for list placeholders, shimmer on cards while fetching.
 - Responsive behavior: members/invite tables collapse into cards on mobile; modals expand full-screen for narrow viewports; action groups convert to menu sheets.
@@ -183,138 +183,139 @@
 - Required for compliance and debugging unauthorized access.
 
 ## Implementation Plan (High-Level)
-1. **Phase A – Accounts & Workspaces**
+1. **Phase A ??Accounts & Workspaces**
    - Build Account + Workspace + Membership tables (SQLite first).
    - Implement signup/login/logout/deletion flows respecting owner constraints.
-2. **Phase B – Roles & Permissions**
+2. **Phase B ??Roles & Permissions**
    - Populate `WorkspaceRolePolicy`.
    - Enforce permission evaluation order on API endpoints.
-3. **Phase C – Document ACL & Internal Sharing**
+3. **Phase C ??Document ACL & Internal Sharing**
    - Create Document/Folder schema, `DocumentPermission` logic, workspace default access settings.
-4. **Phase D – External Sharing**
+4. **Phase D ??External Sharing**
    - ShareLink + ExternalCollaborator tables, guest session handling, edit gating.
-5. **Phase E – Audit & Governance**
+5. **Phase E ??Audit & Governance**
    - Audit logs, rate limits, domain allowlist, workspace join workflows.
 
-Documenting this plan before implementation ensures we can review each relationship (Account ↔ Workspace ↔ Membership, Document ↔ Permissions, ShareLink ↔ ExternalCollaborator) and adjust before coding.
+Documenting this plan before implementation ensures we can review each relationship (Account ??Workspace ??Membership, Document ??Permissions, ShareLink ??ExternalCollaborator) and adjust before coding.
 
 ## Backend Milestones & Required Tests
 Milestones are intentionally small so each can be implemented + tested before moving on. Every milestone must provide its own automated test suite (unit + integration) and leave the system in a runnable state for the next milestone.
 
-### Milestone A1 – Account Storage
-- **Status:** ✅ Completed (2025-11-17) – Prisma schema, migrations, repository/service layer, and Vitest coverage for create/find/duplicate paths.
+### Milestone A1 ??Account Storage
+- **Status:** ??Completed (2025-11-17) ??Prisma schema, migrations, repository/service layer, and Vitest coverage for create/find/duplicate paths.
 - Scope: Account table, password hashing, unique email constraint, created/updated timestamps.
 - Tests: account creation success, duplicate email rejection, password hashing correctness, serialization/deserialization in SQLite.
 - Dependency for A2+ because later auth/session logic relies on stored accounts.
 
-### Milestone A2 – Session & Auth API
-- **Status:** ✅ Completed (2025-11-17) – Signup/login/logout/logout-all/refresh services with session table, hashed refresh tokens, login throttling, and Vitest suites.
+### Milestone A2 ??Session & Auth API
+- **Status:** ??Completed (2025-11-17) ??Signup/login/logout/logout-all/refresh services with session table, hashed refresh tokens, login throttling, and Vitest suites.
 - Scope: Signup/login/logout endpoints, session tokens (refresh + access), brute-force throttling, logout all sessions.
 - Tests: signup validation, login success/fail (bad password, unknown email), session issuance/revocation, throttling triggered after repeated failures.
 - Requires A1 complete; once done, enables QA to manually sign up/login without workspace features.
 
-### Milestone A3 – Account Deletion & Recovery
-- **Status:** ✅ Completed (2025-11-17) – Password reset tokens + confirmation flow, guarded account deletion, session revocation, and coverage.
+### Milestone A3 ??Account Deletion & Recovery
+- **Status:** ??Completed (2025-11-17) ??Password reset tokens + confirmation flow, guarded account deletion, session revocation, and coverage.
 - Scope: Password reset requests, token verification, account deletion workflow (blocked if owning workspace), soft delete flags.
 - Tests: reset token issuance/expiration, password update flow, deletion blocked when owner, successful deletion when not owner, session invalidation post deletion.
 - After A3, auth layer is stable for Workspace milestones.
 
-### Milestone B1 – Workspace Creation Basics
-- **Status:** ✅ Completed (2025-11-17) – Workspace schema/migrations, slug helper, owner auto-assignment, list/get logic, and Vitest coverage.
+### Milestone B1 ??Workspace Creation Basics
+- **Status:** ??Completed (2025-11-17) ??Workspace schema/migrations, slug helper, owner auto-assignment, list/get logic, and Vitest coverage.
 - Scope: Workspace table, create/list/read endpoints, owner auto-assignment (creator becomes owner), SQLite migrations.
 - Tests: workspace create/list for a user, verify owner assigned, enforce owner uniqueness (no duplicate owner rows), soft delete flag prevents accidental purge.
 - Depends on A2 (needs authenticated user). Provides base for metadata/edit flows.
 
-### Milestone B2 – Workspace Metadata & Delete
-- **Status:** ✅ Completed (2025-11-17) – PATCH/DELETE operations with HTTPS cover validation, required-field checks, idempotent soft delete, and tests.
+### Milestone B2 ??Workspace Metadata & Delete
+- **Status:** ??Completed (2025-11-17) ??PATCH/DELETE operations with HTTPS cover validation, required-field checks, idempotent soft delete, and tests.
 - Scope: Update workspace name/description/locale/cover, delete (soft) workspace, ensure owner constraints before deletion.
 - Tests: metadata update permissions (owner/admin), delete fails when non-owner, delete success with confirmation, ensure deleted workspaces hidden from listings.
 - Enables later membership/invite UI to rely on editable workspace info.
 
-### Milestone C1 – Membership Model
-- **Status:** ✅ Completed (2025-11-17) – Membership schema, role/status enforcement, locale/timezone preferences, and service tests.
+### Milestone C1 ??Membership Model
+- **Status:** ??Completed (2025-11-17) ??Membership schema, role/status enforcement, locale/timezone preferences, and service tests.
 - Scope: WorkspaceMembership table, role field, workspace-scoped profile, owner/admin/member enums.
 - Tests: adding membership rows, enforcing one owner per workspace, retrieving memberships, preventing duplicate membership entries per account/workspace.
 - Required before invitations/join flows.
 
-### Milestone C2 – Invitations & Join Requests
-- **Status:** ✅ Completed (2025-11-17) – Invitation tokens, resend/cancel/accept logic, domain allowlist, join request approvals, and full test coverage.
+### Milestone C2 ??Invitations & Join Requests
+- **Status:** ??Completed (2025-11-17) ??Invitation tokens, resend/cancel/accept logic, domain allowlist, join request approvals, and full test coverage.
 - Scope: Invitation API (send, accept, decline), join request pending queue, domain allowlist auto-join.
 - Tests: invite flow (token validation, expiry), acceptance sets membership active, decline removes pending invite, domain auto-join bypasses approval, join requests require admin approval.
 - Builds on C1; upon completion, workspace population flows are functional.
 
-### Milestone C3 – Role Transitions & Ownership Transfer
-- **Status:** ✅ Completed (2025-11-17) – Ownership transfer, role change API, member self-leave, owner leave guard, and accompanying tests.
+### Milestone C3 ??Role Transitions & Ownership Transfer
+- **Status:** ??Completed (2025-11-17) ??Ownership transfer, role change API, member self-leave, owner leave guard, and accompanying tests.
 - Scope: Promote/demote members, transfer ownership, enforce owner uniqueness, member removal.
 - Tests: role change authorization (only owner can transfer), transfer success path, demote admin to member, removing members updates audit log, owner cannot demote without new owner.
 - Sets stage for document permissions to rely on accurate roles.
 
-### Milestone D1 – Folder & Document Metadata
-- **Status:** ✅ Completed (2025-11-17) – Step-S9 사양 + Prisma 스키마 + 폴더/문서/리비전 서비스/테스트 모두 반영.
+### Milestone D1 ??Folder & Document Metadata
+- **Status:** ??Completed (2025-11-17) ??Step-S9 ?�양 + Prisma ?�키�?+ ?�더/문서/리비???�비???�스??모두 반영.
 - Scope: Folder tree CRUD, Document table (title, folder, visibility), DocumentRevision table storing editor JSON.
 - Tests: folder nesting, move operations, document create/update metadata, revision append test, retrieving latest revision.
 - Provides persistence base for ACL features.
 
-### Milestone D2 – Document Permissions (Internal)
-- **Status:** ✅ Completed (2025-11-17) – DocumentPermission 테이블, 기본 접근 정책, 권한 평가 서비스/TDD 완료.
+### Milestone D2 ??Document Permissions (Internal)
+- **Status:** ??Completed (2025-11-17) ??DocumentPermission ?�이�? 기본 ?�근 ?�책, 권한 ?��? ?�비??TDD ?�료.
 - Scope: DocumentPermission table, workspace default access flags, permission evaluation service for owner/admin/member.
 - Tests: private/workspace/shared scenarios, ACL overrides for specific members, denial when insufficient role, ensuring default access cascades.
 - After D2, internal editing and viewing is fully governed.
 
-### Milestone D3 – Document Actions & Validation
-- **Status:** ✅ Completed (2025-11-17) – DocumentActionService, 권한 기반 CRUD/낙관적 잠금/리비전 목록 + 테스트 완료.
+### Milestone D3 ??Document Actions & Validation
+- **Status:** ??Completed (2025-11-17) ??DocumentActionService, 권한 기반 CRUD/?��????�금/리비??목록 + ?�스???�료.
 - Scope: API endpoints for create/update/delete documents using permission checks, optimistic locking, plan limit hooks.
 - Tests: create/edit/delete success/failure per role, concurrent edit conflict detection, plan limit enforcement stubs.
 - Prepares for external sharing by ensuring internal actions are stable.
 
-### Milestone E1 – Share Links (View/Comment)
-- **Status:** ✅ Completed (2025-11-17) – ShareLink 테이블/토큰/비밀번호/만료/리졸브 로직과 테스트 완료.
+### Milestone E1 ??Share Links (View/Comment)
+- **Status:** ??Completed (2025-11-17) ??ShareLink ?�이�??�큰/비�?번호/만료/리졸�?로직�??�스???�료.
 - Scope: ShareLink table, generate/revoke links, password + expiration logic, viewer/commenter support for anonymous users.
 - Tests: create share link, password validation, expired link rejection, access log entry on view/comment, revoke hides document immediately.
 - Allows safe public viewing/commenting before edit rights exist.
 
-### Milestone E2 – External Collaborators (Edit)
-- **Status:** ✅ Completed (2025-11-17) – ExternalCollaborator/guest session/allow_external_edit 로직과 테스트 완료.
+### Milestone E2 ??External Collaborators (Edit)
+- **Status:** ??Completed (2025-11-17) ??ExternalCollaborator/guest session/allow_external_edit 로직�??�스???�료.
 - Scope: ExternalCollaborator profiles, linking to share links, allow_external_edit flag, guest session tokens.
 - Tests: guest signup via link, edit allowed only when flag true, guest audit log entries, revocation invalidates guest sessions.
 - Completes external sharing story.
 
-### Milestone F1 – Audit Logging
-- Scope: Audit log table, capture membership changes, share link actions, document permission edits.
-- Tests: verify log entries created for each critical action, querying logs by workspace/user.
+### Milestone F1 ??Audit Logging
+- **Status:** ??In progress (2025-11-18) ??AuditLog schema/migration + repository/service wired; membership lifecycle (add/reactivate/remove/role change/ownership transfer/leave, join request auto/approval, invitation acceptance) + document permission + share link events already recording entries. HTTP /audit query handler ships with the future HTTP layer.
+- Scope: Audit log table, capture membership changes, share link actions, document permission edits, and external collaborator session events with structured metadata (role/status/source/joinRequestId/invitationId).
+- Tests: verify log entries created for each critical action (membership service, invitations, join requests, document permission service, share link service), AuditLogService query filters/pagination, querying logs by workspace/user.
 - Required before governance/monitoring features.
 
-### Milestone F2 – Governance & Rate Limiting
+### Milestone F2 ??Governance & Rate Limiting
 - Scope: Access logs, rate limit enforcement, workspace delete safety checks, template sharing policies.
 - Tests: rate limit triggers, workspace delete blocked when docs exist and confirmation missing, template sharing respects ACL, access logs queryable.
 - Final milestone ensures operational safety/compliance.
 
-Milestones must be developed sequentially (A1 → F2). Each milestone’s tests double as the regression suite the next milestone will run before adding new ones, guaranteeing we can continue development without regressions.
+Milestones must be developed sequentially (A1 ??F2). Each milestone?�s tests double as the regression suite the next milestone will run before adding new ones, guaranteeing we can continue development without regressions.
 
 ## API Step Mapping
 Each milestone must link to a concrete step spec under `docs/api/step-S{n}.md`. Draft the spec before coding; include request/response schema, validation, error codes, and acceptance tests.
 
 | Milestone | API Step(s) | Scope |
 |-----------|-------------|-------|
-| A1 – Account Storage | `step-S1.md` | Account repository interface, data model, migrations. |
-| A2 – Session & Auth API | `step-S2.md` | `/api/auth/signup`, `/api/auth/login`, `/api/auth/logout`, session token refresh, throttle strategy. |
-| A3 – Account Deletion & Recovery | `step-S3.md` | `/api/auth/password-reset/request`, `/api/auth/password-reset/confirm`, `/api/auth/delete`. |
-| B1 – Workspace Creation Basics | `step-S4.md` | `/api/workspaces` (create/list), workspace detail GET. |
-| B2 – Workspace Metadata & Delete | `step-S5.md` | `/api/workspaces/:id` PATCH/DELETE, cover upload signed URL endpoints. |
-| C1 – Membership Model | `step-S6.md` | Membership listing endpoints, role policy read. |
-| C2 – Invitations & Join Requests | `step-S7.md` | `/api/workspaces/:id/invitations` CRUD, join request endpoints, domain allowlist management. |
-| C3 – Role Transitions & Ownership Transfer | `step-S8.md` | Role change endpoint, ownership transfer mutation, member removal API. |
-| D1 – Folder & Document Metadata | `step-S9.md` | `/api/workspaces/:id/folders` CRUD, `/api/documents` create/list metadata. |
-| D2 – Document Permissions (Internal) | `step-S10.md` | `/api/documents/:id/permissions`, workspace default access APIs. |
-| D3 – Document Actions & Validation | `step-S11.md` | `/api/documents/:id` GET/PATCH/DELETE, revision history endpoint, optimistic locking error codes. |
-| E1 – Share Links (View/Comment) | `step-S12.md` | `/api/documents/:id/share-links` CRUD, password validation endpoint. |
-| E2 – External Collaborators (Edit) | `step-S13.md` | `/api/share-links/:id/accept`, guest session issuance, revocation endpoints. |
-| F1 – Audit Logging | `step-S14.md` | `/api/audit` query endpoints, event emitter hooks. |
-| F2 – Governance & Rate Limiting | `step-S15.md` | Rate limit config endpoints, workspace delete confirmation workflow, template management APIs. |
+| A1 ??Account Storage | `step-S1.md` | Account repository interface, data model, migrations. |
+| A2 ??Session & Auth API | `step-S2.md` | `/api/auth/signup`, `/api/auth/login`, `/api/auth/logout`, session token refresh, throttle strategy. |
+| A3 ??Account Deletion & Recovery | `step-S3.md` | `/api/auth/password-reset/request`, `/api/auth/password-reset/confirm`, `/api/auth/delete`. |
+| B1 ??Workspace Creation Basics | `step-S4.md` | `/api/workspaces` (create/list), workspace detail GET. |
+| B2 ??Workspace Metadata & Delete | `step-S5.md` | `/api/workspaces/:id` PATCH/DELETE, cover upload signed URL endpoints. |
+| C1 ??Membership Model | `step-S6.md` | Membership listing endpoints, role policy read. |
+| C2 ??Invitations & Join Requests | `step-S7.md` | `/api/workspaces/:id/invitations` CRUD, join request endpoints, domain allowlist management. |
+| C3 ??Role Transitions & Ownership Transfer | `step-S8.md` | Role change endpoint, ownership transfer mutation, member removal API. |
+| D1 ??Folder & Document Metadata | `step-S9.md` | `/api/workspaces/:id/folders` CRUD, `/api/documents` create/list metadata. |
+| D2 ??Document Permissions (Internal) | `step-S10.md` | `/api/documents/:id/permissions`, workspace default access APIs. |
+| D3 ??Document Actions & Validation | `step-S11.md` | `/api/documents/:id` GET/PATCH/DELETE, revision history endpoint, optimistic locking error codes. |
+| E1 ??Share Links (View/Comment) | `step-S12.md` | `/api/documents/:id/share-links` CRUD, password validation endpoint. |
+| E2 ??External Collaborators (Edit) | `step-S13.md` | `/api/share-links/:id/accept`, guest session issuance, revocation endpoints. |
+| F1 ??Audit Logging | `step-S14.md` | `/api/audit` query endpoints, event emitter hooks. |
+| F2 ??Governance & Rate Limiting | `step-S15.md` | Rate limit config endpoints, workspace delete confirmation workflow, template management APIs. |
 
 When extending scope with new sub-features, append additional step files instead of overloading an existing spec.
 
-> 삼국지: API 구현 시에는 반드시 `docs/api/step-S*.md` 파일을 먼저 채워 요청/응답 필드, 검증 로직, 에러 코드까지 상세히 정의하고 TDD 시나리오를 명시한 뒤 개발에 착수한다. 이렇게 해야 프런트엔드/QA가 참조할 API 문서가 항상 최신 상태로 유지된다.
+> ?�국지: API 구현 ?�에??반드??`docs/api/step-S*.md` ?�일??먼�? 채워 ?�청/?�답 ?�드, 검�?로직, ?�러 코드까�? ?�세???�의?�고 TDD ?�나리오�?명시????개발??착수?�다. ?�렇�??�야 ?�런?�엔??QA가 참조??API 문서가 ??�� 최신 ?�태�??��??�다.
 
 ### API Documentation toolchain
 - Use **OpenAPI 3.1** as the canonical schema format. Each `step-S*.md` should include an embedded YAML snippet or a link to `/docs/api/openapi/step-S*.yaml`.
@@ -334,3 +335,4 @@ When extending scope with new sub-features, append additional step files instead
 - Cover every role/permission branch: owner/admin/member actions, pending/removed statuses, share-link password/error paths, external collaborator edit gating, folder ACL inheritance, and workspace deletion edge cases.
 - Automate regression suites for signup/login/logout, membership invitations, domain auto-join, document ACL mutations, share-link revocation, and audit logging.
 - Include testing strategy summaries within each step spec (e.g., `docs/api/step-S3.md`) so no endpoint ships without exhaustive test cases.
+

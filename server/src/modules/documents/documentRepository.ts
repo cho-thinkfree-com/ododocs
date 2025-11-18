@@ -22,6 +22,7 @@ export interface DocumentEntity {
   deletedAt?: Date | null
   createdAt: Date
   updatedAt: Date
+  tags: string[]
 }
 
 export interface DocumentCreateInput {
@@ -96,6 +97,13 @@ export class DocumentRepository {
         workspaceEditorAdminsOnly: input.workspaceEditorAdminsOnly,
         deletedAt: input.deletedAt,
       },
+      include: {
+        tags: {
+          select: {
+            name: true,
+          },
+        },
+      },
     })
     return toEntity(document)
   }
@@ -127,7 +135,14 @@ export class DocumentRepository {
   }
 
   async findById(id: string): Promise<DocumentEntity | null> {
-    const document = await this.prisma.document.findUnique({ where: { id } })
+    const document = await this.prisma.document.findUnique({
+      where: { id },
+      include: {
+        tags: {
+          select: { name: true },
+        },
+      },
+    })
     return document ? toEntity(document) : null
   }
 
@@ -148,6 +163,13 @@ export class DocumentRepository {
           : {}),
       },
       orderBy: [{ sortOrder: 'asc' }, { title: 'asc' }],
+      include: {
+        documentTags: {
+          select: {
+            name: true,
+          },
+        },
+      },
     })
     return documents.map(toEntity)
   }
@@ -194,4 +216,5 @@ const toEntity = (document: DocumentModel): DocumentEntity => ({
   deletedAt: document.deletedAt,
   createdAt: document.createdAt,
   updatedAt: document.updatedAt,
+  tags: (document as DocumentModel & { documentTags?: { name: string }[] }).documentTags?.map((tag) => tag.name) ?? [],
 })

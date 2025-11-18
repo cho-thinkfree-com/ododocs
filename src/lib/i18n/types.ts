@@ -121,4 +121,8 @@ export type WorkspaceStrings = {
   closeWarning: string
   openEditor: string
   switchWorkspace: string
+  createWorkspaceTitle: string
+  createWorkspacePlaceholder: string
+  createWorkspaceButton: string
+  logoutLabel: string
 }

@@ -1,8 +1,9 @@
-﻿import { randomBytes } from 'node:crypto'
+import { randomBytes } from 'node:crypto'
 import { z } from 'zod'
 import type { DocumentShareLinkAccess } from '@prisma/client'
 import { Argon2PasswordHasher } from '../../lib/passwordHasher'
 import { hashToken } from '../../lib/tokenGenerator'
+import { AuditLogService } from '../audit/auditLogService'
 import { DocumentRepository, type DocumentEntity } from './documentRepository'
 import { DocumentShareLinkRepository, type ShareLinkEntity } from './documentShareLinkRepository'
 import { DocumentShareLinkSessionRepository } from './documentShareLinkSessionRepository'
@@ -11,6 +12,7 @@ import { MembershipRepository, type MembershipEntity } from '../workspaces/membe
 import { DocumentAccessService } from './documentAccessService'
 import { MembershipAccessDeniedError } from '../workspaces/membershipService'
 import { DocumentNotFoundError } from './documentService'
+import { ShareLinkPasswordRequiredError, ShareLinkEditNotAllowedError } from './shareLinkServiceErrors'
 
 const createSchema = z.object({
   accessLevel: z.enum(['viewer', 'commenter']),
@@ -32,20 +34,6 @@ const acceptSchema = z.object({
   password: z.string().optional(),
 })
 
-export class ShareLinkPasswordRequiredError extends Error {
-  constructor() {
-    super('Share link password required or incorrect')
-    this.name = 'ShareLinkPasswordRequiredError'
-  }
-}
-
-export class ShareLinkEditNotAllowedError extends Error {
-  constructor() {
-    super('Share link does not allow external editing')
-    this.name = 'ShareLinkEditNotAllowedError'
-  }
-}
-
 const GUEST_SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 7 // 7 days
 
 export class ShareLinkService {
@@ -56,6 +44,7 @@ export class ShareLinkService {
     private readonly collaboratorRepository: ExternalCollaboratorRepository,
     private readonly membershipRepository: MembershipRepository,
     private readonly documentAccess: DocumentAccessService,
+    private readonly auditLogService: AuditLogService,
     private readonly passwordHasher = new Argon2PasswordHasher(),
   ) {}
 
@@ -82,23 +71,52 @@ export class ShareLinkService {
       expiresAt: input.expiresAt ? new Date(input.expiresAt) : null,
       createdByMembershipId: membership.id,
     })
+    await this.auditLogService.record({
+      workspaceId,
+      actor: { type: 'membership', membershipId: membership.id },
+      action: 'share_link.created',
+      entityType: 'share_link',
+      entityId: shareLink.id,
+      metadata: {
+        accessLevel: shareLink.accessLevel,
+        expiresAt: shareLink.expiresAt?.toISOString() ?? null,
+      },
+    })
     return { shareLink, token }
   }
 
   async revoke(accountId: string, workspaceId: string, shareLinkId: string) {
     const shareLink = await this.ensureShareLink(shareLinkId)
     const document = await this.getDocument(shareLink.documentId, workspaceId)
-    await this.assertManager(accountId, workspaceId, document)
+    const membership = await this.assertManager(accountId, workspaceId, document)
     await this.shareLinkRepository.revoke(shareLinkId)
     await this.sessionRepository.revokeByShareLinkId(shareLinkId)
+    await this.auditLogService.record({
+      workspaceId,
+      actor: { type: 'membership', membershipId: membership.id },
+      action: 'share_link.revoked',
+      entityType: 'share_link',
+      entityId: shareLinkId,
+    })
   }
 
   async updateOptions(accountId: string, workspaceId: string, shareLinkId: string, payload: unknown) {
     const shareLink = await this.ensureShareLink(shareLinkId)
     const document = await this.getDocument(shareLink.documentId, workspaceId)
-    await this.assertManager(accountId, workspaceId, document)
+    const membership = await this.assertManager(accountId, workspaceId, document)
     const input = updateOptionsSchema.parse(payload)
-    return this.shareLinkRepository.updateOptions(shareLinkId, { allowExternalEdit: input.allowExternalEdit })
+    const updated = await this.shareLinkRepository.updateOptions(shareLinkId, {
+      allowExternalEdit: input.allowExternalEdit,
+    })
+    await this.auditLogService.record({
+      workspaceId,
+      actor: { type: 'membership', membershipId: membership.id },
+      action: 'share_link.updated',
+      entityType: 'share_link',
+      entityId: shareLinkId,
+      metadata: { allowExternalEdit: updated.allowExternalEdit },
+    })
+    return updated
   }
 
   async resolveToken(token: string, payload: unknown) {
@@ -129,6 +147,14 @@ export class ShareLinkService {
       tokenHash: hashToken(sessionToken),
       expiresAt,
     })
+    await this.auditLogService.record({
+      workspaceId: document.workspaceId,
+      actor: { type: 'external', collaboratorId: collaborator.id },
+      action: 'share_link.external_accepted',
+      entityType: 'share_link',
+      entityId: shareLink.id,
+      metadata: { accessLevel: shareLink.accessLevel },
+    })
     return {
       documentId: document.id,
       workspaceId: document.workspaceId,
@@ -142,8 +168,15 @@ export class ShareLinkService {
   async revokeGuestSessions(accountId: string, workspaceId: string, shareLinkId: string) {
     const shareLink = await this.ensureShareLink(shareLinkId)
     const document = await this.getDocument(shareLink.documentId, workspaceId)
-    await this.assertManager(accountId, workspaceId, document)
+    const membership = await this.assertManager(accountId, workspaceId, document)
     await this.sessionRepository.revokeByShareLinkId(shareLinkId)
+    await this.auditLogService.record({
+      workspaceId,
+      actor: { type: 'membership', membershipId: membership.id },
+      action: 'share_link.external_sessions_revoked',
+      entityType: 'share_link',
+      entityId: shareLinkId,
+    })
   }
 
   private async verifyShareLinkToken(
@@ -201,3 +234,5 @@ export class ShareLinkService {
     return true
   }
 }
+
+export { ShareLinkPasswordRequiredError, ShareLinkEditNotAllowedError } from './shareLinkServiceErrors'

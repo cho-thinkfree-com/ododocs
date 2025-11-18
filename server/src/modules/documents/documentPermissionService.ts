@@ -1,5 +1,6 @@
 ﻿import { z } from 'zod'
 import type { DocumentWorkspaceAccess } from '@prisma/client'
+import { AuditLogService } from '../audit/auditLogService'
 import { DocumentRepository, type DocumentEntity } from './documentRepository'
 import { DocumentPermissionRepository, type DocumentPermissionEntity } from './documentPermissionRepository'
 import { MembershipRepository, type MembershipEntity } from '../workspaces/membershipRepository'
@@ -26,6 +27,7 @@ export class DocumentPermissionService {
     private readonly permissionRepository: DocumentPermissionRepository,
     private readonly membershipRepository: MembershipRepository,
     private readonly documentAccess: DocumentAccessService,
+    private readonly auditLogService: AuditLogService,
   ) {}
 
   async listPermissions(accountId: string, workspaceId: string, documentId: string) {
@@ -43,7 +45,7 @@ export class DocumentPermissionService {
 
   async grantPermission(accountId: string, workspaceId: string, documentId: string, payload: unknown) {
     const document = await this.getDocument(documentId, workspaceId)
-    await this.assertManager(accountId, workspaceId, document)
+    const membership = await this.assertManager(accountId, workspaceId, document)
     const input = permissionInputSchema.parse(payload)
     const targetMembership = await this.membershipRepository.findById(input.principalId)
     if (!targetMembership || targetMembership.workspaceId !== workspaceId) {
@@ -57,26 +59,57 @@ export class DocumentPermissionService {
       targetMembership.id,
       input.role,
     )
+    await this.auditLogService.record({
+      workspaceId,
+      actor: { type: 'membership', membershipId: membership.id },
+      action: 'document_permission.granted',
+      entityType: 'document',
+      entityId: documentId,
+      metadata: {
+        permissionId: permission.id,
+        targetMembershipId: targetMembership.id,
+        role: permission.role,
+      },
+    })
     return permission
   }
 
   async revokePermission(accountId: string, workspaceId: string, documentId: string, permissionId: string) {
     const document = await this.getDocument(documentId, workspaceId)
-    await this.assertManager(accountId, workspaceId, document)
+    const membership = await this.assertManager(accountId, workspaceId, document)
     const permission = await this.permissionRepository.findById(permissionId)
     if (!permission || permission.documentId !== documentId) {
       throw new DocumentNotFoundError()
     }
     await this.permissionRepository.delete(permissionId)
+    await this.auditLogService.record({
+      workspaceId,
+      actor: { type: 'membership', membershipId: membership.id },
+      action: 'document_permission.revoked',
+      entityType: 'document',
+      entityId: documentId,
+      metadata: { permissionId },
+    })
   }
 
   async updateWorkspaceAccess(accountId: string, workspaceId: string, documentId: string, payload: unknown) {
     const document = await this.getDocument(documentId, workspaceId)
-    await this.assertManager(accountId, workspaceId, document)
+    const membership = await this.assertManager(accountId, workspaceId, document)
     const input = workspaceAccessSchema.parse(payload)
     const updated = await this.documentRepository.update(documentId, {
       workspaceDefaultAccess: input.defaultAccess as DocumentWorkspaceAccess | undefined,
       workspaceEditorAdminsOnly: input.editorsAdminOnly,
+    })
+    await this.auditLogService.record({
+      workspaceId,
+      actor: { type: 'membership', membershipId: membership.id },
+      action: 'document_permission.workspace_access_updated',
+      entityType: 'document',
+      entityId: documentId,
+      metadata: {
+        defaultAccess: updated.workspaceDefaultAccess,
+        editorAdminsOnly: updated.workspaceEditorAdminsOnly,
+      },
     })
     return updated
   }

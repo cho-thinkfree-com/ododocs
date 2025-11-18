@@ -381,7 +381,11 @@
       "closeWarning": "Closing removes the workspace for everyone. This action is permanent.",
       "openEditor": "Open editor",
       "switchWorkspace": "Switch workspace",
-      "searchButton": "Search documents"
+      "searchButton": "Search documents",
+      "createWorkspaceTitle": "Create your first workspace",
+      "createWorkspacePlaceholder": "Workspace name",
+      "createWorkspaceButton": "Create workspace",
+      "logoutLabel": "Log out"
     }
   },
   "ko-KR": {
@@ -766,7 +770,11 @@
       "closeWarning": "이 작업은 되돌릴 수 없으며 모든 사용자가 이용할 수 없게 됩니다.",
       "openEditor": "편집기 열기",
       "switchWorkspace": "워크스페이스 전환",
-      "searchButton": "문서 검색"
+      "searchButton": "문서 검색",
+      "createWorkspaceTitle": "워크스페이스 생성",
+      "createWorkspacePlaceholder": "워크스페이스 이름",
+      "createWorkspaceButton": "워크스페이스 만들기",
+      "logoutLabel": "로그아웃"
     }
   }
 }

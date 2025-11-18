@@ -1,5 +1,6 @@
 import Fastify, { type FastifyInstance, type FastifyRequest } from 'fastify'
 import fastifyStatic from '@fastify/static'
+import fastifyCors from '@fastify/cors'
 import path from 'node:path'
 import { z } from 'zod'
 import { DocumentStatus, DocumentVisibility } from '@prisma/client'
@@ -31,6 +32,12 @@ import { DocumentPermissionRepository } from './modules/documents/documentPermis
 import { DocumentAccessService } from './modules/documents/documentAccessService'
 import { DocumentPermissionService } from './modules/documents/documentPermissionService'
 import { ShareLinkService } from './modules/documents/shareLinkService'
+import { DocumentTagRepository } from './modules/documents/documentTagRepository'
+import {
+  DocumentTagService,
+  DocumentTagAlreadyExistsError,
+  DocumentTagNotFoundError,
+} from './modules/documents/documentTagService'
 import { DocumentShareLinkRepository } from './modules/documents/documentShareLinkRepository'
 import { DocumentShareLinkSessionRepository } from './modules/documents/documentShareLinkSessionRepository'
 import { ExternalCollaboratorRepository } from './modules/documents/externalCollaboratorRepository'
@@ -51,6 +58,9 @@ export const buildServer = ({ prisma, logger = true }: ServerOptions = {}) => {
   const db = prisma ?? createPrismaClient()
   const app: FastifyInstance = Fastify({ logger: logger ? ['error', 'warn'] : false })
 
+  app.register(fastifyCors, {
+    origin: true,
+  })
   app.register(fastifyStatic, {
     root: path.join(process.cwd(), 'docs/api/openapi'),
     prefix: '/api/openapi/',
@@ -73,8 +83,8 @@ export const buildServer = ({ prisma, logger = true }: ServerOptions = {}) => {
 
   const workspaceRepository = new WorkspaceRepository(db)
   const membershipRepository = new MembershipRepository(db)
-  const workspaceAccessService = new WorkspaceAccessService(workspaceRepository, membershipRepository)
-  const workspaceService = new WorkspaceService(workspaceRepository, workspaceAccessService)
+  const workspaceAccess = new WorkspaceAccessService(workspaceRepository, membershipRepository)
+  const workspaceService = new WorkspaceService(workspaceRepository, workspaceAccess)
   const membershipService = new MembershipService(membershipRepository, workspaceRepository, auditLogService)
   const invitationService = new WorkspaceInvitationService(
     new InvitationRepository(db),
@@ -90,19 +100,20 @@ export const buildServer = ({ prisma, logger = true }: ServerOptions = {}) => {
     accountRepository,
     auditLogService,
   )
-  const workspaceAccessService = new WorkspaceAccessService(workspaceRepository, membershipRepository)
 
   const documentRepository = new DocumentRepository(db)
+  const documentTagRepository = new DocumentTagRepository(db)
   const documentRevisionRepository = new DocumentRevisionRepository(db)
   const folderRepository = new FolderRepository(db)
-  const folderService = new FolderService(folderRepository, workspaceAccessService, documentRepository)
+  const folderService = new FolderService(folderRepository, workspaceAccess, documentRepository)
   const documentService = new DocumentService(
     documentRepository,
     documentRevisionRepository,
     folderRepository,
     membershipRepository,
-    workspaceAccessService,
+    workspaceAccess,
   )
+  const documentTagService = new DocumentTagService(documentTagRepository, workspaceAccess)
   const documentPermissionRepository = new DocumentPermissionRepository(db)
   const documentAccessService = new DocumentAccessService(documentRepository, documentPermissionRepository, membershipRepository)
   const documentPermissionService = new DocumentPermissionService(
@@ -129,7 +140,7 @@ export const buildServer = ({ prisma, logger = true }: ServerOptions = {}) => {
   const exportJobService = new ExportJobService(
     exportJobRepository,
     membershipRepository,
-    workspaceAccessService,
+    workspaceAccess,
     auditLogService,
   )
 
@@ -352,7 +363,7 @@ export const buildServer = ({ prisma, logger = true }: ServerOptions = {}) => {
   app.get('/api/workspaces/:workspaceId', { preHandler: authenticate }, async (request, reply) => {
     const accountId = requireAccountId(request)
     const workspaceId = (request.params as { workspaceId: string }).workspaceId
-    await workspaceAccessService.assertOwner(accountId, workspaceId)
+    await workspaceAccess.assertOwner(accountId, workspaceId)
     const workspace = await workspaceService.getById(workspaceId)
     if (!workspace) {
       throw app.httpErrors.notFound()
@@ -533,20 +544,51 @@ export const buildServer = ({ prisma, logger = true }: ServerOptions = {}) => {
     reply.status(201).send(document)
   })
 
-  app.get('/api/documents/:documentId', { preHandler: authenticate }, async (request, reply) => {
-    const accountId = requireAccountId(request)
-    const documentId = (request.params as { documentId: string }).documentId
-    const document = await loadDocumentWorkspace(documentId)
-    await documentAccessService.assertCanView(accountId, document.workspaceId, documentId)
-    reply.send(document)
-  })
-
   app.patch('/api/documents/:documentId', { preHandler: authenticate }, async (request, reply) => {
     const accountId = requireAccountId(request)
     const documentId = (request.params as { documentId: string }).documentId
     const document = await loadDocumentWorkspace(documentId)
     const updated = await documentService.updateDocument(accountId, document.workspaceId, documentId, request.body)
     reply.send(updated)
+  })
+
+  app.post('/api/documents/:documentId/tags', { preHandler: authenticate }, async (request, reply) => {
+    const accountId = requireAccountId(request)
+    const documentId = (request.params as { documentId: string }).documentId
+    const document = await loadDocumentWorkspace(documentId)
+    try {
+      const tag = await documentTagService.addTag(accountId, document.workspaceId, documentId, request.body)
+      reply.status(201).send(tag)
+    } catch (error) {
+      if (error instanceof DocumentTagAlreadyExistsError) {
+        throw app.httpErrors.conflict(error.message)
+      }
+      throw error
+    }
+  })
+
+  app.delete('/api/documents/:documentId/tags/:tagName', { preHandler: authenticate }, async (request, reply) => {
+    const accountId = requireAccountId(request)
+    const documentId = (request.params as { documentId: string }).documentId
+    const tagName = decodeURIComponent((request.params as { tagName: string }).tagName)
+    const document = await loadDocumentWorkspace(documentId)
+    try {
+      await documentTagService.removeTag(accountId, document.workspaceId, documentId, tagName)
+      reply.status(204).send()
+    } catch (error) {
+      if (error instanceof DocumentTagNotFoundError) {
+        throw app.httpErrors.notFound(error.message)
+      }
+      throw error
+    }
+  })
+
+  app.get('/api/documents/:documentId', { preHandler: authenticate }, async (request, reply) => {
+    const accountId = requireAccountId(request)
+    const documentId = (request.params as { documentId: string }).documentId
+    const document = await loadDocumentWorkspace(documentId)
+    await documentAccessService.assertCanView(accountId, document.workspaceId, documentId)
+    reply.send(document)
   })
 
   app.post('/api/documents/:documentId/revisions', { preHandler: authenticate }, async (request, reply) => {
@@ -672,7 +714,7 @@ export const buildServer = ({ prisma, logger = true }: ServerOptions = {}) => {
   app.post('/api/search', { preHandler: authenticate }, async (request, reply) => {
     const payload = searchRequestSchema.parse(request.body)
     const accountId = requireAccountId(request)
-    await workspaceAccessService.assertMember(accountId, payload.workspaceId)
+    await workspaceAccess.assertMember(accountId, payload.workspaceId)
     const filters: DocumentListFilters = {}
     if (payload.folderId !== undefined) filters.folderId = payload.folderId
     if (payload.status) filters.status = payload.status
@@ -704,7 +746,7 @@ export const buildServer = ({ prisma, logger = true }: ServerOptions = {}) => {
       entityType: typeof request.query.entityType === 'string' ? request.query.entityType : undefined,
       action: typeof request.query.action === 'string' ? request.query.action : undefined,
     })
-    await workspaceAccessService.assertMember(accountId, workspaceId)
+    await workspaceAccess.assertMember(accountId, workspaceId)
     const query = {
       workspaceId,
       page: payload.page,
@@ -732,7 +774,7 @@ export const buildServer = ({ prisma, logger = true }: ServerOptions = {}) => {
     if (!job) {
       throw app.httpErrors.notFound('Export job not found')
     }
-    await workspaceAccessService.assertMember(accountId, job.workspaceId)
+    await workspaceAccess.assertMember(accountId, job.workspaceId)
     reply.send(job)
   })
 

@@ -1,0 +1,129 @@
+openapi: 3.1.0
+info:
+  title: Step S14 – Audit Logging
+  version: 1.0.0
+servers:
+  - url: https://api.local
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    WorkspaceId:
+      name: workspaceId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  schemas:
+    AuditActorType:
+      type: string
+      enum: [membership, external]
+    AuditLog:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        workspaceId:
+          type: string
+          format: uuid
+        actorType:
+          $ref: '#/components/schemas/AuditActorType'
+        actorMembershipId:
+          type: string
+          format: uuid
+          nullable: true
+        actorCollaboratorId:
+          type: string
+          format: uuid
+          nullable: true
+        action:
+          type: string
+        entityType:
+          type: string
+        entityId:
+          type: string
+          nullable: true
+        metadata:
+          type: object
+          additionalProperties: true
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+    AuditLogResponse:
+      type: object
+      properties:
+        logs:
+          type: array
+          items:
+            $ref: '#/components/schemas/AuditLog'
+        page:
+          type: integer
+        pageSize:
+          type: integer
+        hasNextPage:
+          type: boolean
+paths:
+  /api/workspaces/{workspaceId}/audit:
+    get:
+      summary: List audit logs
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/WorkspaceId'
+        - in: query
+          name: actorMembershipId
+          schema:
+            type: string
+            format: uuid
+        - in: query
+          name: actorCollaboratorId
+          schema:
+            type: string
+            format: uuid
+        - in: query
+          name: entityType
+          schema:
+            type: string
+        - in: query
+          name: action
+          schema:
+            type: string
+        - in: query
+          name: from
+          schema:
+            type: string
+            format: date-time
+        - in: query
+          name: to
+          schema:
+            type: string
+            format: date-time
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+            minimum: 1
+        - in: query
+          name: pageSize
+          schema:
+            type: integer
+            default: 50
+            maximum: 200
+      responses:
+        '200':
+          description: Audit logs
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuditLogResponse'
+        '403':
+          description: Forbidden
+        '404':
+          description: Workspace not found

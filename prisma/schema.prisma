@@ -245,6 +245,7 @@ model Document {
   permissions        DocumentPermission[]
   shareLinks         DocumentShareLink[]
   exportJobs         ExportJob[]
+  tags               DocumentTag[]
 
   @@unique([workspaceId, slug])
   @@index([workspaceId, folderId])
@@ -261,10 +262,22 @@ model ExportJob {
   status       ExportJobStatus @default(pending)
   resultUrl    String?         @map("result_url")
   errorMessage String?         @map("error_message")
+  retryCount   Int             @default(0) @map("retry_count")
   createdAt    DateTime        @default(now()) @map("created_at")
   updatedAt    DateTime        @updatedAt @map("updated_at")
 
   @@index([workspaceId])
+}
+
+model DocumentTag {
+  id          String   @id @default(uuid())
+  document    Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  documentId  String   @map("document_id")
+  name        String
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@unique([documentId, name])
+  @@index([documentId])
 }
 
 model DocumentRevision {

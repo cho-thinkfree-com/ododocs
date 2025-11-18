@@ -9,6 +9,7 @@ export interface ExportJobEntity {
   status: ExportJobStatus
   resultUrl?: string | null
   errorMessage?: string | null
+  retryCount: number
   createdAt: Date
   updatedAt: Date
 }
@@ -40,13 +41,18 @@ export class ExportJobRepository {
     return job ? toEntity(job) : null
   }
 
-  async updateStatus(id: string, status: ExportJobStatus, resultUrl?: string | null, errorMessage?: string | null) {
+  async updateStatus(
+    id: string,
+    status: ExportJobStatus,
+    options?: { resultUrl?: string | null; errorMessage?: string | null; retryCount?: number },
+  ) {
     await this.prisma.exportJob.update({
       where: { id },
       data: {
         status,
-        resultUrl: resultUrl ?? null,
-        errorMessage: errorMessage ?? null,
+        resultUrl: options?.resultUrl ?? null,
+        errorMessage: options?.errorMessage ?? null,
+        retryCount: options?.retryCount ?? undefined,
       },
     })
   }
@@ -60,6 +66,7 @@ const toEntity = (job: {
   status: ExportJobStatus
   resultUrl: string | null
   errorMessage: string | null
+  retryCount: number
   createdAt: Date
   updatedAt: Date
 }): ExportJobEntity => ({
@@ -70,6 +77,7 @@ const toEntity = (job: {
   status: job.status,
   resultUrl: job.resultUrl ?? undefined,
   errorMessage: job.errorMessage ?? undefined,
+  retryCount: job.retryCount,
   createdAt: job.createdAt,
   updatedAt: job.updatedAt,
 })

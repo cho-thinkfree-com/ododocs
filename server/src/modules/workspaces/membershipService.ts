@@ -4,6 +4,7 @@ import { MembershipRepository, type MembershipEntity } from './membershipReposit
 import { WorkspaceRepository } from './workspaceRepository'
 import { WorkspaceNotFoundError } from './workspaceService'
 import { WorkspaceAccessService } from './workspaceAccess'
+import { AuditLogService } from '../audit/auditLogService'
 
 const roleEnum: [WorkspaceMembershipRole, ...WorkspaceMembershipRole[]] = ['owner', 'admin', 'member']
 const statusEnum: [WorkspaceMembershipStatus, ...WorkspaceMembershipStatus[]] = ['active', 'invited', 'pending', 'removed']
@@ -31,7 +32,11 @@ const updateMembershipSchema = z.object({
 
 export class MembershipService {
   private readonly access: WorkspaceAccessService
-  constructor(private readonly repository: MembershipRepository, private readonly workspaceRepository: WorkspaceRepository) {
+  constructor(
+    private readonly repository: MembershipRepository,
+    private readonly workspaceRepository: WorkspaceRepository,
+    private readonly auditLogService: AuditLogService,
+  ) {
     this.access = new WorkspaceAccessService(workspaceRepository, repository)
   }
 
@@ -42,13 +47,14 @@ export class MembershipService {
 
   async addMember(requestorId: string, workspaceId: string, rawInput: z.input<typeof createMembershipSchema>) {
     await this.access.assertAdminOrOwner(requestorId, workspaceId)
+    const actor = await this.getActorMembership(workspaceId, requestorId)
     const input = createMembershipSchema.parse(rawInput)
     const existing = await this.repository.findByWorkspaceAndAccountIncludingRemoved(workspaceId, input.accountId)
     if (existing && existing.status !== 'removed') {
       throw new MembershipExistsError()
     }
     if (existing && existing.status === 'removed') {
-      return this.repository.update(existing.id, {
+      const updated = await this.repository.update(existing.id, {
         role: input.role,
         status: input.status,
         displayName: input.displayName,
@@ -57,8 +63,21 @@ export class MembershipService {
         preferredLocale: input.preferredLocale,
         notifications: input.notifications,
       })
+      await this.auditLogService.record({
+        workspaceId,
+        actor: { type: 'membership', membershipId: actor.id },
+        action: 'membership.reactivated',
+        entityType: 'membership',
+        entityId: updated.id,
+        metadata: {
+          accountId: updated.accountId,
+          role: updated.role,
+          status: updated.status,
+        },
+      })
+      return updated
     }
-    return this.repository.create({
+    const membership = await this.repository.create({
       workspaceId,
       accountId: input.accountId,
       role: input.role,
@@ -69,6 +88,19 @@ export class MembershipService {
       preferredLocale: input.preferredLocale,
       notifications: input.notifications,
     })
+    await this.auditLogService.record({
+      workspaceId,
+      actor: { type: 'membership', membershipId: actor.id },
+      action: 'membership.added',
+      entityType: 'membership',
+      entityId: membership.id,
+      metadata: {
+        accountId: membership.accountId,
+        role: membership.role,
+        status: membership.status,
+      },
+    })
+    return membership
   }
 
   async updateMember(
@@ -86,7 +118,22 @@ export class MembershipService {
     if (membership.role === 'owner' && input.role && input.role !== 'owner') {
       throw new OwnerDemotionError()
     }
-    return this.repository.update(membership.id, input)
+    const updated = await this.repository.update(membership.id, input)
+    const actor = await this.getActorMembership(workspaceId, requestorId)
+    await this.auditLogService.record({
+      workspaceId,
+      actor: { type: 'membership', membershipId: actor.id },
+      action: 'membership.updated',
+      entityType: 'membership',
+      entityId: membership.id,
+      metadata: {
+        accountId: membership.accountId,
+        updatedFields: Object.keys(input),
+        role: updated.role,
+        status: updated.status,
+      },
+    })
+    return updated
   }
 
   async removeMember(requestorId: string, workspaceId: string, accountId: string) {
@@ -99,6 +146,15 @@ export class MembershipService {
       throw new OwnerDemotionError()
     }
     await this.repository.markRemoved(membership.id)
+    const actor = await this.getActorMembership(workspaceId, requestorId)
+    await this.auditLogService.record({
+      workspaceId,
+      actor: { type: 'membership', membershipId: actor.id },
+      action: 'membership.removed',
+      entityType: 'membership',
+      entityId: membership.id,
+      metadata: { accountId: membership.accountId },
+    })
   }
 
   async transferOwnership(requestorId: string, workspaceId: string, newOwnerAccountId: string) {
@@ -116,6 +172,18 @@ export class MembershipService {
     }
     await this.repository.update(target.id, { role: 'owner' })
     await this.workspaceRepository.updateOwner(workspaceId, newOwnerAccountId)
+    const actorMembership = currentOwnerMembership ?? target
+    await this.auditLogService.record({
+      workspaceId,
+      actor: { type: 'membership', membershipId: actorMembership.id },
+      action: 'membership.ownership_transferred',
+      entityType: 'membership',
+      entityId: target.id,
+      metadata: {
+        newOwnerAccountId,
+        previousOwnerMembershipId: currentOwnerMembership?.id ?? null,
+      },
+    })
   }
 
   async changeRole(requestorId: string, workspaceId: string, accountId: string, role: WorkspaceMembershipRole) {
@@ -131,6 +199,19 @@ export class MembershipService {
       throw new MembershipAccessDeniedError()
     }
     await this.repository.update(membership.id, { role })
+    const actor = await this.getActorMembership(workspaceId, requestorId)
+    await this.auditLogService.record({
+      workspaceId,
+      actor: { type: 'membership', membershipId: actor.id },
+      action: 'membership.role_changed',
+      entityType: 'membership',
+      entityId: membership.id,
+      metadata: {
+        accountId: membership.accountId,
+        role,
+        requestedByOwner: workspace.ownerAccountId === requestorId,
+      },
+    })
   }
 
   async leaveWorkspace(accountId: string, workspaceId: string) {
@@ -146,6 +227,22 @@ export class MembershipService {
       throw new MembershipNotFoundError()
     }
     await this.repository.markRemoved(membership.id)
+    await this.auditLogService.record({
+      workspaceId,
+      actor: { type: 'membership', membershipId: membership.id },
+      action: 'membership.left',
+      entityType: 'membership',
+      entityId: membership.id,
+      metadata: { accountId },
+    })
+  }
+
+  private async getActorMembership(workspaceId: string, accountId: string): Promise<MembershipEntity> {
+    const membership = await this.repository.findByWorkspaceAndAccount(workspaceId, accountId)
+    if (!membership) {
+      throw new MembershipNotFoundError()
+    }
+    return membership
   }
 }
 

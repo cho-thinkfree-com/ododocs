@@ -3,8 +3,9 @@ import { MembershipRepository } from './membershipRepository'
 import { WorkspaceRepository } from './workspaceRepository'
 import type { AccountRepository } from '../accounts/accountRepository'
 import { WorkspaceAccessService } from './workspaceAccess'
-import { MembershipExistsError } from './membershipService'
+import { MembershipAccessDeniedError, MembershipExistsError } from './membershipService'
 import { WorkspaceNotFoundError } from './workspaceService'
+import { AuditLogService } from '../audit/auditLogService'
 
 export class WorkspaceJoinRequestService {
   private readonly access: WorkspaceAccessService
@@ -13,6 +14,7 @@ export class WorkspaceJoinRequestService {
     private readonly membershipRepository: MembershipRepository,
     private readonly workspaceRepository: WorkspaceRepository,
     private readonly accountRepository: AccountRepository,
+    private readonly auditLogService: AuditLogService,
   ) {
     this.access = new WorkspaceAccessService(workspaceRepository, membershipRepository)
   }
@@ -36,11 +38,24 @@ export class WorkspaceJoinRequestService {
 
     const domain = account.email.split('@')[1]?.toLowerCase() ?? ''
     if (domain && workspace.allowedDomains.includes(domain)) {
-      await this.membershipRepository.create({
+      const membership = await this.membershipRepository.create({
         workspaceId,
         accountId,
         role: 'member',
         status: 'active',
+      })
+      await this.auditLogService.record({
+        workspaceId,
+        actor: { type: 'membership', membershipId: membership.id },
+        action: 'membership.added',
+        entityType: 'membership',
+        entityId: membership.id,
+        metadata: {
+          accountId: membership.accountId,
+          role: membership.role,
+          status: membership.status,
+          source: 'join_request_auto',
+        },
       })
       return { autoApproved: true }
     }
@@ -67,11 +82,29 @@ export class WorkspaceJoinRequestService {
     if (membership) {
       throw new MembershipExistsError()
     }
-    await this.membershipRepository.create({
+    const requesterMembership = await this.membershipRepository.findByWorkspaceAndAccount(workspaceId, requestorId)
+    if (!requesterMembership) {
+      throw new MembershipAccessDeniedError()
+    }
+    const newMembership = await this.membershipRepository.create({
       workspaceId,
       accountId: request.accountId,
       role: 'member',
       status: 'active',
+    })
+    await this.auditLogService.record({
+      workspaceId,
+      actor: { type: 'membership', membershipId: requesterMembership.id },
+      action: 'membership.added',
+      entityType: 'membership',
+        entityId: newMembership.id,
+        metadata: {
+          accountId: newMembership.accountId,
+          role: newMembership.role,
+          status: newMembership.status,
+          source: 'join_request_approval',
+          joinRequestId,
+        },
     })
     await this.joinRequestRepository.updateStatus(joinRequestId, 'approved')
   }

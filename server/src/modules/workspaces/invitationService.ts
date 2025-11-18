@@ -7,6 +7,7 @@ import { hashToken } from '../../lib/tokenGenerator'
 import { MembershipExistsError } from './membershipService'
 import type { AccountRepository } from '../accounts/accountRepository'
 import { WorkspaceNotFoundError } from './workspaceService'
+import { AuditLogService } from '../audit/auditLogService'
 
 export class WorkspaceInvitationService {
   private readonly access: WorkspaceAccessService
@@ -15,6 +16,7 @@ export class WorkspaceInvitationService {
     private readonly membershipRepository: MembershipRepository,
     private readonly workspaceRepository: WorkspaceRepository,
     private readonly accountRepository: AccountRepository,
+    private readonly auditLogService: AuditLogService,
   ) {
     this.access = new WorkspaceAccessService(workspaceRepository, membershipRepository)
   }
@@ -82,11 +84,25 @@ export class WorkspaceInvitationService {
     if (existingMembership) {
       throw new MembershipExistsError()
     }
-    await this.membershipRepository.create({
+    const membership = await this.membershipRepository.create({
       workspaceId: invitation.workspaceId,
       accountId,
       role: 'member',
       status: 'active',
+    })
+    await this.auditLogService.record({
+      workspaceId: invitation.workspaceId,
+      actor: { type: 'membership', membershipId: membership.id },
+      action: 'membership.added',
+      entityType: 'membership',
+      entityId: membership.id,
+      metadata: {
+        accountId,
+        role: membership.role,
+        status: membership.status,
+        source: 'invitation_acceptance',
+        invitationId: invitation.id,
+      },
     })
     await this.invitationRepository.markAccepted(invitation.id)
   }
