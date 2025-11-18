@@ -6,7 +6,7 @@ Step S15부터 S27까지는 검색/Export, 협업·Realtime, AI 도구를 차례
 | --- | --- | --- | --- |
 | `S15` | `/api/search` (POST), `/api/workspaces/{id}/activity-feed` | 검색/필터 인프라, 워크스페이스 피드 | 검색 조건별 문서 반환, 권한/속도 제한, empty-case |
 | `S16` | `/api/export` (POST) | Markdown/PDF/HTML export job kick-off | Export job 생성, 상태 조회, 실패/queue 대비 |
-| `S17` | `/api/export/{jobId}` | Export 결과 스트리밍 + queue 확인 | Signed URL 발급, cancel, retry |
+| `S17` | `/api/export/{jobId}`, `/api/export/{jobId}/result`, `/api/export/{jobId}/retry` | Export result readiness/ retry guard (400 until ready, failed/cancelled only) | Signed URL, retry cap 3, cancel + audit log |
 | `S18` | `/api/workspaces/{id}/collaboration` | Collaboration presence/presence channel | presence broadcast, history |
 | `S19` | `/api/workspaces/{id}/mentions` | Mention autocomplete/query service | query builder, role filtering |
 | `S20` | `/api/workspaces/{id}/activity` | Activity/Change feed, comment threads | pagination, filtering, security |

@@ -82,7 +82,7 @@ describe('ExportRoutes', () => {
     const job = response.json()
     expect(job.status).toBe('pending')
     expect(job.workspaceId).toBe(workspaceId)
-    await new Promise((res) => setTimeout(res, 1200))
+    await new Promise((res) => setTimeout(res, 1500))
     const statusResp = await server.inject({
       method: 'GET',
       url: `/api/export/${job.id}`,
@@ -169,5 +169,96 @@ describe('ExportRoutes', () => {
       headers: { authorization: `Bearer ${token}` },
     })
     expect(statusResp.json().status).toBe('cancelled')
+  })
+
+  it('exposes result URL after completion', async () => {
+    const jobResp = await server.inject({
+      method: 'POST',
+      url: '/api/export',
+      headers: { authorization: `Bearer ${token}` },
+      payload: {
+        workspaceId,
+        format: 'pdf',
+      },
+    })
+    const job = jobResp.json()
+    const early = await server.inject({
+      method: 'GET',
+      url: `/api/export/${job.id}/result`,
+      headers: { authorization: `Bearer ${token}` },
+    })
+    expect(early.statusCode).toBe(400)
+    expect(early.json().message).toContain('not ready')
+    await new Promise((res) => setTimeout(res, 1200))
+    const late = await server.inject({
+      method: 'GET',
+      url: `/api/export/${job.id}/result`,
+      headers: { authorization: `Bearer ${token}` },
+    })
+    expect(late.statusCode).toBe(200)
+    expect(late.json().resultUrl).toContain('.pdf')
+  })
+
+  it('retries failed job and updates retryCount', async () => {
+    const jobResp = await server.inject({
+      method: 'POST',
+      url: '/api/export',
+      headers: { authorization: `Bearer ${token}` },
+      payload: {
+        workspaceId,
+        format: 'pdf',
+      },
+    })
+    expect(jobResp.statusCode).toBe(201)
+    const job = jobResp.json()
+    await prisma.exportJob.update({
+      where: { id: job.id },
+      data: {
+        status: 'failed',
+        errorMessage: 'boom',
+      },
+    })
+    const retryResp = await server.inject({
+      method: 'POST',
+      url: `/api/export/${job.id}/retry`,
+      headers: { authorization: `Bearer ${token}` },
+    })
+    expect(retryResp.statusCode).toBe(200)
+    await new Promise((res) => setTimeout(res, 1500))
+    const reloaded = await prisma.exportJob.findUnique({ where: { id: job.id } })
+    expect(reloaded?.status).toBe('completed')
+    expect(reloaded?.retryCount).toBe(1)
+  })
+
+  it('retry limit enforced', async () => {
+    const jobResp = await server.inject({
+      method: 'POST',
+      url: '/api/export',
+      headers: { authorization: `Bearer ${token}` },
+      payload: {
+        workspaceId,
+        format: 'md',
+      },
+    })
+    const job = jobResp.json()
+    await server.inject({
+      method: 'POST',
+      url: `/api/export/${job.id}/cancel`,
+      headers: { authorization: `Bearer ${token}` },
+    })
+    await prisma.exportJob.update({
+      where: { id: job.id },
+      data: {
+        status: 'failed',
+        retryCount: 3,
+      },
+    })
+    const retryResp = await server.inject({
+      method: 'POST',
+      url: `/api/export/${job.id}/retry`,
+      headers: { authorization: `Bearer ${token}` },
+    })
+    expect(retryResp.statusCode).toBe(400)
+    expect(retryResp.json().message).toContain('Retry limit')
   })
 })

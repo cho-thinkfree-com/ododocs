@@ -213,7 +213,7 @@
    - `[ ]` 워크스페이스 생성/삭제/조회, 메타데이터(이름·설명·커버·기본 로케일) 편집, 계정:Workspace 1:N 모델 확정.
 3. **B3 – Member Profiles & Roles**
    - `[ ]` 워크스페이스별 멤버 프로필(표시 이름, 언어, 알림 설정) 저장, 글로벌 계정과 동기화 규칙, 역할(`owner/admin/member`) 및 owner 단일성, 소유권 이전/탈퇴 제약.
-4. **B4 – Invitations & Domain Policies**
+5. **B4 – Invitations & Domain Policies**
    - `[ ]` 이메일 초대(JWT 링크, 재발송), 도메인 허용 즉시 가입, 가입 신청 `pending` 상태 및 승인/거절 UI.
 5. **B5 – Document Persistence MVP**
    - `[ ]` JSON 저장/불러오기 API, 폴더/태그 분류, 보호 폴더 ACL, 기본 공유 범위(개인/워크스페이스), Viewer/Editor 권한.
@@ -302,7 +302,7 @@
 | S14 | Markdown/HTML 임포트 API/변환 유틸, 보안 필터링 | 파일 업로드/붙여넣기 모달, 미리보기, 변환 결과 삽입 | XSS sanitize, 실패 로그, undo/redo 호환 |
 | S15 | 수동 버전 스냅샷, 버전 리스트/복원 API | 버전 패널, 복원 버튼, 확인 모달 | 복원 시 현재 상태 백업 후 덮어쓰기, 작성자/시간 표시 |
 | S16 | 템플릿 저장/공유 API, 워크스페이스 템플릿 갤러리 | 템플릿 선택 다이얼로그, “템플릿으로 저장” 버튼, 카드 뷰 | 템플릿 메타(아이콘/카테고리), 권한 |
-| S17 | Export 서비스 (PDF renderer, Markdown exporter) + 비동기 작업 상태 | Export 메뉴, 진행 토스트, 다운로드 링크/히스토리 | PDF는 서버 렌더링 또는 queue, 독립 실행 가능 티켓 |
+| S17 | Export 결과/Retry API (PDF/Markdown exporter + retry_count 보존) | Export 결과 확인 화면 + retry 흐름/경고 | 결과 준비/재시도 edge case, 감사 로그 |
 | S18 | 공유 링크 만료/비밀번호 옵션, 감사 로그, 문서별 알림 설정 | 공유 링크 관리 UI, 알림 채널 토글, 감사 로그 테이블 | 감사 로그 페이지네이션, 알림 채널별 토글 |
 | S19 | 댓글/멘션/이모지 API, 알림 훅 | 댓글 패널, 인라인 핀, @mention dropdown, 이모지 반응 | 실시간 업데이트 대비 store, resolved 상태 |
 | S20 | 활동 피드, 검색/바꾸기 API(본문/태그/댓글) | 활동 피드, 검색/바꾸기 패널, 결과 하이라이트 | 검색 네비게이션, 백엔드 query builder |
@@ -320,7 +320,8 @@
 1. **Step 0 – 에디터 안정화**: UI/TOC/툴바를 Fastify + Vite 조합에서 manual/Playwright로 점검하고 TDD 회귀를 마친 뒤 Step 0을 완료로 유지합니다. (현재는 백엔드 통합 우선이므로 에디터 안정화는 이후에 따로 다루고, 핵심 기능 연결을 먼저 진행합니다.)
 2. **Step S1~S14 – 인증/워크스페이스/문서/공유/감사**: 각 Step 문서와 OpenAPI를 기준 삼아 Fastify 핸들러를 붙이고, tests/backend/*과 tests/checklists/S{n}.md에서 권한/예외/페이징 흐름을 검증합니다. 현재 S14 감사 로그 Fastify 연결이 최우선입니다.
 3. **Step S15~S27 – 고급 생산성 기능**: 검색·필터·Export·Realtime·Collab·AI 등 새로운 Step을 순서대로 문서화 및 체크리스트 작성→Fastify/서비스 구현→테스트/QA로 이어가며, 순서 변경 시 문서/체크리스트를 동기화합니다.
-4. **Fastify 공통 레이어 정비**: 인증·권한·에러·로깅, OpenAPI/Swagger 노출, Prisma 트랜잭션, request context(account/workspace) 공유 등을 플러그인/미들웨어로 정리하여 모든 Step 구현을 안정화하고 403·500 예외 흐름을 테스트합니다.
+4. **Step S17 – Export result & retry**: Fastify /api/export/{jobId}/result (400 until ready), /api/export/{jobId}/retry (failed/cancelled only, retry_count <= 3), 감사/테스트/문서 작업 완료.
+5. **Fastify 공통 레이어 정비**: 인증·권한·에러·로깅, OpenAPI/Swagger 노출, Prisma 트랜잭션, request context(account/workspace) 공유 등을 플러그인/미들웨어로 정리하여 모든 Step 구현을 안정화하고 403·500 예외 흐름을 테스트합니다.
 
 ### 실행 산출물 & 가이드
 - **API 계약서**  

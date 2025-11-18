@@ -35,7 +35,12 @@ import { DocumentShareLinkRepository } from './modules/documents/documentShareLi
 import { DocumentShareLinkSessionRepository } from './modules/documents/documentShareLinkSessionRepository'
 import { ExternalCollaboratorRepository } from './modules/documents/externalCollaboratorRepository'
 import { ExportJobRepository } from './modules/export/exportJobRepository'
-import { ExportJobService } from './modules/export/exportJobService'
+import {
+  ExportJobService,
+  ExportJobNotReadyError,
+  ExportJobRetryLimitExceededError,
+  ExportJobRetryNotAllowedError,
+} from './modules/export/exportJobService'
 
 export interface ServerOptions {
   prisma?: DatabaseClient
@@ -730,11 +735,42 @@ export const buildServer = ({ prisma, logger = true }: ServerOptions = {}) => {
     reply.send(job)
   })
 
+  app.get('/api/export/:jobId/result', { preHandler: authenticate }, async (request, reply) => {
+    const accountId = requireAccountId(request)
+    const jobId = (request.params as { jobId: string }).jobId
+    try {
+      const url = await exportJobService.getJobResult(accountId, jobId)
+      reply.send({ resultUrl: url })
+    } catch (error) {
+      if (error instanceof ExportJobNotReadyError) {
+        return reply.status(400).send({ message: error.message })
+      }
+      throw error
+    }
+  })
+
   app.post('/api/export/:jobId/cancel', { preHandler: authenticate }, async (request, reply) => {
     const accountId = requireAccountId(request)
     const jobId = (request.params as { jobId: string }).jobId
     await exportJobService.cancelJob(accountId, jobId)
     reply.send({ ok: true })
+  })
+
+  app.post('/api/export/:jobId/retry', { preHandler: authenticate }, async (request, reply) => {
+    const accountId = requireAccountId(request)
+    const jobId = (request.params as { jobId: string }).jobId
+    try {
+      await exportJobService.retryJob(accountId, jobId)
+      reply.send({ ok: true })
+    } catch (error) {
+      if (
+        error instanceof ExportJobRetryNotAllowedError ||
+        error instanceof ExportJobRetryLimitExceededError
+      ) {
+        return reply.status(400).send({ message: error.message })
+      }
+      throw error
+    }
   })
 
   app.get('/api/workspaces/:workspaceId/audit', { preHandler: authenticate }, async (request, reply) => {
