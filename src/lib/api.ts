@@ -9,6 +9,19 @@ const buildQuery = (params?: Record<string, string | number | boolean | undefine
   return `?${entries.join('&')}`
 }
 
+const dispatchAuthExpired = (message: string) => {
+  if (typeof window === 'undefined') {
+    return
+  }
+  window.dispatchEvent(
+    new CustomEvent('tiptap-auth-expired', {
+      detail: {
+        message,
+      },
+    }),
+  )
+}
+
 const handleResponse = async <T>(response: Response): Promise<T> => {
   let payload: unknown = null
   try {
@@ -18,6 +31,11 @@ const handleResponse = async <T>(response: Response): Promise<T> => {
   }
 
   if (!response.ok) {
+    if (response.status === 401) {
+      dispatchAuthExpired(
+        '세션이 만료되었거나 오랫동안 사용하지 않아 자동으로 로그아웃되었습니다. 다시 로그인해 주세요.',
+      )
+    }
     const message =
       typeof payload === 'object' && payload && 'message' in (payload as Record<string, unknown>)
         ? (payload as Record<string, string>).message
@@ -145,12 +163,47 @@ export interface ShareLinkResponse {
 
 export const login = (input: LoginInput) => requestJSON<LoginResult>('/api/auth/login', { method: 'POST', body: input })
 export const signup = (input: SignupInput) => requestJSON<AccountResponse>('/api/auth/signup', { method: 'POST', body: input })
+export const logout = (token?: string) => requestJSON<{ ok: boolean }>('/api/auth/logout', { method: 'POST', token })
 
 export const getWorkspaces = (token: string) =>
   requestJSON<{ items: WorkspaceSummary[] }>('/api/workspaces', { token }).then((payload) => payload.items ?? [])
 
 export const getWorkspaceMembers = (workspaceId: string, token: string) =>
   requestJSON<{ items: MembershipSummary[] }>(`/api/workspaces/${workspaceId}/members`, { token })
+
+export interface InviteMemberInput {
+  accountId: string
+  role?: 'owner' | 'admin' | 'member'
+}
+
+export const inviteWorkspaceMember = (
+  workspaceId: string,
+  token: string,
+  input: InviteMemberInput,
+) =>
+  requestJSON<MembershipSummary>(`/api/workspaces/${workspaceId}/members`, {
+    method: 'POST',
+    token,
+    body: input,
+  })
+
+export const changeWorkspaceMemberRole = (
+  workspaceId: string,
+  accountId: string,
+  token: string,
+  role: 'owner' | 'admin' | 'member',
+) =>
+  requestJSON<MembershipSummary>(`/api/workspaces/${workspaceId}/members/${accountId}/role`, {
+    method: 'PATCH',
+    token,
+    body: { role },
+  })
+
+export const removeWorkspaceMember = (workspaceId: string, accountId: string, token: string) =>
+  requestJSON<void>(`/api/workspaces/${workspaceId}/members/${accountId}`, {
+    method: 'DELETE',
+    token,
+  })
 
 export const getWorkspaceDocuments = (
   workspaceId: string,

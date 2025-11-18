@@ -100,6 +100,22 @@ export type AuthStrings = {
 }
 
 export type WorkspaceStrings = {
+  heroTitle: string
+  heroSubtitle: string
+  statsWorkspaces: string
+  statsDocuments: string
+  statsMembers: string
+  galleryTitle: string
+  galleryHint: string
+  creationTitle: string
+  creationSubtitle: string
+  creationButton: string
+  selectedWorkspaceTitle: string
+  selectedWorkspaceHint: string
+  viewAllWorkspaces: string
+  workspaceListTitle: string
+  workspaceListHint: string
+  workspaceSettingsLabel: string
   selectorTitle: string
   selectorHint: string
   noWorkspaces: string
@@ -111,6 +127,7 @@ export type WorkspaceStrings = {
   documentSearchPlaceholder: string
   searchButton: string
   noDocuments: string
+  foldersTitle: string
   membersTitle: string
   membersRestricted: string
   updateTitle: string
@@ -124,5 +141,19 @@ export type WorkspaceStrings = {
   createWorkspaceTitle: string
   createWorkspacePlaceholder: string
   createWorkspaceButton: string
+  onboardingTitle: string
+  onboardingDescription: string
+  onboardingHint: string
+  onboardingButton: string
   logoutLabel: string
+  recentUpdatesTitle: string
+  membersHint: string
+  removeMemberLabel: string
+  inviteLabel: string
+  invitePlaceholder: string
+  inviteButton: string
+  profileTitle: string
+  profileSubtitle: string
+  profileEditLabel: string
+  selectWorkspaceMessage: string
 }

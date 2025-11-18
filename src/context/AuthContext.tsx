@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import type { LoginInput, SignupInput, LoginResult } from '../lib/api'
-import { login as loginRequest, signup as signupRequest } from '../lib/api'
+import { login as loginRequest, signup as signupRequest, logout as logoutRequest } from '../lib/api'
 
 export interface AuthTokens {
   sessionId: string
@@ -16,7 +16,8 @@ interface AuthContextValue {
   isAuthenticated: boolean
   login: (input: LoginInput) => Promise<LoginResult>
   signup: (input: SignupInput) => Promise<LoginResult>
-  logout: () => void
+  logout: () => Promise<void>
+  logoutMessage: string | null
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined)
@@ -40,6 +41,7 @@ const readStoredTokens = (): AuthTokens | null => {
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [tokens, setTokens] = useState<AuthTokens | null>(() => readStoredTokens())
+  const [logoutMessage, setLogoutMessage] = useState<string | null>(null)
 
   useEffect(() => {
     if (typeof window === 'undefined') {
@@ -62,19 +64,45 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       refreshToken: result.refreshToken,
       refreshTokenExpiresAt: result.refreshTokenExpiresAt,
     })
+    setLogoutMessage(null)
     return result
   }, [])
 
   const signup = useCallback(
     async (input: SignupInput) => {
       await signupRequest(input)
-      return login({ email: input.email, password: input.password })
+    const result = await login({ email: input.email, password: input.password })
+    setLogoutMessage(null)
+    return result
     },
     [login],
   )
 
-  const logout = useCallback(() => {
-    setTokens(null)
+  const accessToken = tokens?.accessToken
+
+  const logout = useCallback(async () => {
+    try {
+      if (accessToken) {
+        await logoutRequest(accessToken)
+      }
+    } catch {
+      // ignore failures, still clear local state
+    } finally {
+      setTokens(null)
+      setLogoutMessage(null)
+    }
+  }, [accessToken])
+
+  useEffect(() => {
+    const handleExpired = (event: Event) => {
+      const detail = (event as CustomEvent<{ message?: string }>).detail
+      setLogoutMessage(detail?.message ?? '세션이 만료되어 로그아웃되었습니다.')
+      setTokens(null)
+    }
+    window.addEventListener('tiptap-auth-expired', handleExpired)
+    return () => {
+      window.removeEventListener('tiptap-auth-expired', handleExpired)
+    }
   }, [])
 
   const value = useMemo(
@@ -84,8 +112,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       login,
       signup,
       logout,
+      logoutMessage,
     }),
-    [tokens, login, signup, logout],
+    [tokens, login, signup, logout, logoutMessage],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

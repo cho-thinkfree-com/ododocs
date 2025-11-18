@@ -164,7 +164,7 @@ export class DocumentRepository {
       },
       orderBy: [{ sortOrder: 'asc' }, { title: 'asc' }],
       include: {
-        documentTags: {
+        tags: {
           select: {
             name: true,
           },
@@ -216,5 +216,5 @@ const toEntity = (document: DocumentModel): DocumentEntity => ({
   deletedAt: document.deletedAt,
   createdAt: document.createdAt,
   updatedAt: document.updatedAt,
-  tags: (document as DocumentModel & { documentTags?: { name: string }[] }).documentTags?.map((tag) => tag.name) ?? [],
+  tags: document.tags?.map((tag) => tag.name) ?? [],
 })

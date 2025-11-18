@@ -4,7 +4,7 @@ import type { AccountEntity, AccountRepository } from './accountRepository'
 
 const registerAccountSchema = z.object({
   email: z.string().trim().min(1).email(),
-  password: z.string().min(10).max(128),
+  password: z.string().min(8).max(128),
   legalName: z
     .string()
     .trim()

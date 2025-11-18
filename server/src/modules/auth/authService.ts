@@ -21,12 +21,12 @@ import { randomBytes } from 'node:crypto'
 
 const loginSchema = z.object({
   email: z.string().trim().email(),
-  password: z.string().min(10).max(128),
+  password: z.string().min(8).max(128),
 })
 
 const signupSchema = z.object({
   email: z.string().trim().email(),
-  password: z.string().min(10).max(128),
+  password: z.string().min(8).max(128),
   legalName: z
     .string()
     .trim()
@@ -45,16 +45,16 @@ const resetRequestSchema = z.object({
 
 const resetConfirmSchema = z.object({
   token: z.string().min(1),
-  newPassword: z.string().min(10).max(128),
+  newPassword: z.string().min(8).max(128),
 })
 
 const deleteSchema = z.object({
   accountId: z.string().min(1),
-  password: z.string().min(10),
+  password: z.string().min(8),
 })
 
 const ACCESS_TTL_MS = 15 * 60 * 1000
-const REFRESH_TTL_MS = 30 * 24 * 60 * 60 * 1000
+const REFRESH_TTL_MS = 72 * 60 * 60 * 1000
 const RESET_TTL_MS = 30 * 60 * 1000
 
 export interface LoginResult {

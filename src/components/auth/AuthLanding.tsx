@@ -15,7 +15,7 @@ import { useI18n } from '../../lib/i18n'
 
 const AuthLanding = () => {
   const theme = useTheme()
-  const { login, signup } = useAuth()
+  const { login, signup, logoutMessage } = useAuth()
   const [mode, setMode] = useState<'login' | 'signup'>('login')
   const [form, setForm] = useState({ email: '', password: '', legalName: '' })
   const [submitting, setSubmitting] = useState(false)
@@ -134,6 +134,7 @@ const AuthLanding = () => {
           <Typography variant='body2' color='text.secondary'>
             {landing.heroDescription}
           </Typography>
+          {logoutMessage && <Alert severity='warning'>{logoutMessage}</Alert>}
           {error && <Alert severity='error'>{error}</Alert>}
           <Box component='form' onSubmit={handleSubmit} sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
             <TextField
