@@ -1,4 +1,6 @@
 import Fastify, { type FastifyInstance, type FastifyRequest } from 'fastify'
+import fastifyStatic from '@fastify/static'
+import path from 'node:path'
 import { z } from 'zod'
 import { DocumentStatus, DocumentVisibility } from '@prisma/client'
 import { createPrismaClient, type DatabaseClient } from './lib/prismaClient'
@@ -41,6 +43,12 @@ export interface ServerOptions {
 export const buildServer = ({ prisma, logger = true }: ServerOptions = {}) => {
   const db = prisma ?? createPrismaClient()
   const app: FastifyInstance = Fastify({ logger: logger ? ['error', 'warn'] : false })
+
+  app.register(fastifyStatic, {
+    root: path.join(process.cwd(), 'docs/api/openapi'),
+    prefix: '/api/openapi/',
+    decorateReply: false,
+  })
 
   const accountRepository = new PrismaAccountRepository(db)
   const accountService = new AccountService(accountRepository)
@@ -114,6 +122,19 @@ export const buildServer = ({ prisma, logger = true }: ServerOptions = {}) => {
     membershipRepository,
     auditLogService,
   )
+
+  app.addHook('onRequest', async (request) => {
+    request.db = db
+    request.startTime = Date.now()
+  })
+
+  app.addHook('onResponse', async (request, reply) => {
+    const duration = Date.now() - (request.startTime ?? Date.now())
+    app.log.info(
+      { method: request.method, path: request.routerPath ?? request.url, status: reply.statusCode, duration },
+      'handled request',
+    )
+  })
 
   app.addHook('onClose', async () => {
     if (!prisma) {
