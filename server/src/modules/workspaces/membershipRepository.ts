@@ -75,6 +75,13 @@ export class MembershipRepository {
     return toEntity(membership)
   }
 
+  async findByAccount(accountId: string): Promise<MembershipEntity[]> {
+    const memberships = await this.prisma.workspaceMembership.findMany({
+      where: { accountId, status: { not: 'removed' } },
+    });
+    return memberships.map(toEntity);
+  }
+
   async findByWorkspaceAndAccount(workspaceId: string, accountId: string): Promise<MembershipEntity | null> {
     const membership = await this.prisma.workspaceMembership.findFirst({
       where: { workspaceId, accountId, status: { not: 'removed' } },

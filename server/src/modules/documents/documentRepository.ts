@@ -23,6 +23,7 @@ export interface DocumentEntity {
   createdAt: Date
   updatedAt: Date
   tags: string[]
+  lastModifiedBy?: string | null
 }
 
 export interface DocumentCreateInput {
@@ -169,9 +170,56 @@ export class DocumentRepository {
             name: true,
           },
         },
+        revisions: {
+          orderBy: {
+            version: 'desc',
+          },
+          take: 1,
+          include: {
+            createdByMembership: {
+              include: {
+                account: true,
+              },
+            },
+          },
+        },
       },
     })
     return documents.map(toEntity)
+  }
+
+  async listRecentByWorkspaces(workspaceIds: string[], options?: { limit?: number }): Promise<DocumentEntity[]> {
+    const documents = await this.prisma.document.findMany({
+      where: {
+        workspaceId: {
+          in: workspaceIds,
+        },
+        deletedAt: null,
+      },
+      orderBy: {
+        updatedAt: 'desc',
+      },
+      take: options?.limit ?? 10,
+      include: {
+        tags: {
+          select: { name: true },
+        },
+        revisions: {
+          orderBy: {
+            version: 'desc',
+          },
+          take: 1,
+          include: {
+            createdByMembership: {
+              include: {
+                account: true,
+              },
+            },
+          },
+        },
+      },
+    });
+    return documents.map(toEntity);
   }
 
   async slugExists(workspaceId: string, slug: string, excludeId?: string): Promise<boolean> {
@@ -196,11 +244,11 @@ export class DocumentRepository {
     await this.prisma.document.update({
       where: { id },
       data: { deletedAt: new Date() },
-    })
+    });
   }
 }
 
-const toEntity = (document: DocumentModel): DocumentEntity => ({
+const toEntity = (document: DocumentModel & { revisions?: ({ createdByMembership: { account: { legalName: string | null } | null } | null })[], tags: { name: string }[] }): DocumentEntity => ({
   id: document.id,
   workspaceId: document.workspaceId,
   folderId: document.folderId,
@@ -217,4 +265,5 @@ const toEntity = (document: DocumentModel): DocumentEntity => ({
   createdAt: document.createdAt,
   updatedAt: document.updatedAt,
   tags: document.tags?.map((tag) => tag.name) ?? [],
+  lastModifiedBy: document.revisions?.[0]?.createdByMembership?.account?.legalName,
 })

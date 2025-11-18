@@ -42,13 +42,14 @@ const updateWorkspaceSchema = z
 export class WorkspaceService {
   constructor(
     private readonly repository: WorkspaceRepository,
+    private readonly membershipRepository: MembershipRepository,
     private readonly workspaceAccess: WorkspaceAccessService,
   ) {}
 
   async create(ownerAccountId: string, rawInput: z.input<typeof createWorkspaceSchema>): Promise<WorkspaceEntity> {
     const input = createWorkspaceSchema.parse(rawInput)
     const slug = await ensureUniqueSlug(input.name, (candidate) => this.repository.slugExists(candidate))
-    return this.repository.create({
+    const workspace = await this.repository.create({
       ownerAccountId,
       name: input.name,
       description: input.description,
@@ -58,6 +59,15 @@ export class WorkspaceService {
       visibility: input.visibility,
       slug,
     })
+
+    await this.membershipRepository.create({
+      workspaceId: workspace.id,
+      accountId: ownerAccountId,
+      role: 'owner',
+      status: 'active',
+    })
+
+    return workspace
   }
 
   listOwned(ownerAccountId: string) {

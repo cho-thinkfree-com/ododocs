@@ -84,7 +84,7 @@ export const buildServer = ({ prisma, logger = true }: ServerOptions = {}) => {
   const workspaceRepository = new WorkspaceRepository(db)
   const membershipRepository = new MembershipRepository(db)
   const workspaceAccess = new WorkspaceAccessService(workspaceRepository, membershipRepository)
-  const workspaceService = new WorkspaceService(workspaceRepository, workspaceAccess)
+  const workspaceService = new WorkspaceService(workspaceRepository, membershipRepository, workspaceAccess)
   const membershipService = new MembershipService(membershipRepository, workspaceRepository, auditLogService)
   const invitationService = new WorkspaceInvitationService(
     new InvitationRepository(db),
@@ -529,6 +529,18 @@ export const buildServer = ({ prisma, logger = true }: ServerOptions = {}) => {
     reply.status(204).send()
   })
 
+  app.get('/api/folders/:folderId', { preHandler: authenticate }, async (request, reply) => {
+    const accountId = requireAccountId(request)
+    const folderId = (request.params as { folderId: string }).folderId
+    const workspaceId = await loadFolderWorkspaceId(folderId)
+    await workspaceAccess.assertMember(accountId, workspaceId)
+    const folder = await folderRepository.findById(folderId)
+    if (!folder) {
+      throw app.httpErrors.notFound('Folder not found')
+    }
+    reply.send(folder)
+  })
+
   app.get('/api/workspaces/:workspaceId/documents', { preHandler: authenticate }, async (request, reply) => {
     const accountId = requireAccountId(request)
     const workspaceId = (request.params as { workspaceId: string }).workspaceId
@@ -550,6 +562,13 @@ export const buildServer = ({ prisma, logger = true }: ServerOptions = {}) => {
     const document = await loadDocumentWorkspace(documentId)
     const updated = await documentService.updateDocument(accountId, document.workspaceId, documentId, request.body)
     reply.send(updated)
+  })
+
+  app.delete('/api/documents/:documentId', { preHandler: authenticate }, async (request, reply) => {
+    const accountId = requireAccountId(request)
+    const documentId = (request.params as { documentId: string }).documentId
+    await documentService.softDelete(accountId, documentId)
+    reply.status(204).send()
   })
 
   app.post('/api/documents/:documentId/tags', { preHandler: authenticate }, async (request, reply) => {
@@ -581,6 +600,12 @@ export const buildServer = ({ prisma, logger = true }: ServerOptions = {}) => {
       }
       throw error
     }
+  })
+
+  app.get('/api/documents/recent', { preHandler: authenticate }, async (request, reply) => {
+    const accountId = requireAccountId(request)
+    const documents = await documentService.listRecentDocuments(accountId)
+    reply.send({ items: documents })
   })
 
   app.get('/api/documents/:documentId', { preHandler: authenticate }, async (request, reply) => {

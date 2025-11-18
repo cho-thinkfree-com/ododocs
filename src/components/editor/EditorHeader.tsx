@@ -12,15 +12,16 @@ import {
 import { useI18n } from '../../lib/i18n'
 
 type EditorHeaderProps = {
+  value: string;
+  onChange: (value: string) => void;
   onFocusChange?: (isFocused: boolean, event: FocusEvent<HTMLInputElement | HTMLTextAreaElement>) => void
   onRequestEditorFocus?: () => void
   toolbarVisibilityToggle?: ReactNode
 }
 
 const EditorHeader = forwardRef<HTMLInputElement | HTMLTextAreaElement, EditorHeaderProps>(
-  ({ onFocusChange, onRequestEditorFocus, toolbarVisibilityToggle }, forwardedRef) => {
+  ({ value, onChange, onFocusChange, onRequestEditorFocus, toolbarVisibilityToggle }, forwardedRef) => {
     const { strings } = useI18n()
-    const [title, setTitle] = useState('')
     const inputRef = useRef<HTMLInputElement | HTMLTextAreaElement | null>(null)
 
     const assignRef = useCallback(
@@ -41,9 +42,9 @@ const EditorHeader = forwardRef<HTMLInputElement | HTMLTextAreaElement, EditorHe
 
     const handleChange = useCallback(
       (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-        setTitle(event.target.value)
+        onChange(event.target.value)
       },
-      [],
+      [onChange],
     )
 
     const handleFocus = useCallback(
@@ -84,7 +85,7 @@ const EditorHeader = forwardRef<HTMLInputElement | HTMLTextAreaElement, EditorHe
           }}
         >
           <InputBase
-            value={title}
+            value={value}
             onChange={handleChange}
             onFocus={handleFocus}
             onBlur={handleBlur}

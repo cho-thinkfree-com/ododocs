@@ -130,6 +130,7 @@ export interface DocumentSummary {
   createdAt: string
   updatedAt: string
   tags: string[]
+  lastModifiedBy?: string | null
 }
 
 export interface DocumentCreateInput {
@@ -221,14 +222,46 @@ export const getWorkspaceDocuments = (
     },
   )
 
+export interface DocumentRevision {
+  id: string;
+  documentId: string;
+  content: Record<string, unknown>;
+  authorId: string;
+  createdAt: string;
+}
+
+export const getRecentDocuments = (token: string) =>
+  requestJSON<{ items: DocumentSummary[] }>('/api/documents/recent', { token }).then((payload) => payload.items ?? [])
+
+export const getDocument = (documentId: string, token: string) =>
+  requestJSON<DocumentSummary>(`/api/documents/${documentId}`, { token })
+
+export const getLatestRevision = (documentId: string, token: string) =>
+  requestJSON<DocumentRevision>(`/api/documents/${documentId}/revisions/latest`, { token })
+
+export const appendRevision = (documentId: string, token: string, body: { content: Record<string, unknown> }) =>
+  requestJSON<DocumentRevision>(`/api/documents/${documentId}/revisions`, { method: 'POST', token, body })
+
 export const createDocument = (workspaceId: string, token: string, body: DocumentCreateInput) =>
   requestJSON<DocumentSummary>(`/api/workspaces/${workspaceId}/documents`, { method: 'POST', token, body })
+
+export const deleteDocument = (documentId: string, token: string) =>
+  requestJSON<void>(`/api/documents/${documentId}`, { method: 'DELETE', token })
 
 export const renameDocument = (documentId: string, token: string, body: { title: string }) =>
   requestJSON<DocumentSummary>(`/api/documents/${documentId}`, { method: 'PATCH', token, body })
 
 export const createFolder = (workspaceId: string, token: string, body: FolderCreateInput) =>
   requestJSON<FolderSummary>(`/api/workspaces/${workspaceId}/folders`, { method: 'POST', token, body })
+
+export const deleteFolder = (folderId: string, token: string) =>
+  requestJSON<void>(`/api/folders/${folderId}`, { method: 'DELETE', token })
+
+export const renameFolder = (folderId: string, token: string, body: { name: string }) =>
+  requestJSON<FolderSummary>(`/api/folders/${folderId}`, { method: 'PATCH', token, body })
+
+export const getFolder = (folderId: string, token: string) =>
+  requestJSON<FolderSummary>(`/api/folders/${folderId}`, { token })
 
 export const addDocumentTag = (documentId: string, token: string, tag: string) =>
   requestJSON<{ name: string }>(`/api/documents/${documentId}/tags`, { method: 'POST', token, body: { name: tag } })

@@ -73,9 +73,15 @@ export class DocumentService {
     await this.workspaceAccess.assertMember(accountId, workspaceId)
     const [documents, folders] = await Promise.all([
       this.documentRepository.listByWorkspace(workspaceId, filters),
-      this.folderRepository.listByWorkspace(workspaceId),
+      this.folderRepository.listChildren(workspaceId, filters.folderId ?? null),
     ])
     return { documents, folders }
+  }
+
+  async listRecentDocuments(accountId: string): Promise<DocumentEntity[]> {
+    const memberships = await this.membershipRepository.findByAccount(accountId);
+    const workspaceIds = memberships.map(m => m.workspaceId);
+    return this.documentRepository.listRecentByWorkspaces(workspaceIds, { limit: 10 });
   }
 
   async createDocument(
@@ -108,15 +114,14 @@ export class DocumentService {
       sortOrder: input.sortOrder,
     })
 
-    if (input.initialRevision) {
-      await this.revisionRepository.create({
-        documentId: document.id,
-        version: 1,
-        content: input.initialRevision.content,
-        summary: input.initialRevision.summary,
-        createdByMembershipId: membership.id,
-      })
-    }
+    await this.revisionRepository.create({
+      documentId: document.id,
+      version: 1,
+      content: input.initialRevision?.content ?? { type: 'doc', content: [] },
+      summary: input.initialRevision?.summary,
+      createdByMembershipId: membership.id,
+    })
+    
     return document
   }
 
@@ -183,6 +188,12 @@ export class DocumentService {
       throw new DocumentRevisionNotFoundError()
     }
     return { document, revision }
+  }
+
+  async softDelete(accountId: string, documentId: string): Promise<void> {
+    const document = await this.ensureDocument(documentId);
+    await this.workspaceAccess.assertMember(accountId, document.workspaceId);
+    await this.documentRepository.softDelete(documentId);
   }
 
   private async ensureFolder(workspaceId: string, folderId: string) {
