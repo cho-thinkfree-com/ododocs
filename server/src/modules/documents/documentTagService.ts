@@ -1,6 +1,6 @@
 import { z } from 'zod'
-import type { WorkspaceAccessService } from '../workspaces/workspaceAccess'
-import type { DocumentTagRepository } from './documentTagRepository'
+import type { WorkspaceAccessService } from '../workspaces/workspaceAccess.js'
+import type { DocumentTagRepository } from './documentTagRepository.js'
 
 const tagSchema = z.object({
   name: z.string().trim().min(1).max(40),
@@ -10,7 +10,7 @@ export class DocumentTagService {
   constructor(
     private readonly repository: DocumentTagRepository,
     private readonly workspaceAccess: WorkspaceAccessService,
-  ) {}
+  ) { }
 
   async addTag(accountId: string, workspaceId: string, documentId: string, payload: unknown) {
     await this.workspaceAccess.assertMember(accountId, workspaceId)

@@ -1,5 +1,5 @@
 import type { WorkspaceVisibility } from '@prisma/client'
-import type { DatabaseClient } from '../../lib/prismaClient'
+import type { DatabaseClient } from '../../lib/prismaClient.js'
 
 export interface WorkspaceEntity {
   id: string
@@ -40,7 +40,7 @@ export interface UpdateWorkspaceInput {
 }
 
 export class WorkspaceRepository {
-  constructor(private readonly prisma: DatabaseClient) {}
+  constructor(private readonly prisma: DatabaseClient) { }
 
   async create(input: CreateWorkspaceInput): Promise<WorkspaceEntity> {
     const workspace = await this.prisma.workspace.create({

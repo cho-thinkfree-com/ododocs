@@ -5,7 +5,7 @@ export function useDebouncedCallback<A extends any[]>(
   delay: number
 ) {
   const callbackRef = useRef(callback);
-  const timeoutRef = useRef<NodeJS.Timeout>();
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     callbackRef.current = callback;

@@ -1,18 +1,18 @@
 import { randomBytes } from 'node:crypto'
 import { z } from 'zod'
 import type { DocumentShareLinkAccess } from '@prisma/client'
-import { Argon2PasswordHasher } from '../../lib/passwordHasher'
-import { hashToken } from '../../lib/tokenGenerator'
-import { AuditLogService } from '../audit/auditLogService'
-import { DocumentRepository, type DocumentEntity } from './documentRepository'
-import { DocumentShareLinkRepository, type ShareLinkEntity } from './documentShareLinkRepository'
-import { DocumentShareLinkSessionRepository } from './documentShareLinkSessionRepository'
-import { ExternalCollaboratorRepository } from './externalCollaboratorRepository'
-import { MembershipRepository, type MembershipEntity } from '../workspaces/membershipRepository'
-import { DocumentAccessService } from './documentAccessService'
-import { MembershipAccessDeniedError } from '../workspaces/membershipService'
-import { DocumentNotFoundError } from './documentService'
-import { ShareLinkPasswordRequiredError, ShareLinkEditNotAllowedError } from './shareLinkServiceErrors'
+import { Argon2PasswordHasher } from '../../lib/passwordHasher.js'
+import { hashToken } from '../../lib/tokenGenerator.js'
+import { AuditLogService } from '../audit/auditLogService.js'
+import { DocumentRepository, type DocumentEntity } from './documentRepository.js'
+import { DocumentShareLinkRepository, type ShareLinkEntity } from './documentShareLinkRepository.js'
+import { DocumentShareLinkSessionRepository } from './documentShareLinkSessionRepository.js'
+import { ExternalCollaboratorRepository } from './externalCollaboratorRepository.js'
+import { MembershipRepository, type MembershipEntity } from '../workspaces/membershipRepository.js'
+
+import { MembershipAccessDeniedError } from '../workspaces/membershipService.js'
+import { DocumentNotFoundError } from './documentService.js'
+import { ShareLinkPasswordRequiredError, ShareLinkEditNotAllowedError } from './shareLinkServiceErrors.js'
 
 const createSchema = z.object({
   accessLevel: z.enum(['viewer', 'commenter']),
@@ -43,10 +43,10 @@ export class ShareLinkService {
     private readonly sessionRepository: DocumentShareLinkSessionRepository,
     private readonly collaboratorRepository: ExternalCollaboratorRepository,
     private readonly membershipRepository: MembershipRepository,
-    private readonly documentAccess: DocumentAccessService,
+
     private readonly auditLogService: AuditLogService,
     private readonly passwordHasher = new Argon2PasswordHasher(),
-  ) {}
+  ) { }
 
   async list(accountId: string, workspaceId: string, documentId: string) {
     const document = await this.getDocument(documentId, workspaceId)
@@ -235,4 +235,4 @@ export class ShareLinkService {
   }
 }
 
-export { ShareLinkPasswordRequiredError, ShareLinkEditNotAllowedError } from './shareLinkServiceErrors'
+export { ShareLinkPasswordRequiredError, ShareLinkEditNotAllowedError } from './shareLinkServiceErrors.js'

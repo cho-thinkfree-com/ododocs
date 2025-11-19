@@ -3,7 +3,7 @@ import type {
   WorkspaceMembershipRole,
   WorkspaceMembershipStatus,
 } from '@prisma/client'
-import type { DatabaseClient } from '../../lib/prismaClient'
+import type { DatabaseClient } from '../../lib/prismaClient.js'
 
 export interface MembershipEntity {
   id: string
@@ -43,7 +43,7 @@ export interface MembershipUpdateInput {
 }
 
 export class MembershipRepository {
-  constructor(private readonly prisma: DatabaseClient) {}
+  constructor(private readonly prisma: DatabaseClient) { }
 
   async list(workspaceId: string): Promise<MembershipEntity[]> {
     const members = await this.prisma.workspaceMembership.findMany({
@@ -51,7 +51,7 @@ export class MembershipRepository {
       orderBy: [{ createdAt: 'asc' }],
     })
     const entities = members.map(toEntity)
-    return entities.sort((a, b) => {
+    return entities.sort((a: MembershipEntity, b: MembershipEntity) => {
       const diff = roleWeight(a.role) - roleWeight(b.role)
       if (diff !== 0) return diff
       return a.createdAt.getTime() - b.createdAt.getTime()

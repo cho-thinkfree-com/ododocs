@@ -1,5 +1,5 @@
 import 'fastify'
-import type { DatabaseClient } from '../lib/prismaClient'
+import type { DatabaseClient } from '../lib/prismaClient.js'
 
 declare module 'fastify' {
   interface FastifyRequest {

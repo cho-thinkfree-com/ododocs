@@ -1,4 +1,4 @@
-import type { DatabaseClient } from '../../lib/prismaClient'
+import type { DatabaseClient } from '../../lib/prismaClient.js'
 
 export interface CreateSessionInput {
   accountId: string
@@ -29,7 +29,7 @@ export interface SessionRepository {
 }
 
 export class PrismaSessionRepository implements SessionRepository {
-  constructor(private readonly prisma: DatabaseClient) {}
+  constructor(private readonly prisma: DatabaseClient) { }
 
   async create(data: CreateSessionInput): Promise<SessionEntity> {
     const session = await this.prisma.session.create({

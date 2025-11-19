@@ -1,5 +1,5 @@
 import type { AuditActorType, AuditLog as AuditLogModel } from '@prisma/client'
-import type { DatabaseClient } from '../../lib/prismaClient'
+import type { DatabaseClient } from '../../lib/prismaClient.js'
 
 export interface AuditLogEntity {
   id: string
@@ -39,7 +39,7 @@ export interface AuditLogQuery {
 }
 
 export class AuditLogRepository {
-  constructor(private readonly prisma: DatabaseClient) {}
+  constructor(private readonly prisma: DatabaseClient) { }
 
   async create(input: AuditLogCreateInput): Promise<AuditLogEntity> {
     const log = await this.prisma.auditLog.create({

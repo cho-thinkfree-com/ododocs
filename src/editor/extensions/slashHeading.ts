@@ -53,8 +53,7 @@ export const SlashHeadingExtension = Extension.create({
 
     return {
       Enter: () => applyHeadingCommand(),
-      ' ': () => applyHeadingCommand(),
-      Space: () => applyHeadingCommand(),
+
     }
   },
 })

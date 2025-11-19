@@ -3,7 +3,7 @@ import { offset, shift } from '@floating-ui/dom'
 import { useRichTextEditorContext } from 'mui-tiptap'
 
 const HANDLE_SIZE = 28
-const HANDLE_OFFSET_X = 48
+const HANDLE_OFFSET_X = 0
 const HANDLE_GAP = 8
 const LINE_HEIGHT_FALLBACK_RATIO = 1.2
 
@@ -117,13 +117,8 @@ const BlockDragHandle = () => {
             const crossAxisLimit = Math.max(reference.height - HANDLE_SIZE, 0)
             crossAxis = Math.min(Math.max(crossAxis, -crossAxisLimit), crossAxisLimit)
 
-            let mainAxis = HANDLE_OFFSET_X
-
-            if (container instanceof HTMLElement) {
-              const paddingLeft = parsePixelValue(window.getComputedStyle(container).paddingLeft)
-              const desired = paddingLeft - HANDLE_SIZE - HANDLE_GAP
-              mainAxis = Math.max(0, Math.min(desired, HANDLE_OFFSET_X))
-            }
+            // Position at the very left edge, aligned with toolbar
+            const mainAxis = HANDLE_SIZE + HANDLE_GAP
 
             return {
               mainAxis,

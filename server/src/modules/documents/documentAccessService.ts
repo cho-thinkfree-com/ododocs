@@ -1,9 +1,9 @@
 ﻿import type { DocumentPermissionRole, DocumentWorkspaceAccess } from '@prisma/client'
-import { MembershipRepository, type MembershipEntity } from '../workspaces/membershipRepository'
-import { DocumentRepository, type DocumentEntity } from './documentRepository'
-import { DocumentPermissionRepository } from './documentPermissionRepository'
-import { DocumentNotFoundError } from './documentService'
-import { MembershipAccessDeniedError } from '../workspaces/membershipService'
+import { MembershipRepository, type MembershipEntity } from '../workspaces/membershipRepository.js'
+import { DocumentRepository, type DocumentEntity } from './documentRepository.js'
+import { DocumentPermissionRepository } from './documentPermissionRepository.js'
+import { DocumentNotFoundError } from './documentService.js'
+import { MembershipAccessDeniedError } from '../workspaces/membershipService.js'
 
 export type DocumentAccessLevel = 'none' | 'viewer' | 'commenter' | 'editor' | 'owner'
 
@@ -46,7 +46,7 @@ export class DocumentAccessService {
     private readonly documentRepository: DocumentRepository,
     private readonly permissionRepository: DocumentPermissionRepository,
     private readonly membershipRepository: MembershipRepository,
-  ) {}
+  ) { }
 
   async getAccess(accountId: string, workspaceId: string, documentId: string): Promise<DocumentAccessResult> {
     const document = await this.documentRepository.findById(documentId)

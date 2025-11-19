@@ -1,5 +1,5 @@
 ﻿import type { DocumentRevision as RevisionModel } from '@prisma/client'
-import type { DatabaseClient } from '../../lib/prismaClient'
+import type { DatabaseClient } from '../../lib/prismaClient.js'
 
 export interface DocumentRevisionEntity {
   id: string
@@ -20,7 +20,7 @@ export interface DocumentRevisionCreateInput {
 }
 
 export class DocumentRevisionRepository {
-  constructor(private readonly prisma: DatabaseClient) {}
+  constructor(private readonly prisma: DatabaseClient) { }
 
   async create(input: DocumentRevisionCreateInput): Promise<DocumentRevisionEntity> {
     const revision = await this.prisma.documentRevision.create({

@@ -1,12 +1,12 @@
 import { AccountStatus } from '@prisma/client'
 import { z } from 'zod'
-import { AccountService } from '../accounts/accountService'
-import type { AccountRepository } from '../accounts/accountRepository'
-import { Argon2PasswordHasher, type PasswordHasher } from '../../lib/passwordHasher'
-import type { SessionRepository } from './sessionRepository'
-import { RandomTokenGenerator, type TokenGenerator, hashToken } from '../../lib/tokenGenerator'
-import { InMemoryLoginThrottle, type LoginThrottle } from './loginThrottle'
-import type { PasswordResetRepository } from './passwordResetRepository'
+import { AccountService } from '../accounts/accountService.js'
+import type { AccountRepository } from '../accounts/accountRepository.js'
+import { Argon2PasswordHasher, type PasswordHasher } from '../../lib/passwordHasher.js'
+import type { SessionRepository } from './sessionRepository.js'
+import { RandomTokenGenerator, type TokenGenerator, hashToken } from '../../lib/tokenGenerator.js'
+import { InMemoryLoginThrottle, type LoginThrottle } from './loginThrottle.js'
+import type { PasswordResetRepository } from './passwordResetRepository.js'
 import {
   AccountDeletionBlockedError,
   AccountSuspendedError,
@@ -14,9 +14,9 @@ import {
   InvalidResetTokenError,
   SessionRevokedError,
   TooManyAttemptsError,
-} from './errors'
-import type { AccountDeletionGuard } from '../accounts/accountDeletionGuard'
-import { AllowAllAccountDeletionGuard } from '../accounts/accountDeletionGuard'
+} from './errors.js'
+import type { AccountDeletionGuard } from '../accounts/accountDeletionGuard.js'
+import { AllowAllAccountDeletionGuard } from '../accounts/accountDeletionGuard.js'
 import { randomBytes } from 'node:crypto'
 
 const loginSchema = z.object({
@@ -54,7 +54,7 @@ const deleteSchema = z.object({
 })
 
 const ACCESS_TTL_MS = 15 * 60 * 1000
-const REFRESH_TTL_MS = 72 * 60 * 60 * 1000
+const REFRESH_TTL_MS = 10 * 24 * 60 * 60 * 1000
 const RESET_TTL_MS = 30 * 60 * 1000
 
 export interface LoginResult {
@@ -76,7 +76,7 @@ export class AuthService {
     private readonly passwordHasher: PasswordHasher = new Argon2PasswordHasher(),
     private readonly tokenGenerator: TokenGenerator = new RandomTokenGenerator(),
     private readonly loginThrottle: LoginThrottle = new InMemoryLoginThrottle(),
-  ) {}
+  ) { }
 
   signup(input: z.infer<typeof signupSchema>) {
     return this.accountService.registerAccount(signupSchema.parse(input))
@@ -164,6 +164,35 @@ export class AuthService {
     await this.accountRepository.softDelete(account.id)
     await this.passwordResetRepository.deleteByAccount(account.id)
     await this.sessionRepository.revokeByAccount(account.id, 'account_deleted')
+  }
+
+  async updateAccount(accountId: string, rawInput: { email?: string; legalName?: string; preferredLocale?: string; preferredTimezone?: string; currentPassword?: string; newPassword?: string }): Promise<void> {
+    const account = await this.accountRepository.findAuthRecordById(accountId)
+    if (!account) throw new InvalidCredentialsError()
+
+    // If changing password or sensitive info (like email), require current password
+    if (rawInput.newPassword || rawInput.email) {
+      if (!rawInput.currentPassword) {
+        throw new InvalidCredentialsError() // Or a more specific error "Current password required"
+      }
+      const passwordValid = await this.passwordHasher.verify(account.passwordHash, rawInput.currentPassword)
+      if (!passwordValid) {
+        throw new InvalidCredentialsError()
+      }
+    }
+
+    if (rawInput.newPassword) {
+      await this.accountService.updatePassword(accountId, rawInput.newPassword)
+    }
+
+    if (rawInput.email || rawInput.legalName || rawInput.preferredLocale || rawInput.preferredTimezone) {
+      await this.accountService.updateAccount(accountId, {
+        email: rawInput.email,
+        legalName: rawInput.legalName,
+        preferredLocale: rawInput.preferredLocale,
+        preferredTimezone: rawInput.preferredTimezone,
+      })
+    }
   }
 
   private async issueSession(accountId: string): Promise<LoginResult> {

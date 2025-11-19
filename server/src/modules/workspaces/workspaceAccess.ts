@@ -1,14 +1,14 @@
-import type { WorkspaceEntity } from './workspaceRepository'
-import { WorkspaceRepository } from './workspaceRepository'
-import { MembershipRepository } from './membershipRepository'
-import { WorkspaceNotFoundError } from './workspaceService'
-import { MembershipAccessDeniedError } from './membershipService'
+import type { WorkspaceEntity } from './workspaceRepository.js'
+import { WorkspaceRepository } from './workspaceRepository.js'
+import { MembershipRepository } from './membershipRepository.js'
+import { WorkspaceNotFoundError } from './workspaceService.js'
+import { MembershipAccessDeniedError } from './membershipService.js'
 
 export class WorkspaceAccessService {
   constructor(
     private readonly workspaceRepository: WorkspaceRepository,
     private readonly membershipRepository: MembershipRepository,
-  ) {}
+  ) { }
 
   async assertOwner(accountId: string, workspaceId: string): Promise<WorkspaceEntity> {
     const workspace = await this.workspaceRepository.findByIdIncludingDeleted(workspaceId)

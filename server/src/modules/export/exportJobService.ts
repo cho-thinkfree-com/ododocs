@@ -1,13 +1,13 @@
-import type { ExportJobEntity } from './exportJobRepository'
-import { ExportJobRepository, type CreateExportJobInput } from './exportJobRepository'
-import type { WorkspaceAccessService } from '../workspaces/workspaceAccess'
-import type { MembershipRepository } from '../workspaces/membershipRepository'
-import type { AuditLogService } from '../audit/auditLogService'
+import type { ExportJobEntity } from './exportJobRepository.js'
+import { ExportJobRepository } from './exportJobRepository.js'
+import type { WorkspaceAccessService } from '../workspaces/workspaceAccess.js'
+import type { MembershipRepository } from '../workspaces/membershipRepository.js'
+import type { AuditLogService } from '../audit/auditLogService.js'
 import { ExportJobStatus } from '@prisma/client'
 
-export class ExportJobNotReadyError extends Error {}
-export class ExportJobRetryLimitExceededError extends Error {}
-export class ExportJobRetryNotAllowedError extends Error {}
+export class ExportJobNotReadyError extends Error { }
+export class ExportJobRetryLimitExceededError extends Error { }
+export class ExportJobRetryNotAllowedError extends Error { }
 
 export interface ExportJobPayload {
   workspaceId: string
@@ -23,7 +23,7 @@ export class ExportJobService {
     private readonly membershipRepository: MembershipRepository,
     private readonly workspaceAccess: WorkspaceAccessService,
     private readonly auditLogService: AuditLogService,
-  ) {}
+  ) { }
 
   async createJob(accountId: string, payload: ExportJobPayload): Promise<ExportJobEntity> {
     await this.workspaceAccess.assertMember(accountId, payload.workspaceId)

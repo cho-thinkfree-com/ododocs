@@ -1,5 +1,5 @@
 import type { WorkspaceJoinRequest } from '@prisma/client'
-import type { DatabaseClient } from '../../lib/prismaClient'
+import type { DatabaseClient } from '../../lib/prismaClient.js'
 
 export interface JoinRequestEntity {
   id: string
@@ -12,7 +12,7 @@ export interface JoinRequestEntity {
 }
 
 export class JoinRequestRepository {
-  constructor(private readonly prisma: DatabaseClient) {}
+  constructor(private readonly prisma: DatabaseClient) { }
 
   async create(data: { workspaceId: string; accountId: string; message?: string | null }): Promise<JoinRequestEntity> {
     const record = await this.prisma.workspaceJoinRequest.create({

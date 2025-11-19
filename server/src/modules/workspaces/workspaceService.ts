@@ -1,8 +1,9 @@
 import { z } from 'zod'
 import type { WorkspaceVisibility } from '@prisma/client'
-import { WorkspaceRepository, type WorkspaceEntity } from './workspaceRepository'
-import { ensureUniqueSlug } from '../../lib/slug'
-import { WorkspaceAccessService } from './workspaceAccess'
+import { WorkspaceRepository, type WorkspaceEntity } from './workspaceRepository.js'
+import { MembershipRepository } from './membershipRepository.js'
+import { ensureUniqueSlug } from '../../lib/slug.js'
+import { WorkspaceAccessService } from './workspaceAccess.js'
 
 const visibilityEnum: [WorkspaceVisibility, ...WorkspaceVisibility[]] = ['private', 'listed', 'public']
 
@@ -44,11 +45,11 @@ export class WorkspaceService {
     private readonly repository: WorkspaceRepository,
     private readonly membershipRepository: MembershipRepository,
     private readonly workspaceAccess: WorkspaceAccessService,
-  ) {}
+  ) { }
 
   async create(ownerAccountId: string, rawInput: z.input<typeof createWorkspaceSchema>): Promise<WorkspaceEntity> {
     const input = createWorkspaceSchema.parse(rawInput)
-    const slug = await ensureUniqueSlug(input.name, (candidate) => this.repository.slugExists(candidate))
+    const slug = await ensureUniqueSlug(input.name, (candidate: string) => this.repository.slugExists(candidate))
     const workspace = await this.repository.create({
       ownerAccountId,
       name: input.name,

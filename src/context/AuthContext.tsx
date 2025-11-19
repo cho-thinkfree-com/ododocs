@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
-import type { LoginInput, SignupInput, LoginResult } from '../lib/api'
-import { login as loginRequest, signup as signupRequest, logout as logoutRequest } from '../lib/api'
+import type { LoginInput, SignupInput, LoginResult, AccountResponse } from '../lib/api'
+import { login as loginRequest, signup as signupRequest, logout as logoutRequest, getMe } from '../lib/api'
 
 export interface AuthTokens {
   sessionId: string
@@ -13,11 +13,13 @@ export interface AuthTokens {
 
 interface AuthContextValue {
   tokens: AuthTokens | null
+  user: AccountResponse | null
   isAuthenticated: boolean
   login: (input: LoginInput) => Promise<LoginResult>
   signup: (input: SignupInput) => Promise<LoginResult>
   logout: () => Promise<void>
   logoutMessage: string | null
+  refreshProfile: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined)
@@ -41,6 +43,7 @@ const readStoredTokens = (): AuthTokens | null => {
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [tokens, setTokens] = useState<AuthTokens | null>(() => readStoredTokens())
+  const [user, setUser] = useState<AccountResponse | null>(null)
   const [logoutMessage, setLogoutMessage] = useState<string | null>(null)
 
   useEffect(() => {
@@ -53,6 +56,24 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       window.localStorage.removeItem(STORAGE_KEY)
     }
   }, [tokens])
+
+  const refreshProfile = useCallback(async () => {
+    if (!tokens?.accessToken) {
+      setUser(null)
+      return
+    }
+    try {
+      const profile = await getMe(tokens.accessToken)
+      setUser(profile)
+    } catch (error) {
+      console.error('Failed to fetch user profile:', error)
+      // Don't logout here, just fail to get profile. Maybe token is valid but server error.
+    }
+  }, [tokens?.accessToken])
+
+  useEffect(() => {
+    refreshProfile()
+  }, [refreshProfile])
 
   const login = useCallback(async (input: LoginInput) => {
     const result = await loginRequest(input)
@@ -71,9 +92,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const signup = useCallback(
     async (input: SignupInput) => {
       await signupRequest(input)
-    const result = await login({ email: input.email, password: input.password })
-    setLogoutMessage(null)
-    return result
+      const result = await login({ email: input.email, password: input.password })
+      setLogoutMessage(null)
+      return result
     },
     [login],
   )
@@ -89,6 +110,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       // ignore failures, still clear local state
     } finally {
       setTokens(null)
+      setUser(null)
       setLogoutMessage(null)
     }
   }, [accessToken])
@@ -98,23 +120,41 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const detail = (event as CustomEvent<{ message?: string }>).detail
       setLogoutMessage(detail?.message ?? '세션이 만료되어 로그아웃되었습니다.')
       setTokens(null)
+      setUser(null)
     }
+
+    const handleRefreshed = (event: Event) => {
+      const detail = (event as CustomEvent<LoginResult>).detail
+      setTokens({
+        sessionId: detail.sessionId,
+        accountId: detail.accountId,
+        accessToken: detail.accessToken,
+        accessTokenExpiresAt: detail.accessTokenExpiresAt,
+        refreshToken: detail.refreshToken,
+        refreshTokenExpiresAt: detail.refreshTokenExpiresAt,
+      })
+    }
+
     window.addEventListener('tiptap-auth-expired', handleExpired)
+    window.addEventListener('tiptap-auth-refreshed', handleRefreshed)
     return () => {
       window.removeEventListener('tiptap-auth-expired', handleExpired)
+      window.removeEventListener('tiptap-auth-refreshed', handleRefreshed)
     }
   }, [])
 
   const value = useMemo(
     () => ({
       tokens,
+      user,
       isAuthenticated: Boolean(tokens?.accessToken),
       login,
       signup,
       logout,
       logoutMessage,
+      refreshProfile,
     }),
-    [tokens, login, signup, logout, logoutMessage],
+    [tokens, user, login, signup, logout, logoutMessage, refreshProfile],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

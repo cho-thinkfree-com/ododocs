@@ -1,5 +1,5 @@
 import { Button, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, TextField } from '@mui/material';
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 interface CreateDocumentDialogProps {
   open: boolean;
@@ -11,6 +11,16 @@ const CreateDocumentDialog = ({ open, onClose, onCreate }: CreateDocumentDialogP
   const [name, setName] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (open && inputRef.current) {
+      // Ensure focus after dialog animation
+      setTimeout(() => {
+        inputRef.current?.focus();
+      }, 100);
+    }
+  }, [open]);
 
   const handleCreate = async () => {
     if (!name.trim()) {
@@ -46,6 +56,7 @@ const CreateDocumentDialog = ({ open, onClose, onCreate }: CreateDocumentDialogP
         </DialogContentText>
         {error && <p style={{ color: 'red' }}>{error}</p>}
         <TextField
+          inputRef={inputRef}
           autoFocus
           margin="dense"
           id="name"

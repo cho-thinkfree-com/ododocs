@@ -2,9 +2,10 @@
   DocumentPermission as DocumentPermissionModel,
   DocumentPermissionRole,
   DocumentPermissionPrincipalType,
+  WorkspaceMembership,
 } from '@prisma/client'
-import type { DatabaseClient } from '../../lib/prismaClient'
-import type { MembershipEntity } from '../workspaces/membershipRepository'
+import type { DatabaseClient } from '../../lib/prismaClient.js'
+import type { MembershipEntity } from '../workspaces/membershipRepository.js'
 
 export interface DocumentPermissionEntity {
   id: string
@@ -19,7 +20,7 @@ export interface DocumentPermissionEntity {
 }
 
 export class DocumentPermissionRepository {
-  constructor(private readonly prisma: DatabaseClient) {}
+  constructor(private readonly prisma: DatabaseClient) { }
 
   async listByDocument(documentId: string): Promise<DocumentPermissionEntity[]> {
     const permissions = await this.prisma.documentPermission.findMany({

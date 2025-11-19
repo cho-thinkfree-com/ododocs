@@ -1,5 +1,5 @@
 ﻿import type { Folder as FolderModel } from '@prisma/client'
-import type { DatabaseClient } from '../../lib/prismaClient'
+import type { DatabaseClient } from '../../lib/prismaClient.js'
 
 export interface FolderEntity {
   id: string
@@ -30,7 +30,7 @@ export interface FolderUpdateInput {
 }
 
 export class FolderRepository {
-  constructor(private readonly prisma: DatabaseClient) {}
+  constructor(private readonly prisma: DatabaseClient) { }
 
   async create(input: FolderCreateInput): Promise<FolderEntity> {
     const folder = await this.prisma.folder.create({

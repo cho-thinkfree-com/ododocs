@@ -1,7 +1,7 @@
 ﻿import { z } from 'zod'
-import { FolderRepository, type FolderEntity } from './folderRepository'
-import { DocumentRepository } from './documentRepository'
-import { WorkspaceAccessService } from '../workspaces/workspaceAccess'
+import { FolderRepository, type FolderEntity } from './folderRepository.js'
+import { DocumentRepository } from './documentRepository.js'
+import { WorkspaceAccessService } from '../workspaces/workspaceAccess.js'
 
 const createFolderSchema = z.object({
   name: z.string().trim().min(1).max(80),
@@ -28,7 +28,7 @@ export class FolderService {
     private readonly folderRepository: FolderRepository,
     private readonly workspaceAccess: WorkspaceAccessService,
     private readonly documentRepository: DocumentRepository,
-  ) {}
+  ) { }
 
   async listFolders(accountId: string, workspaceId: string, includeDeleted = false): Promise<FolderEntity[]> {
     await this.workspaceAccess.assertMember(accountId, workspaceId)

@@ -1,5 +1,5 @@
 ﻿import type { ExternalCollaborator as CollaboratorModel, ExternalCollaboratorStatus } from '@prisma/client'
-import type { DatabaseClient } from '../../lib/prismaClient'
+import type { DatabaseClient } from '../../lib/prismaClient.js'
 
 export interface ExternalCollaboratorEntity {
   id: string
@@ -11,7 +11,7 @@ export interface ExternalCollaboratorEntity {
 }
 
 export class ExternalCollaboratorRepository {
-  constructor(private readonly prisma: DatabaseClient) {}
+  constructor(private readonly prisma: DatabaseClient) { }
 
   async findByEmail(email: string): Promise<ExternalCollaboratorEntity | null> {
     const collaborator = await this.prisma.externalCollaborator.findUnique({ where: { email } })

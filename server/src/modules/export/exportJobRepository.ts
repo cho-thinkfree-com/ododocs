@@ -1,4 +1,4 @@
-import type { DatabaseClient } from '../../lib/prismaClient'
+import type { DatabaseClient } from '../../lib/prismaClient.js'
 import type { ExportJobStatus } from '@prisma/client'
 
 export interface ExportJobEntity {
@@ -22,7 +22,7 @@ export interface CreateExportJobInput {
 }
 
 export class ExportJobRepository {
-  constructor(private readonly prisma: DatabaseClient) {}
+  constructor(private readonly prisma: DatabaseClient) { }
 
   async create(input: CreateExportJobInput): Promise<ExportJobEntity> {
     const job = await this.prisma.exportJob.create({

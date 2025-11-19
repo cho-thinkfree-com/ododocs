@@ -4,7 +4,7 @@
   DocumentVisibility,
   DocumentWorkspaceAccess,
 } from '@prisma/client'
-import type { DatabaseClient } from '../../lib/prismaClient'
+import type { DatabaseClient } from '../../lib/prismaClient.js'
 
 export interface DocumentEntity {
   id: string
@@ -59,10 +59,11 @@ export interface DocumentListFilters {
   visibility?: DocumentVisibility
   search?: string
   includeDeleted?: boolean
+  tags?: string[]
 }
 
 export class DocumentRepository {
-  constructor(private readonly prisma: DatabaseClient) {}
+  constructor(private readonly prisma: DatabaseClient) { }
 
   async create(input: DocumentCreateInput): Promise<DocumentEntity> {
     const document = await this.prisma.document.create({
@@ -76,8 +77,14 @@ export class DocumentRepository {
         visibility: input.visibility,
         summary: input.summary,
         sortOrder: input.sortOrder ?? 0,
-        workspaceDefaultAccess: input.workspaceDefaultAccess,
         workspaceEditorAdminsOnly: input.workspaceEditorAdminsOnly,
+      },
+      include: {
+        tags: {
+          select: {
+            name: true,
+          },
+        },
       },
     })
     return toEntity(document)
@@ -157,10 +164,21 @@ export class DocumentRepository {
         visibility: filters.visibility,
         ...(filters.search
           ? {
-              title: {
-                contains: filters.search,
+            title: {
+              contains: filters.search,
+            },
+          }
+          : {}),
+        ...(filters.tags && filters.tags.length > 0
+          ? {
+            tags: {
+              some: {
+                name: {
+                  in: filters.tags,
+                },
               },
-            }
+            },
+          }
           : {}),
       },
       orderBy: [{ sortOrder: 'asc' }, { title: 'asc' }],

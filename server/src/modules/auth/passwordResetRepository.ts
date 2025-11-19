@@ -1,4 +1,4 @@
-import type { DatabaseClient } from '../../lib/prismaClient'
+import type { DatabaseClient } from '../../lib/prismaClient.js'
 
 export interface PasswordResetTokenEntity {
   id: string
@@ -17,7 +17,7 @@ export interface PasswordResetRepository {
 }
 
 export class PrismaPasswordResetRepository implements PasswordResetRepository {
-  constructor(private readonly prisma: DatabaseClient) {}
+  constructor(private readonly prisma: DatabaseClient) { }
 
   async create(accountId: string, tokenHash: string, expiresAt: Date): Promise<PasswordResetTokenEntity> {
     await this.prisma.passwordResetToken.deleteMany({

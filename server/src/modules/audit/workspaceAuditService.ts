@@ -1,8 +1,8 @@
 import { z } from 'zod'
-import { AuditLogService } from './auditLogService'
-import { WorkspaceRepository } from '../workspaces/workspaceRepository'
-import { MembershipRepository } from '../workspaces/membershipRepository'
-import { WorkspaceAccessService } from '../workspaces/workspaceAccess'
+import { AuditLogService } from './auditLogService.js'
+import { WorkspaceRepository } from '../workspaces/workspaceRepository.js'
+import { MembershipRepository } from '../workspaces/membershipRepository.js'
+import { WorkspaceAccessService } from '../workspaces/workspaceAccess.js'
 
 const querySchema = z
   .object({
@@ -41,9 +41,9 @@ export class WorkspaceAuditService {
     const query = querySchema.parse(rawQuery ?? {})
     const entityTypes = query.entityType
       ? query.entityType
-          .split(',')
-          .map((value) => value.trim())
-          .filter(Boolean)
+        .split(',')
+        .map((value) => value.trim())
+        .filter(Boolean)
       : undefined
     return this.auditLogService.list({
       workspaceId,

@@ -1,6 +1,6 @@
 import { Prisma, type Account as AccountModel, type AccountStatus } from '@prisma/client'
-import type { DatabaseClient } from '../../lib/prismaClient'
-import { AccountAlreadyExistsError } from './errors'
+import type { DatabaseClient } from '../../lib/prismaClient.js'
+import { AccountAlreadyExistsError } from './errors.js'
 
 export interface CreateAccountInput {
   email: string
@@ -33,11 +33,12 @@ export interface AccountRepository {
   findAuthRecordByEmail(email: string): Promise<AccountWithPassword | null>
   findAuthRecordById(id: string): Promise<AccountWithPassword | null>
   updatePasswordHash(accountId: string, passwordHash: string): Promise<void>
+  update(accountId: string, data: Partial<CreateAccountInput> & { preferredLocale?: string; preferredTimezone?: string }): Promise<AccountEntity>
   softDelete(accountId: string): Promise<void>
 }
 
 export class PrismaAccountRepository implements AccountRepository {
-  constructor(private readonly prisma: DatabaseClient) {}
+  constructor(private readonly prisma: DatabaseClient) { }
 
   async create(data: CreateAccountInput): Promise<AccountEntity> {
     try {
@@ -55,6 +56,29 @@ export class PrismaAccountRepository implements AccountRepository {
     } catch (error) {
       if (isUniqueEmailError(error)) {
         throw new AccountAlreadyExistsError(data.email)
+      }
+      throw error
+    }
+  }
+
+  async update(accountId: string, data: Partial<CreateAccountInput> & { preferredLocale?: string; preferredTimezone?: string }): Promise<AccountEntity> {
+    try {
+      const account = await this.prisma.account.update({
+        where: { id: accountId },
+        data: {
+          email: data.email,
+          legalName: data.legalName,
+          recoveryEmail: data.recoveryEmail,
+          recoveryPhone: data.recoveryPhone,
+          status: data.status,
+          preferredLocale: data.preferredLocale,
+          preferredTimezone: data.preferredTimezone,
+        },
+      })
+      return toEntity(account)
+    } catch (error) {
+      if (isUniqueEmailError(error)) {
+        throw new AccountAlreadyExistsError(data.email || '')
       }
       throw error
     }

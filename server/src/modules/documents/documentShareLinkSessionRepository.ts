@@ -1,5 +1,5 @@
 ﻿import type { DocumentShareLinkSession as SessionModel } from '@prisma/client'
-import type { DatabaseClient } from '../../lib/prismaClient'
+import type { DatabaseClient } from '../../lib/prismaClient.js'
 
 export interface ShareLinkSessionEntity {
   id: string
@@ -19,7 +19,7 @@ export interface ShareLinkSessionCreateInput {
 }
 
 export class DocumentShareLinkSessionRepository {
-  constructor(private readonly prisma: DatabaseClient) {}
+  constructor(private readonly prisma: DatabaseClient) { }
 
   async create(input: ShareLinkSessionCreateInput): Promise<ShareLinkSessionEntity> {
     const session = await this.prisma.documentShareLinkSession.create({

@@ -1,5 +1,5 @@
 import { Button, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, TextField } from '@mui/material';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 interface RenameDialogProps {
   open: boolean;
@@ -13,11 +13,21 @@ const RenameDialog = ({ open, onClose, onRename, initialName, itemType }: Rename
   const [name, setName] = useState(initialName);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (open) {
       setName(initialName);
       setError(null);
+      // Focus input after dialog animation
+      if (inputRef.current) {
+        setTimeout(() => {
+          inputRef.current?.focus();
+          // Move cursor to end of text
+          const length = inputRef.current?.value.length || 0;
+          inputRef.current?.setSelectionRange(length, length);
+        }, 100);
+      }
     }
   }, [open, initialName]);
 
@@ -52,6 +62,7 @@ const RenameDialog = ({ open, onClose, onRename, initialName, itemType }: Rename
         </DialogContentText>
         {error && <p style={{ color: 'red' }}>{error}</p>}
         <TextField
+          inputRef={inputRef}
           autoFocus
           margin="dense"
           id="name"

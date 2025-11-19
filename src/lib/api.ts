@@ -22,6 +22,17 @@ const dispatchAuthExpired = (message: string) => {
   )
 }
 
+const dispatchAuthRefreshed = (tokens: LoginResult) => {
+  if (typeof window === 'undefined') {
+    return
+  }
+  window.dispatchEvent(
+    new CustomEvent('tiptap-auth-refreshed', {
+      detail: tokens,
+    }),
+  )
+}
+
 const handleResponse = async <T>(response: Response): Promise<T> => {
   let payload: unknown = null
   try {
@@ -31,11 +42,6 @@ const handleResponse = async <T>(response: Response): Promise<T> => {
   }
 
   if (!response.ok) {
-    if (response.status === 401) {
-      dispatchAuthExpired(
-        '세션이 만료되었거나 오랫동안 사용하지 않아 자동으로 로그아웃되었습니다. 다시 로그인해 주세요.',
-      )
-    }
     const message =
       typeof payload === 'object' && payload && 'message' in (payload as Record<string, unknown>)
         ? (payload as Record<string, string>).message
@@ -51,10 +57,11 @@ interface RequestOptions {
   token?: string
   body?: unknown
   query?: Record<string, string | number | boolean | undefined>
+  skipRefresh?: boolean
 }
 
 const requestJSON = async <T>(path: string, options: RequestOptions = {}): Promise<T> => {
-  const { method = 'GET', token, body, query } = options
+  const { method = 'GET', token, body, query, skipRefresh } = options
   const url = `${API_BASE_URL}${path}${buildQuery(query)}`
   const headers = new Headers()
   if (body) {
@@ -69,6 +76,40 @@ const requestJSON = async <T>(path: string, options: RequestOptions = {}): Promi
     headers,
     body: body ? JSON.stringify(body) : undefined,
   })
+
+  if (response.status === 401 && !skipRefresh) {
+    try {
+      const stored = typeof window !== 'undefined' ? window.localStorage.getItem('tiptap-example-auth') : null
+      if (stored) {
+        const { refreshToken } = JSON.parse(stored)
+        if (refreshToken) {
+          // Try to refresh
+          const refreshResponse = await fetch(`${API_BASE_URL}/api/auth/refresh`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ refreshToken }),
+          })
+
+          if (refreshResponse.ok) {
+            const newTokens = await refreshResponse.json() as LoginResult
+            // Update local storage immediately so subsequent requests use it
+            window.localStorage.setItem('tiptap-example-auth', JSON.stringify(newTokens))
+            // Notify AuthContext to update state
+            dispatchAuthRefreshed(newTokens)
+            // Retry original request with new access token
+            return requestJSON<T>(path, { ...options, token: newTokens.accessToken, skipRefresh: true })
+          }
+        }
+      }
+    } catch (e) {
+      // Refresh failed, proceed to logout
+    }
+
+    dispatchAuthExpired(
+      '세션이 만료되었거나 오랫동안 사용하지 않아 자동으로 로그아웃되었습니다. 다시 로그인해 주세요.',
+    )
+  }
+
   return handleResponse<T>(response)
 }
 
@@ -94,6 +135,11 @@ export interface AccountResponse {
   id: string
   email: string
   status: string
+  legalName?: string | null
+  preferredLocale?: string | null
+  preferredTimezone?: string | null
+  createdAt: string
+  updatedAt: string
 }
 
 export interface WorkspaceSummary {
@@ -118,6 +164,16 @@ export interface MembershipSummary {
   preferredLocale?: string | null
 }
 
+export interface FolderSummary {
+  id: string
+  workspaceId: string
+  name: string
+  parentId?: string | null
+  pathCache: string
+  createdAt: string
+  updatedAt: string
+}
+
 export interface DocumentSummary {
   id: string
   workspaceId: string
@@ -134,20 +190,18 @@ export interface DocumentSummary {
 }
 
 export interface DocumentCreateInput {
-  title: string
+  title?: string
   folderId?: string | null
-  visibility?: string
-  status?: string
+  slug?: string
+  visibility?: 'private' | 'workspace' | 'shared' | 'public'
+  status?: 'draft' | 'published' | 'archived'
+  summary?: string
+  sortOrder?: number
+  initialRevision?: {
+    content: Record<string, unknown>
+    summary?: string
+  }
 }
-
-export interface FolderSummary {
-  id: string
-  workspaceId: string
-  name: string
-  parentId?: string | null
-  pathCache: string
-}
-
 export interface FolderCreateInput {
   name: string
   parentId?: string | null
@@ -165,12 +219,34 @@ export interface ShareLinkResponse {
 export const login = (input: LoginInput) => requestJSON<LoginResult>('/api/auth/login', { method: 'POST', body: input })
 export const signup = (input: SignupInput) => requestJSON<AccountResponse>('/api/auth/signup', { method: 'POST', body: input })
 export const logout = (token?: string) => requestJSON<{ ok: boolean }>('/api/auth/logout', { method: 'POST', token })
+export const getMe = (token: string) => requestJSON<AccountResponse>('/api/auth/me', { token })
+export const updateAccount = (token: string, body: { email?: string; legalName?: string; preferredLocale?: string; preferredTimezone?: string; currentPassword?: string; newPassword?: string }) => requestJSON<AccountResponse>('/api/auth/me', { method: 'PATCH', token, body })
+export const refresh = (input: { refreshToken: string }) => requestJSON<LoginResult>('/api/auth/refresh', { method: 'POST', body: input, skipRefresh: true })
 
 export const getWorkspaces = (token: string) =>
   requestJSON<{ items: WorkspaceSummary[] }>('/api/workspaces', { token }).then((payload) => payload.items ?? [])
 
 export const getWorkspaceMembers = (workspaceId: string, token: string) =>
   requestJSON<{ items: MembershipSummary[] }>(`/api/workspaces/${workspaceId}/members`, { token })
+
+export const getWorkspaceMemberProfile = (workspaceId: string, token: string) =>
+  requestJSON<MembershipSummary>(`/api/workspaces/${workspaceId}/members/me`, { token })
+
+export const updateWorkspaceMemberProfile = (
+  workspaceId: string,
+  token: string,
+  body: {
+    displayName?: string
+    avatarUrl?: string
+    timezone?: string
+    preferredLocale?: string
+  },
+) =>
+  requestJSON<MembershipSummary>(`/api/workspaces/${workspaceId}/members/me`, {
+    method: 'PATCH',
+    token,
+    body,
+  })
 
 export interface InviteMemberInput {
   accountId: string
@@ -237,7 +313,10 @@ export const getDocument = (documentId: string, token: string) =>
   requestJSON<DocumentSummary>(`/api/documents/${documentId}`, { token })
 
 export const getLatestRevision = (documentId: string, token: string) =>
-  requestJSON<DocumentRevision>(`/api/documents/${documentId}/revisions/latest`, { token })
+  requestJSON<{ document: DocumentSummary; revision: DocumentRevision }>(
+    `/api/documents/${documentId}/revisions/latest`,
+    { token },
+  ).then((payload) => payload.revision)
 
 export const appendRevision = (documentId: string, token: string, body: { content: Record<string, unknown> }) =>
   requestJSON<DocumentRevision>(`/api/documents/${documentId}/revisions`, { method: 'POST', token, body })
@@ -287,3 +366,29 @@ export const closeWorkspace = (workspaceId: string, token: string) =>
 
 export const createWorkspace = (token: string, body: { name: string }) =>
   requestJSON<WorkspaceSummary>('/api/workspaces', { method: 'POST', token, body })
+
+export const checkDocumentTitle = (
+  workspaceId: string,
+  token: string,
+  title: string,
+  folderId?: string | null,
+  excludeId?: string,
+) =>
+  requestJSON<{ isDuplicate: boolean }>(
+    `/api/workspaces/${workspaceId}/documents/check-title?title=${encodeURIComponent(title)}${folderId ? `&folderId=${folderId}` : ''}${excludeId ? `&excludeId=${excludeId}` : ''}`,
+    { token },
+  )
+
+export const updateDocument = (
+  documentId: string,
+  token: string,
+  body: {
+    title?: string
+    folderId?: string | null
+    slug?: string
+    status?: 'draft' | 'published' | 'archived'
+    visibility?: 'private' | 'workspace' | 'shared' | 'public'
+    summary?: string
+    sortOrder?: number
+  },
+) => requestJSON<DocumentSummary>(`/api/documents/${documentId}`, { method: 'PATCH', token, body })

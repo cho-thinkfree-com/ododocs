@@ -1,12 +1,12 @@
 ﻿import { z } from 'zod'
 import type { DocumentWorkspaceAccess } from '@prisma/client'
-import { AuditLogService } from '../audit/auditLogService'
-import { DocumentRepository, type DocumentEntity } from './documentRepository'
-import { DocumentPermissionRepository, type DocumentPermissionEntity } from './documentPermissionRepository'
-import { MembershipRepository, type MembershipEntity } from '../workspaces/membershipRepository'
-import { MembershipAccessDeniedError } from '../workspaces/membershipService'
-import { DocumentNotFoundError } from './documentService'
-import { DocumentAccessService } from './documentAccessService'
+import { AuditLogService } from '../audit/auditLogService.js'
+import { DocumentRepository, type DocumentEntity } from './documentRepository.js'
+import { DocumentPermissionRepository, type DocumentPermissionEntity } from './documentPermissionRepository.js'
+import { MembershipRepository, type MembershipEntity } from '../workspaces/membershipRepository.js'
+import { MembershipAccessDeniedError } from '../workspaces/membershipService.js'
+import { DocumentNotFoundError } from './documentService.js'
+import { DocumentAccessService } from './documentAccessService.js'
 
 const permissionInputSchema = z.object({
   principalType: z.literal('membership'),
@@ -28,7 +28,7 @@ export class DocumentPermissionService {
     private readonly membershipRepository: MembershipRepository,
     private readonly documentAccess: DocumentAccessService,
     private readonly auditLogService: AuditLogService,
-  ) {}
+  ) { }
 
   async listPermissions(accountId: string, workspaceId: string, documentId: string) {
     const document = await this.getDocument(documentId, workspaceId)

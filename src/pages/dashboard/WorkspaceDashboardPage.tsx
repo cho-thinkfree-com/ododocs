@@ -1,11 +1,14 @@
-import { Alert, Box, Button, Card, CardActionArea, CardContent, CircularProgress, Container, Grid, TextField, Typography } from '@mui/material';
+import { Alert, Box, Button, Card, CardActionArea, CardContent, CircularProgress, Container, TextField, Typography, InputAdornment, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Link } from '@mui/material';
 import { useCallback, useEffect, useState } from 'react';
 import { Link as RouterLink } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { createWorkspace, getWorkspaces, getRecentDocuments, type WorkspaceSummary, type DocumentSummary } from '../../lib/api';
 import AddIcon from '@mui/icons-material/Add';
-import CreateWorkspaceDialog from '../../components/workspace/CreateWorkspaceDialog';
+import SearchIcon from '@mui/icons-material/Search';
 import ArticleIcon from '@mui/icons-material/Article';
+import WorkspacesIcon from '@mui/icons-material/Workspaces';
+import CreateWorkspaceDialog from '../../components/workspace/CreateWorkspaceDialog';
+import { formatRelativeDate } from '../../lib/formatDate';
 
 const WorkspaceDashboardPage = () => {
   const { tokens } = useAuth();
@@ -59,131 +62,127 @@ const WorkspaceDashboardPage = () => {
       throw new Error('Not authenticated');
     }
     await createWorkspace(tokens.accessToken, { name });
-    fetchWorkspaces(); // Refetch workspaces after creation
+    fetchWorkspaces();
   };
 
   const renderWorkspaces = () => {
-    if (loading) {
-      return <CircularProgress />;
-    }
-
-    if (error) {
-      return <Alert severity="error">{error}</Alert>;
-    }
+    if (loading) return <CircularProgress />;
+    if (error) return <Alert severity="error">{error}</Alert>;
 
     if (workspaces.length === 0) {
       return (
-        <Box sx={{ textAlign: 'center', mt: 4 }}>
-          <Typography variant="h6" gutterBottom>
-            No workspaces found.
-          </Typography>
-          <Typography color="text.secondary" paragraph>
-            Get started by creating your first workspace.
+        <Paper sx={{ p: 4, textAlign: 'center', borderStyle: 'dashed' }}>
+          <Typography variant="h6" gutterBottom>No workspaces found</Typography>
+          <Typography color="text.secondary" sx={{ mb: 2 }}>
+            Get started by creating your first workspace to organize your documents.
           </Typography>
           <Button variant="contained" startIcon={<AddIcon />} onClick={() => setCreateDialogOpen(true)}>
             Create Workspace
           </Button>
-        </Box>
+        </Paper>
       );
     }
 
     return (
-      <Grid container spacing={3}>
+      <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 3 }}>
         {workspaces.map((ws) => (
-          <Grid item xs={12} sm={6} md={4} key={ws.id}>
-            <Card>
-              <CardActionArea component={RouterLink} to={`/workspace/${ws.id}`}>
+          <Box key={ws.id}>
+            <Card sx={{ height: '100%', transition: 'transform 0.2s', '&:hover': { transform: 'translateY(-4px)' } }}>
+              <CardActionArea component={RouterLink} to={`/workspace/${ws.id}`} sx={{ height: '100%', p: 1 }}>
                 <CardContent>
-                  <Typography variant="h6" component="div">
-                    {ws.name}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    {ws.description || 'No description'}
+                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                    <WorkspacesIcon color="primary" sx={{ fontSize: 32, mr: 1.5, opacity: 0.8 }} />
+                    <Typography variant="h6" component="div" fontWeight="600">
+                      {ws.name}
+                    </Typography>
+                  </Box>
+                  <Typography variant="body2" color="text.secondary" sx={{ minHeight: 40 }}>
+                    {ws.description || 'No description provided.'}
                   </Typography>
                 </CardContent>
               </CardActionArea>
             </Card>
-          </Grid>
+          </Box>
         ))}
-         <Grid item xs={12} sm={6} md={4}>
-          <Card sx={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <CardActionArea onClick={() => setCreateDialogOpen(true)} sx={{ height: '100%' }}>
-              <CardContent sx={{ textAlign: 'center' }}>
-                <AddIcon fontSize="large" color="action" />
-                <Typography variant="h6" color="text.secondary">
-                  Create new workspace
-                </Typography>
-              </CardContent>
+        <Box>
+          <Card sx={{ height: '100%', borderStyle: 'dashed', bgcolor: 'transparent' }}>
+            <CardActionArea onClick={() => setCreateDialogOpen(true)} sx={{ height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', minHeight: 160 }}>
+              <AddIcon color="action" sx={{ fontSize: 40, mb: 1 }} />
+              <Typography variant="h6" color="text.secondary">Create Workspace</Typography>
             </CardActionArea>
           </Card>
-        </Grid>
-      </Grid>
+        </Box>
+      </Box>
     );
   };
 
   const renderRecentDocuments = () => {
-    if (recentDocumentsLoading) {
-      return <CircularProgress />;
-    }
-
-    if (recentDocumentsError) {
-      return <Alert severity="error">{recentDocumentsError}</Alert>;
-    }
-
-    if (recentDocuments.length === 0) {
-      return (
-        <Typography color="text.secondary">
-          No recent documents. Create a new document to see it here.
-        </Typography>
-      );
-    }
+    if (recentDocumentsLoading) return <CircularProgress />;
+    if (recentDocumentsError) return <Alert severity="error">{recentDocumentsError}</Alert>;
+    if (recentDocuments.length === 0) return <Typography color="text.secondary">No recent documents found.</Typography>;
 
     return (
-      <Grid container spacing={2}>
-        {recentDocuments.map((doc) => (
-          <Grid item xs={12} sm={6} md={3} key={doc.id}>
-            <Card>
-              <CardActionArea component={RouterLink} to={`/document/${doc.id}`}>
-                <CardContent sx={{ display: 'flex', alignItems: 'center' }}>
-                  <ArticleIcon sx={{ mr: 1.5 }} />
-                  <Typography variant="body1">{doc.title}</Typography>
-                </CardContent>
-              </CardActionArea>
-            </Card>
-          </Grid>
-        ))}
-      </Grid>
+      <TableContainer component={Paper} variant="outlined" sx={{ border: 'none' }}>
+        <Table>
+          <TableHead>
+            <TableRow>
+              <TableCell width="50%">Name</TableCell>
+              <TableCell width="30%">Last Modified</TableCell>
+              <TableCell align="right" width="20%">Actions</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {recentDocuments.map((doc) => (
+              <TableRow key={doc.id} hover>
+                <TableCell>
+                  <Link component={RouterLink} to={`/document/${doc.id}`} target="_blank" sx={{ display: 'flex', alignItems: 'center', textDecoration: 'none', color: 'inherit' }}>
+                    <ArticleIcon color="action" sx={{ mr: 1.5 }} />
+                    {doc.title}
+                  </Link>
+                </TableCell>
+                <TableCell>
+                  <Typography variant="body2" color="text.secondary">{formatRelativeDate(doc.updatedAt)}</Typography>
+                </TableCell>
+                <TableCell align="right">
+                  <Button size="small" component={RouterLink} to={`/document/${doc.id}`} target="_blank">
+                    Open
+                  </Button>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </TableContainer>
     );
   };
 
   return (
-    <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
-      <Typography variant="h4" component="h1" gutterBottom>
-        Workspace Dashboard
-      </Typography>
-      <Typography variant="h6" color="text.secondary" gutterBottom>
-        Welcome back!
-      </Typography>
-
-      <Box sx={{ my: 4 }}>
-        <TextField
-          fullWidth
-          label="Search documents across all workspaces..."
-          variant="outlined"
-        />
+    <Container maxWidth="xl">
+      <Box sx={{ mb: 5 }}>
+        <Typography variant="h4" fontWeight="bold" gutterBottom>Dashboard</Typography>
+        <Typography variant="body1" color="text.secondary">Manage your workspaces and documents.</Typography>
       </Box>
 
-      <Box sx={{ my: 4 }}>
-        <Typography variant="h5" component="h2" gutterBottom>
-          Your Workspaces
-        </Typography>
+      <TextField
+        fullWidth
+        placeholder="Search documents..."
+        InputProps={{
+          startAdornment: (
+            <InputAdornment position="start">
+              <SearchIcon color="action" />
+            </InputAdornment>
+          ),
+        }}
+        sx={{ mb: 6, maxWidth: 600 }}
+      />
+
+      <Box sx={{ mb: 6 }}>
+        <Typography variant="h5" fontWeight="bold" sx={{ mb: 3 }}>Workspaces</Typography>
         {renderWorkspaces()}
       </Box>
 
-      <Box sx={{ my: 4 }}>
-        <Typography variant="h5" component="h2" gutterBottom>
-          Recent Documents
-        </Typography>
+      <Box>
+        <Typography variant="h5" fontWeight="bold" sx={{ mb: 3 }}>Recent Documents</Typography>
         {renderRecentDocuments()}
       </Box>
 

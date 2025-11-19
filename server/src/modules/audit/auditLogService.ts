@@ -1,5 +1,5 @@
 import type { AuditActorType } from '@prisma/client'
-import { AuditLogRepository, type AuditLogEntity, type AuditLogQuery } from './auditLogRepository'
+import { AuditLogRepository, type AuditLogEntity, type AuditLogQuery } from './auditLogRepository.js'
 
 export type AuditActor =
   | { type: 'membership'; membershipId: string }
@@ -15,7 +15,7 @@ export interface AuditEventInput {
 }
 
 export class AuditLogService {
-  constructor(private readonly repository: AuditLogRepository) {}
+  constructor(private readonly repository: AuditLogRepository) { }
 
   async record(input: AuditEventInput): Promise<AuditLogEntity> {
     return this.repository.create({

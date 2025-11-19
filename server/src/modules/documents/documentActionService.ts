@@ -1,13 +1,13 @@
 ﻿import { z } from 'zod'
 import type { DocumentVisibility, DocumentStatus } from '@prisma/client'
-import { DocumentRepository } from './documentRepository'
-import { DocumentRevisionRepository } from './documentRevisionRepository'
-import { DocumentAccessService } from './documentAccessService'
-import { FolderRepository } from './folderRepository'
-import { FolderNotFoundError } from './folderService'
-import { DocumentPlanLimitService, NoopDocumentPlanLimitService } from './planLimitService'
-import { MembershipAccessDeniedError } from '../workspaces/membershipService'
-import { DocumentRevisionNotFoundError } from './documentService'
+import { DocumentRepository } from './documentRepository.js'
+import { DocumentRevisionRepository } from './documentRevisionRepository.js'
+import { DocumentAccessService } from './documentAccessService.js'
+import { FolderRepository } from './folderRepository.js'
+import { FolderNotFoundError } from './folderService.js'
+import { DocumentPlanLimitService, NoopDocumentPlanLimitService } from './planLimitService.js'
+import { MembershipAccessDeniedError } from '../workspaces/membershipService.js'
+import { DocumentRevisionNotFoundError } from './documentService.js'
 
 const updatePayloadSchema = z
   .object({
@@ -23,7 +23,7 @@ const updatePayloadSchema = z
     message: 'No fields to update',
   })
 
-const deleteSchema = z.object({ force: z.boolean().optional() })
+
 
 export class DocumentUpdateConflictError extends Error {
   constructor() {
@@ -39,7 +39,7 @@ export class DocumentActionService {
     private readonly folderRepository: FolderRepository,
     private readonly documentAccess: DocumentAccessService,
     private readonly planLimitService: DocumentPlanLimitService = new NoopDocumentPlanLimitService(),
-  ) {}
+  ) { }
 
   async getDocument(accountId: string, workspaceId: string, documentId: string) {
     const access = await this.documentAccess.assertCanView(accountId, workspaceId, documentId)

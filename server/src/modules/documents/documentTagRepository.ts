@@ -1,4 +1,4 @@
-import type { DatabaseClient } from '../../lib/prismaClient'
+import type { DatabaseClient } from '../../lib/prismaClient.js'
 
 export interface DocumentTagEntity {
   id: string
@@ -13,7 +13,7 @@ export interface DocumentTagCreateInput {
 }
 
 export class DocumentTagRepository {
-  constructor(private readonly prisma: DatabaseClient) {}
+  constructor(private readonly prisma: DatabaseClient) { }
 
   async listByDocument(documentId: string): Promise<DocumentTagEntity[]> {
     const tags = await this.prisma.documentTag.findMany({

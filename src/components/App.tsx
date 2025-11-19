@@ -1,13 +1,13 @@
 import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { AuthProvider, useAuth } from '../context/AuthContext';
-import AuthLayout from '../layouts/AuthLayout';
 import LoginPage from '../pages/auth/LoginPage';
 import SignupPage from '../pages/auth/SignupPage';
-import MainLayout from '../layouts/MainLayout';
+import DashboardLayout from './layout/DashboardLayout';
 import WorkspaceDashboardPage from '../pages/dashboard/WorkspaceDashboardPage';
 import WorkspacePage from '../pages/workspace/WorkspacePage';
 import WorkspaceSettingsPage from '../pages/workspace/WorkspaceSettingsPage';
 import WorkspaceMembersPage from '../pages/workspace/WorkspaceMembersPage';
+import SettingsPage from '../pages/settings/SettingsPage';
 import EditorPage from '../pages/editor/EditorPage';
 
 const ProtectedRoute = () => {
@@ -29,18 +29,20 @@ const AppRoutes = () => {
 
       {/* Authenticated Routes */}
       <Route element={<ProtectedRoute />}>
-        <Route element={<MainLayout />}>
+        <Route element={<DashboardLayout />}>
           <Route path="/dashboard" element={<WorkspaceDashboardPage />} />
+          <Route path="/settings" element={<SettingsPage />} />
           <Route path="/workspace/:workspaceId" element={<WorkspacePage />} />
           <Route path="/workspace/:workspaceId/settings" element={<WorkspaceSettingsPage />} />
+          <Route path="/workspace/:workspaceId/profile" element={<SettingsPage />} />
           <Route path="/workspace/:workspaceId/members" element={<WorkspaceMembersPage />} />
         </Route>
-        {/* Editor route is outside MainLayout to have its own full-screen layout */}
+        {/* Editor route is outside DashboardLayout to have its own full-screen layout */}
         <Route path="/document/:documentId" element={<EditorPage />} />
       </Route>
 
-      {/* Auth Routes */}
-      <Route element={<AuthLayout />}>
+      {/* Auth Routes - AuthLayout is now built into the pages themselves */}
+      <Route>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/signup" element={<SignupPage />} />
       </Route>

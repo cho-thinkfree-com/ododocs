@@ -1,20 +1,20 @@
 ﻿import { z } from 'zod'
 import type { DocumentStatus, DocumentVisibility } from '@prisma/client'
-import { DocumentRepository, type DocumentEntity, type DocumentListFilters } from './documentRepository'
+import { DocumentRepository, type DocumentEntity, type DocumentListFilters } from './documentRepository.js'
 import {
   DocumentRevisionRepository,
   type DocumentRevisionEntity,
-} from './documentRevisionRepository'
-import { FolderRepository, type FolderEntity } from './folderRepository'
-import { MembershipRepository } from '../workspaces/membershipRepository'
-import { WorkspaceAccessService } from '../workspaces/workspaceAccess'
-import { ensureUniqueSlug, slugify } from '../../lib/slug'
-import { FolderNotFoundError } from './folderService'
-import { MembershipAccessDeniedError } from '../workspaces/membershipService'
+} from './documentRevisionRepository.js'
+import { FolderRepository, type FolderEntity } from './folderRepository.js'
+import { MembershipRepository } from '../workspaces/membershipRepository.js'
+import { WorkspaceAccessService } from '../workspaces/workspaceAccess.js'
+import { ensureUniqueSlug, slugify } from '../../lib/slug.js'
+import { FolderNotFoundError } from './folderService.js'
+import { MembershipAccessDeniedError } from '../workspaces/membershipService.js'
 import {
   DocumentPlanLimitService,
   NoopDocumentPlanLimitService,
-} from './planLimitService'
+} from './planLimitService.js'
 
 const documentStatusEnum: [DocumentStatus, ...DocumentStatus[]] = ['draft', 'published', 'archived']
 const documentVisibilityEnum: [DocumentVisibility, ...DocumentVisibility[]] = ['private', 'workspace', 'shared', 'public']
@@ -23,7 +23,7 @@ const tiptapJsonSchema = z
   .refine((value) => typeof value === 'object' && value !== null, { message: 'content must be object or array' })
 
 const createDocumentSchema = z.object({
-  title: z.string().trim().min(1).max(160),
+  title: z.string().trim().min(1).max(160).optional(),
   folderId: z.string().uuid().optional().nullable(),
   slug: z.string().trim().min(1).max(160).optional(),
   visibility: z.enum(documentVisibilityEnum).default('private'),
@@ -63,7 +63,7 @@ export class DocumentService {
     private readonly membershipRepository: MembershipRepository,
     private readonly workspaceAccess: WorkspaceAccessService,
     private readonly planLimitService: DocumentPlanLimitService = new NoopDocumentPlanLimitService(),
-  ) {}
+  ) { }
 
   async listWorkspaceDocuments(
     accountId: string,
@@ -98,7 +98,15 @@ export class DocumentService {
     const folder = input.folderId ? await this.ensureFolder(workspaceId, input.folderId) : null
     if (folder?.deletedAt) throw new FolderNotFoundError()
     await this.planLimitService.assertDocumentCreateAllowed(workspaceId)
-    const slug = await this.resolveSlug(workspaceId, input.slug ?? input.title, {
+
+    // Auto-generate title if not provided
+    const title = input.title || await this.generateUniqueTitle(
+      workspaceId,
+      input.folderId ?? null,
+      'Untitled'
+    )
+
+    const slug = await this.resolveSlug(workspaceId, input.slug ?? title, {
       strict: Boolean(input.slug),
     })
 
@@ -106,7 +114,7 @@ export class DocumentService {
       workspaceId,
       folderId: input.folderId ?? null,
       ownerMembershipId: membership.id,
-      title: input.title,
+      title,
       slug,
       status: input.status,
       visibility: input.visibility,
@@ -121,8 +129,34 @@ export class DocumentService {
       summary: input.initialRevision?.summary,
       createdByMembershipId: membership.id,
     })
-    
+
     return document
+  }
+
+  private async generateUniqueTitle(
+    workspaceId: string,
+    folderId: string | null,
+    baseTitle: string = 'Untitled'
+  ): Promise<string> {
+    const existingDocs = await this.documentRepository.listByWorkspace(
+      workspaceId,
+      { folderId }
+    )
+
+    const existingTitles = new Set(
+      existingDocs.map(doc => doc.title.toLowerCase())
+    )
+
+    if (!existingTitles.has(baseTitle.toLowerCase())) {
+      return baseTitle
+    }
+
+    let counter = 1
+    while (existingTitles.has(`${baseTitle} (${counter})`.toLowerCase())) {
+      counter++
+    }
+
+    return `${baseTitle} (${counter})`
   }
 
   async updateDocument(

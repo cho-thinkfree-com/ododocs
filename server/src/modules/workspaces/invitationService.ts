@@ -1,13 +1,13 @@
 import { randomBytes } from 'node:crypto'
-import { InvitationRepository, type InvitationEntity } from './invitationRepository'
-import { MembershipRepository } from './membershipRepository'
-import { WorkspaceRepository } from './workspaceRepository'
-import { WorkspaceAccessService } from './workspaceAccess'
-import { hashToken } from '../../lib/tokenGenerator'
-import { MembershipExistsError } from './membershipService'
-import type { AccountRepository } from '../accounts/accountRepository'
-import { WorkspaceNotFoundError } from './workspaceService'
-import { AuditLogService } from '../audit/auditLogService'
+import { InvitationRepository, type InvitationEntity } from './invitationRepository.js'
+import { MembershipRepository } from './membershipRepository.js'
+import { WorkspaceRepository } from './workspaceRepository.js'
+import { WorkspaceAccessService } from './workspaceAccess.js'
+import { hashToken } from '../../lib/tokenGenerator.js'
+import { MembershipExistsError } from './membershipService.js'
+import type { AccountRepository } from '../accounts/accountRepository.js'
+import { WorkspaceNotFoundError } from './workspaceService.js'
+import { AuditLogService } from '../audit/auditLogService.js'
 
 export class WorkspaceInvitationService {
   private readonly access: WorkspaceAccessService

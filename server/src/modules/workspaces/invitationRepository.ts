@@ -1,5 +1,5 @@
 import type { WorkspaceInvitation } from '@prisma/client'
-import type { DatabaseClient } from '../../lib/prismaClient'
+import type { DatabaseClient } from '../../lib/prismaClient.js'
 
 export interface InvitationEntity {
   id: string
@@ -15,7 +15,7 @@ export interface InvitationEntity {
 }
 
 export class InvitationRepository {
-  constructor(private readonly prisma: DatabaseClient) {}
+  constructor(private readonly prisma: DatabaseClient) { }
 
   async create(data: {
     workspaceId: string

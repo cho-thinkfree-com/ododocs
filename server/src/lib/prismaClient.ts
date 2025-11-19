@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client'
+import { PrismaClient, Prisma } from '@prisma/client'
 
 export interface PrismaClientOptions {
   datasourceUrl?: string
@@ -6,15 +6,15 @@ export interface PrismaClientOptions {
 
 export const createPrismaClient = (options: PrismaClientOptions = {}) => {
   const { datasourceUrl } = options
-  const logLevels =
+  const logLevels: Prisma.LogLevel[] =
     process.env.NODE_ENV === 'test' ? [] : process.env.NODE_ENV === 'production' ? ['error'] : ['error', 'warn']
   return new PrismaClient({
     datasources: datasourceUrl
       ? {
-          db: {
-            url: datasourceUrl,
-          },
-        }
+        db: {
+          url: datasourceUrl,
+        },
+      }
       : undefined,
     log: logLevels,
   })

@@ -1,10 +1,10 @@
 import { z } from 'zod'
 import type { WorkspaceMembershipRole, WorkspaceMembershipStatus } from '@prisma/client'
-import { MembershipRepository, type MembershipEntity } from './membershipRepository'
-import { WorkspaceRepository } from './workspaceRepository'
-import { WorkspaceNotFoundError } from './workspaceService'
-import { WorkspaceAccessService } from './workspaceAccess'
-import { AuditLogService } from '../audit/auditLogService'
+import { MembershipRepository, type MembershipEntity } from './membershipRepository.js'
+import { WorkspaceRepository } from './workspaceRepository.js'
+import { WorkspaceNotFoundError } from './workspaceService.js'
+import { WorkspaceAccessService } from './workspaceAccess.js'
+import { AuditLogService } from '../audit/auditLogService.js'
 
 const roleEnum: [WorkspaceMembershipRole, ...WorkspaceMembershipRole[]] = ['owner', 'admin', 'member']
 const statusEnum: [WorkspaceMembershipStatus, ...WorkspaceMembershipStatus[]] = ['active', 'invited', 'pending', 'removed']
@@ -158,7 +158,7 @@ export class MembershipService {
   }
 
   async transferOwnership(requestorId: string, workspaceId: string, newOwnerAccountId: string) {
-    const workspace = await this.access.assertOwner(requestorId, workspaceId)
+    await this.access.assertOwner(requestorId, workspaceId)
     const target = await this.repository.findByWorkspaceAndAccount(workspaceId, newOwnerAccountId)
     if (!target || target.status !== 'active') {
       throw new MembershipNotFoundError()
@@ -237,12 +237,16 @@ export class MembershipService {
     })
   }
 
-  private async getActorMembership(workspaceId: string, accountId: string): Promise<MembershipEntity> {
+  async getMember(workspaceId: string, accountId: string): Promise<MembershipEntity> {
     const membership = await this.repository.findByWorkspaceAndAccount(workspaceId, accountId)
     if (!membership) {
       throw new MembershipNotFoundError()
     }
     return membership
+  }
+
+  private async getActorMembership(workspaceId: string, accountId: string): Promise<MembershipEntity> {
+    return this.getMember(workspaceId, accountId)
   }
 }
 

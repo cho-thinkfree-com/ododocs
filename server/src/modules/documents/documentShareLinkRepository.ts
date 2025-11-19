@@ -1,5 +1,5 @@
 ﻿import type { DocumentShareLink as ShareLinkModel, DocumentShareLinkAccess } from '@prisma/client'
-import type { DatabaseClient } from '../../lib/prismaClient'
+import type { DatabaseClient } from '../../lib/prismaClient.js'
 
 export interface ShareLinkEntity {
   id: string
@@ -24,7 +24,7 @@ export interface ShareLinkCreateInput {
 }
 
 export class DocumentShareLinkRepository {
-  constructor(private readonly prisma: DatabaseClient) {}
+  constructor(private readonly prisma: DatabaseClient) { }
 
   async create(input: ShareLinkCreateInput): Promise<ShareLinkEntity> {
     const shareLink = await this.prisma.documentShareLink.create({

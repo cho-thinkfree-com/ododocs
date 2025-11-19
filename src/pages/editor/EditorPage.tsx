@@ -1,58 +1,17 @@
-import { Alert, Box, CircularProgress, Container, Snackbar, Typography } from '@mui/material';
-import { useCallback, useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { Alert, CircularProgress, Container } from '@mui/material';
+import { useEffect, useState } from 'react';
+import { useParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { getDocument, getLatestRevision, renameDocument, appendRevision, type DocumentSummary, type DocumentRevision } from '../../lib/api';
-import EditorLayout from '../../components/layout/EditorLayout';
-import useEditorInstance from '../../editor/useEditorInstance';
-import { useDebouncedCallback } from '../../lib/useDebounce';
+import { getDocument, getLatestRevision, type DocumentRevision, type DocumentSummary } from '../../lib/api';
+import ConnectedEditor from './ConnectedEditor';
 
 const EditorPage = () => {
   const { documentId } = useParams<{ documentId: string }>();
   const { tokens } = useAuth();
-  const navigate = useNavigate();
   const [document, setDocument] = useState<DocumentSummary | null>(null);
-  const [originalTitle, setOriginalTitle] = useState('');
   const [revision, setRevision] = useState<DocumentRevision | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [saveStatus, setSaveStatus] = useState<'saved' | 'unsaved' | 'saving'>('saved');
-  const [snackbarOpen, setSnackbarOpen] = useState(false);
-
-  const editor = useEditorInstance({ content: revision?.content });
-
-  const handleSave = useCallback(async () => {
-    if (!editor || !document || !tokens || !documentId) {
-      return;
-    }
-
-    setSaveStatus('saving');
-    setError(null);
-
-    try {
-      const promises = [];
-
-      // Save title if it has changed
-      if (document.title !== originalTitle) {
-        promises.push(renameDocument(documentId, tokens.accessToken, { title: document.title }));
-      }
-
-      // Save content
-      const content = editor.getJSON();
-      promises.push(appendRevision(documentId, tokens.accessToken, { content }));
-
-      await Promise.all(promises);
-
-      setOriginalTitle(document.title);
-      setSaveStatus('saved');
-      setSnackbarOpen(true);
-    } catch (err) {
-      setError((err as Error).message);
-      setSaveStatus('unsaved');
-    }
-  }, [editor, document, tokens, documentId, originalTitle]);
-
-  const debouncedSave = useDebouncedCallback(handleSave, 2000);
 
   useEffect(() => {
     if (tokens && documentId) {
@@ -63,7 +22,6 @@ const EditorPage = () => {
       ])
         .then(([docData, revData]) => {
           setDocument(docData);
-          setOriginalTitle(docData.title);
           setRevision(revData);
         })
         .catch((err) => {
@@ -75,22 +33,7 @@ const EditorPage = () => {
     }
   }, [tokens, documentId]);
 
-  const handleTitleChange = (newTitle: string) => {
-    if (document) {
-      setDocument({ ...document, title: newTitle });
-      setSaveStatus('unsaved');
-      debouncedSave();
-    }
-  };
 
-  const handleContentChange = () => {
-    setSaveStatus('unsaved');
-    debouncedSave();
-  };
-
-  const handleClose = () => {
-    navigate(-1);
-  };
 
   if (loading) {
     return (
@@ -117,22 +60,12 @@ const EditorPage = () => {
   }
 
   return (
-    <>
-      <EditorLayout
-        editor={editor}
+    <Container maxWidth="lg" sx={{ mt: 4, mb: 4, height: 'calc(100vh - 64px)', display: 'flex', flexDirection: 'column' }}>
+      <ConnectedEditor
         document={document}
-        onTitleChange={handleTitleChange}
-        onContentChange={handleContentChange}
-        onClose={handleClose}
-        saveStatus={saveStatus}
+        initialRevision={revision}
       />
-      <Snackbar
-        open={snackbarOpen}
-        autoHideDuration={3000}
-        onClose={() => setSnackbarOpen(false)}
-        message="Document saved"
-      />
-    </>
+    </Container>
   );
 };
 

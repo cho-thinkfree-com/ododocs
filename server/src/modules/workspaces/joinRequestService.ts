@@ -1,11 +1,11 @@
-import { JoinRequestRepository } from './joinRequestRepository'
-import { MembershipRepository } from './membershipRepository'
-import { WorkspaceRepository } from './workspaceRepository'
-import type { AccountRepository } from '../accounts/accountRepository'
-import { WorkspaceAccessService } from './workspaceAccess'
-import { MembershipAccessDeniedError, MembershipExistsError } from './membershipService'
-import { WorkspaceNotFoundError } from './workspaceService'
-import { AuditLogService } from '../audit/auditLogService'
+import { JoinRequestRepository } from './joinRequestRepository.js'
+import { MembershipRepository } from './membershipRepository.js'
+import { WorkspaceRepository } from './workspaceRepository.js'
+import type { AccountRepository } from '../accounts/accountRepository.js'
+import { WorkspaceAccessService } from './workspaceAccess.js'
+import { MembershipAccessDeniedError, MembershipExistsError } from './membershipService.js'
+import { WorkspaceNotFoundError } from './workspaceService.js'
+import { AuditLogService } from '../audit/auditLogService.js'
 
 export class WorkspaceJoinRequestService {
   private readonly access: WorkspaceAccessService
@@ -97,14 +97,14 @@ export class WorkspaceJoinRequestService {
       actor: { type: 'membership', membershipId: requesterMembership.id },
       action: 'membership.added',
       entityType: 'membership',
-        entityId: newMembership.id,
-        metadata: {
-          accountId: newMembership.accountId,
-          role: newMembership.role,
-          status: newMembership.status,
-          source: 'join_request_approval',
-          joinRequestId,
-        },
+      entityId: newMembership.id,
+      metadata: {
+        accountId: newMembership.accountId,
+        role: newMembership.role,
+        status: newMembership.status,
+        source: 'join_request_approval',
+        joinRequestId,
+      },
     })
     await this.joinRequestRepository.updateStatus(joinRequestId, 'approved')
   }

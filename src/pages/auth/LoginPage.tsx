@@ -1,15 +1,15 @@
-import { Alert, Avatar, Box, Button, CircularProgress, Grid, Link, TextField, Typography } from '@mui/material';
-import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
+import { Alert, Box, Button, CircularProgress, Link, TextField, Typography } from '@mui/material';
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import AuthLayout from '../../components/layout/AuthLayout';
 
 const LoginPage = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const { login } = useAuth();
+  const { login, logoutMessage } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -27,15 +27,21 @@ const LoginPage = () => {
   };
 
   return (
-    <>
-      <Avatar sx={{ m: 1, bgcolor: 'secondary.main' }}>
-        <LockOutlinedIcon />
-      </Avatar>
-      <Typography component="h1" variant="h5">
-        Sign in
-      </Typography>
-      <Box component="form" onSubmit={handleSubmit} noValidate sx={{ mt: 1 }}>
-        {error && <Alert severity="error" sx={{ mt: 2, width: '100%' }}>{error}</Alert>}
+    <AuthLayout
+      title="Welcome back"
+      subtitle="Enter your credentials to access your workspace."
+    >
+      <Box component="form" onSubmit={handleSubmit} noValidate sx={{ width: '100%' }}>
+        {error ? (
+          <Alert severity="error" sx={{ mb: 3 }}>
+            {error}
+          </Alert>
+        ) : logoutMessage ? (
+          <Alert severity="info" sx={{ mb: 3 }}>
+            {logoutMessage}
+          </Alert>
+        ) : null}
+
         <TextField
           margin="normal"
           required
@@ -48,6 +54,7 @@ const LoginPage = () => {
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           disabled={loading}
+          sx={{ mb: 2 }}
         />
         <TextField
           margin="normal"
@@ -61,39 +68,30 @@ const LoginPage = () => {
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           disabled={loading}
+          sx={{ mb: 3 }}
         />
-        <Box sx={{ position: 'relative' }}>
-          <Button
-            type="submit"
-            fullWidth
-            variant="contained"
-            sx={{ mt: 3, mb: 2 }}
-            disabled={loading}
-          >
-            Sign In
-          </Button>
-          {loading && (
-            <CircularProgress
-              size={24}
-              sx={{
-                position: 'absolute',
-                top: '50%',
-                left: '50%',
-                marginTop: '-12px',
-                marginLeft: '-12px',
-              }}
-            />
-          )}
-        </Box>
-        <Grid container>
-          <Grid item>
-            <Link component={RouterLink} to="/signup" variant="body2">
-              {"Don't have an account? Sign Up"}
+
+        <Button
+          type="submit"
+          fullWidth
+          variant="contained"
+          size="large"
+          disabled={loading}
+          sx={{ mb: 3, height: 48 }}
+        >
+          {loading ? <CircularProgress size={24} color="inherit" /> : 'Sign In'}
+        </Button>
+
+        <Box sx={{ textAlign: 'center' }}>
+          <Typography variant="body2" color="text.secondary">
+            Don't have an account?{' '}
+            <Link component={RouterLink} to="/signup" fontWeight="600" underline="hover">
+              Sign up
             </Link>
-          </Grid>
-        </Grid>
+          </Typography>
+        </Box>
       </Box>
-    </>
+    </AuthLayout>
   );
 };
 
