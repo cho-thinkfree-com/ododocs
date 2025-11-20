@@ -4,7 +4,10 @@ import { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import AuthLayout from '../../components/layout/AuthLayout';
 
+import { usePageTitle } from '../../hooks/usePageTitle';
+
 const SignupPage = () => {
+  usePageTitle('Sign Up');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);

@@ -10,7 +10,10 @@ import WorkspacesIcon from '@mui/icons-material/Workspaces';
 import CreateWorkspaceDialog from '../../components/workspace/CreateWorkspaceDialog';
 import { formatRelativeDate } from '../../lib/formatDate';
 
+import { usePageTitle } from '../../hooks/usePageTitle';
+
 const WorkspaceDashboardPage = () => {
+  usePageTitle('Dashboard');
   const { tokens } = useAuth();
   const [workspaces, setWorkspaces] = useState<WorkspaceSummary[]>([]);
   const [loading, setLoading] = useState(true);
@@ -126,30 +129,39 @@ const WorkspaceDashboardPage = () => {
         <Table>
           <TableHead>
             <TableRow>
-              <TableCell width="50%">Name</TableCell>
-              <TableCell width="30%">Last Modified</TableCell>
-              <TableCell align="right" width="20%">Actions</TableCell>
+              <TableCell width="40%">Name</TableCell>
+              <TableCell width="20%">Workspace</TableCell>
+              <TableCell width="25%">Last Modified</TableCell>
+              <TableCell align="right" width="15%">Actions</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
-            {recentDocuments.map((doc) => (
-              <TableRow key={doc.id} hover>
-                <TableCell>
-                  <Link component={RouterLink} to={`/document/${doc.id}`} target="_blank" sx={{ display: 'flex', alignItems: 'center', textDecoration: 'none', color: 'inherit' }}>
-                    <ArticleIcon color="action" sx={{ mr: 1.5 }} />
-                    {doc.title}
-                  </Link>
-                </TableCell>
-                <TableCell>
-                  <Typography variant="body2" color="text.secondary">{formatRelativeDate(doc.updatedAt)}</Typography>
-                </TableCell>
-                <TableCell align="right">
-                  <Button size="small" component={RouterLink} to={`/document/${doc.id}`} target="_blank">
-                    Open
-                  </Button>
-                </TableCell>
-              </TableRow>
-            ))}
+            {recentDocuments.map((doc) => {
+              const workspace = workspaces.find(w => w.id === doc.workspaceId);
+              return (
+                <TableRow key={doc.id} hover>
+                  <TableCell>
+                    <Link component={RouterLink} to={`/document/${doc.id}`} target="_blank" sx={{ display: 'flex', alignItems: 'center', textDecoration: 'none', color: 'inherit' }}>
+                      <ArticleIcon color="action" sx={{ mr: 1.5 }} />
+                      {doc.title}
+                    </Link>
+                  </TableCell>
+                  <TableCell>
+                    <Typography variant="body2" color="text.secondary">
+                      {workspace?.name || 'Unknown'}
+                    </Typography>
+                  </TableCell>
+                  <TableCell>
+                    <Typography variant="body2" color="text.secondary">{formatRelativeDate(doc.updatedAt)}</Typography>
+                  </TableCell>
+                  <TableCell align="right">
+                    <Button size="small" component={RouterLink} to={`/document/${doc.id}`} target="_blank">
+                      Open
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
           </TableBody>
         </Table>
       </TableContainer>

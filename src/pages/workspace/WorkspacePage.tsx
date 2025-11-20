@@ -1,4 +1,4 @@
-import { Alert, Box, Breadcrumbs, Button, CircularProgress, Container, Link, Typography, Menu, MenuItem, IconButton, Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Chip, Avatar, Stack, Divider } from '@mui/material';
+import { Alert, Box, Breadcrumbs, Button, CircularProgress, Container, Link, Typography, Menu, MenuItem, IconButton, Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Chip, Avatar, Stack } from '@mui/material';
 import { useCallback, useEffect, useState, useMemo } from 'react';
 import { useParams, useSearchParams, Link as RouterLink } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
@@ -15,12 +15,16 @@ import PersonIcon from '@mui/icons-material/Person';
 import CreateFolderDialog from '../../components/workspace/CreateFolderDialog';
 import RenameDialog from '../../components/workspace/RenameDialog';
 
+import { usePageTitle } from '../../hooks/usePageTitle';
+
 const WorkspacePage = () => {
   const { workspaceId } = useParams<{ workspaceId: string }>();
   const [searchParams] = useSearchParams();
   const folderId = searchParams.get('folderId');
   const { tokens } = useAuth();
   const [workspace, setWorkspace] = useState<WorkspaceSummary | null>(null);
+
+  usePageTitle(workspace?.name || 'Workspace');
   const [members, setMembers] = useState<MembershipSummary[]>([]);
   const [ancestors, setAncestors] = useState<FolderSummary[]>([]);
   const [currentFolder, setCurrentFolder] = useState<FolderSummary | null>(null);
