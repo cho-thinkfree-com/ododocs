@@ -30,7 +30,6 @@ const signupSchema = z.object({
   legalName: z
     .string()
     .trim()
-    .min(1)
     .max(200)
     .optional(),
 })
@@ -79,7 +78,18 @@ export class AuthService {
   ) { }
 
   signup(input: z.infer<typeof signupSchema>) {
-    return this.accountService.registerAccount(signupSchema.parse(input))
+    const parsed = signupSchema.parse(input)
+    let legalName = parsed.legalName
+
+    // If legalName is not provided or empty (after trim), default to email prefix
+    if (!legalName) {
+      legalName = parsed.email.split('@')[0]
+    }
+
+    return this.accountService.registerAccount({
+      ...parsed,
+      legalName,
+    })
   }
 
   async login(rawInput: z.infer<typeof loginSchema>): Promise<LoginResult> {

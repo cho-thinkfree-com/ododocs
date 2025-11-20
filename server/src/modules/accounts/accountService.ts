@@ -8,7 +8,6 @@ const registerAccountSchema = z.object({
   legalName: z
     .string()
     .trim()
-    .min(1)
     .max(200)
     .optional(),
 })

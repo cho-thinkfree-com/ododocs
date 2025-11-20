@@ -10,6 +10,7 @@ const SignupPage = () => {
   usePageTitle('Sign Up');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [legalName, setLegalName] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const { signup } = useAuth();
@@ -20,7 +21,7 @@ const SignupPage = () => {
     setError(null);
     setLoading(true);
     try {
-      await signup({ email, password });
+      await signup({ email, password, legalName });
       navigate('/dashboard');
     } catch (err) {
       setError((err as Error).message);
@@ -59,6 +60,18 @@ const SignupPage = () => {
           autoComplete="new-password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
+          disabled={loading}
+          sx={{ mb: 2 }}
+        />
+
+        <TextField
+          fullWidth
+          id="legalName"
+          label="Legal Name (Optional)"
+          name="legalName"
+          autoComplete="name"
+          value={legalName}
+          onChange={(e) => setLegalName(e.target.value)}
           disabled={loading}
           sx={{ mb: 3 }}
         />
