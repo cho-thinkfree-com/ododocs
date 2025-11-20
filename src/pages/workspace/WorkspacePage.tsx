@@ -15,6 +15,8 @@ import CreateFolderDialog from '../../components/workspace/CreateFolderDialog';
 import RenameDialog from '../../components/workspace/RenameDialog';
 
 import { usePageTitle } from '../../hooks/usePageTitle';
+import { broadcastSync } from '../../lib/syncEvents';
+import { useSyncChannel } from '../../hooks/useSyncChannel';
 
 const WorkspacePage = () => {
   const { workspaceId } = useParams<{ workspaceId: string }>();
@@ -102,12 +104,32 @@ const WorkspacePage = () => {
     return () => resizeObserver.disconnect();
   }, []);
 
+  // Listen for sync events from other tabs
+  useSyncChannel(useCallback((event) => {
+    // Only refresh if the event is for the current workspace and folder
+    if (event.workspaceId !== workspaceId) return;
+    if (event.folderId !== (folderId ?? null)) return;
+
+    // Refresh content for relevant events
+    if (['document-created', 'document-updated', 'document-deleted', 'folder-created', 'folder-renamed'].includes(event.type)) {
+      fetchContents();
+    }
+  }, [workspaceId, folderId, fetchContents]));
+
   const handleCreateFolder = async (name: string) => {
     if (!tokens || !workspaceId) {
       throw new Error('Not authenticated or workspace not found');
     }
     await createFolder(workspaceId, tokens.accessToken, { name, parentId: folderId ?? undefined });
     fetchContents();
+
+    // Broadcast folder creation
+    broadcastSync({
+      type: 'folder-created',
+      workspaceId,
+      folderId: folderId ?? null,
+      data: { name }
+    });
   };
 
   const handleCreateDocument = async () => {
@@ -122,6 +144,14 @@ const WorkspacePage = () => {
       });
       window.open(`/document/${newDoc.id}`, '_blank');
       fetchContents();
+
+      // Broadcast document creation
+      broadcastSync({
+        type: 'document-created',
+        workspaceId,
+        folderId: folderId ?? null,
+        documentId: newDoc.id
+      });
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -150,10 +180,18 @@ const WorkspacePage = () => {
   };
 
   const handleDeleteConfirm = async () => {
-    if (!tokens || !selectedItem) return;
+    if (!tokens || !selectedItem || !workspaceId) return;
     try {
       if (selectedItem.type === 'document') {
         await deleteDocument(selectedItem.id, tokens.accessToken);
+
+        // Broadcast document deletion
+        broadcastSync({
+          type: 'document-deleted',
+          workspaceId,
+          folderId: folderId ?? null,
+          documentId: selectedItem.id
+        });
       } else {
         await deleteFolder(selectedItem.id, tokens.accessToken);
       }
@@ -167,12 +205,20 @@ const WorkspacePage = () => {
   };
 
   const handleRename = async (newName: string) => {
-    if (!tokens || !selectedItem) return;
+    if (!tokens || !selectedItem || !workspaceId) return;
     try {
       if (selectedItem.type === 'document') {
         await renameDocument(selectedItem.id, tokens.accessToken, { title: newName });
       } else {
         await renameFolder(selectedItem.id, tokens.accessToken, { name: newName });
+
+        // Broadcast folder rename
+        broadcastSync({
+          type: 'folder-renamed',
+          workspaceId,
+          folderId: folderId ?? null,
+          data: { name: newName }
+        });
       }
       fetchContents();
     } catch (err) {

@@ -11,6 +11,7 @@ import CreateWorkspaceDialog from '../../components/workspace/CreateWorkspaceDia
 import { formatRelativeDate } from '../../lib/formatDate';
 
 import { usePageTitle } from '../../hooks/usePageTitle';
+import { useSyncChannel } from '../../hooks/useSyncChannel';
 
 const WorkspaceDashboardPage = () => {
   usePageTitle('Dashboard');
@@ -59,6 +60,14 @@ const WorkspaceDashboardPage = () => {
     fetchWorkspaces();
     fetchRecentDocuments();
   }, [fetchWorkspaces, fetchRecentDocuments]);
+
+  // Listen for sync events from other tabs
+  useSyncChannel(useCallback((event) => {
+    // Refresh recent documents on any document event
+    if (['document-created', 'document-updated', 'document-deleted'].includes(event.type)) {
+      fetchRecentDocuments();
+    }
+  }, [fetchRecentDocuments]));
 
   const handleCreateWorkspace = async (name: string) => {
     if (!tokens) {
