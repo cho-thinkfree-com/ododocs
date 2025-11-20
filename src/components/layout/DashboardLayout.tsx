@@ -118,7 +118,17 @@ const DashboardLayout = () => {
                     </Menu>
                 </>
             ) : (
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, px: 1 }}>
+                <Box
+                    sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 1.5,
+                        px: 1,
+                        cursor: 'pointer',
+                        '&:hover': { opacity: 0.8 }
+                    }}
+                    onClick={() => navigate('/dashboard')}
+                >
                     <Box component="img" src="/logo.png" alt="ododocs logo" sx={{ height: 32, width: 'auto' }} />
                     <Typography variant="h6" fontWeight="bold">
                         ododocs
@@ -238,7 +248,17 @@ const DashboardLayout = () => {
                     >
                         <MenuIcon />
                     </IconButton>
-                    <Typography variant="h6" noWrap component="div" fontWeight="700" sx={{ letterSpacing: '-0.02em' }}>
+                    <Typography
+                        variant="h6"
+                        noWrap
+                        component="div"
+                        fontWeight="700"
+                        sx={{
+                            letterSpacing: '-0.02em',
+                            cursor: !currentWorkspace ? 'pointer' : 'default'
+                        }}
+                        onClick={() => !currentWorkspace && navigate('/dashboard')}
+                    >
                         {currentWorkspace ? currentWorkspace.name : 'ododocs'}
                     </Typography>
                 </Toolbar>

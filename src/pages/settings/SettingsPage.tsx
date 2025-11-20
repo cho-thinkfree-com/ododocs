@@ -20,7 +20,7 @@ import {
     Grid
 } from '@mui/material';
 import { useAuth } from '../../context/AuthContext';
-import { updateAccount, getWorkspaceMemberProfile, updateWorkspaceMemberProfile } from '../../lib/api';
+import { updateAccount, getWorkspaceMemberProfile, updateWorkspaceMemberProfile, getWorkspace } from '../../lib/api';
 
 interface TabPanelProps {
     children?: React.ReactNode;
@@ -51,8 +51,6 @@ function TabPanel(props: TabPanelProps) {
 const SettingsPage = () => {
     const { user, tokens, refreshProfile } = useAuth();
     const { workspaceId } = useParams<{ workspaceId: string }>();
-    // const navigate = useNavigate();
-    // const location = useLocation();
 
     // Determine initial tab based on URL or context
     // 0 = Account, 1 = Workspace Profile
@@ -67,7 +65,7 @@ const SettingsPage = () => {
     const [newPassword, setNewPassword] = useState('');
 
     // Workspace Profile State
-
+    const [workspaceName, setWorkspaceName] = useState('');
     const [displayName, setDisplayName] = useState('');
     const [workspaceTimezone, setWorkspaceTimezone] = useState('UTC');
     const [workspaceLocale, setWorkspaceLocale] = useState('en');
@@ -90,16 +88,18 @@ const SettingsPage = () => {
     useEffect(() => {
         if (workspaceId && tokens) {
             setProfileLoading(true);
-            getWorkspaceMemberProfile(workspaceId, tokens.accessToken)
-                .then(profile => {
+            Promise.all([
+                getWorkspaceMemberProfile(workspaceId, tokens.accessToken),
+                getWorkspace(workspaceId, tokens.accessToken)
+            ])
+                .then(([profile, workspace]) => {
                     setDisplayName(profile.displayName || '');
                     setWorkspaceTimezone(profile.timezone || 'UTC');
                     setWorkspaceLocale(profile.preferredLocale || 'en');
+                    setWorkspaceName(workspace.name);
                 })
                 .catch(err => {
                     console.error('Failed to load workspace profile', err);
-                    // If we can't load workspace profile, maybe switch to account tab?
-                    // But let's just show error in the tab
                 })
                 .finally(() => setProfileLoading(false));
         }
@@ -194,9 +194,14 @@ const SettingsPage = () => {
                     {success && <Alert severity="success" sx={{ mb: 3 }}>{success}</Alert>}
 
                     <TabPanel value={tabValue} index={0}>
+                        <Alert severity="info" sx={{ mb: 3 }}>
+                            <strong>Global Service Account</strong>
+                            <br />
+                            These settings apply to your account across the entire service and all workspaces.
+                        </Alert>
                         <Typography variant="h6" gutterBottom>Personal Information</Typography>
                         <Grid container spacing={3}>
-                            <Grid size={12}>
+                            <Grid item xs={12}>
                                 <TextField
                                     label="Legal Name"
                                     fullWidth
@@ -204,16 +209,16 @@ const SettingsPage = () => {
                                     onChange={(e) => setLegalName(e.target.value)}
                                 />
                             </Grid>
-                            <Grid size={12}>
+                            <Grid item xs={12}>
                                 <TextField
                                     label="Email Address"
                                     fullWidth
                                     value={email}
-                                    onChange={(e) => setEmail(e.target.value)}
-                                    helperText="Changing email requires current password"
+                                    disabled
+                                    helperText="Email cannot be changed"
                                 />
                             </Grid>
-                            <Grid size={{ xs: 12, sm: 6 }}>
+                            <Grid item xs={12} sm={6}>
                                 <FormControl fullWidth>
                                     <InputLabel>Preferred Language</InputLabel>
                                     <Select
@@ -226,7 +231,7 @@ const SettingsPage = () => {
                                     </Select>
                                 </FormControl>
                             </Grid>
-                            <Grid size={{ xs: 12, sm: 6 }}>
+                            <Grid item xs={12} sm={6}>
                                 <FormControl fullWidth>
                                     <InputLabel>Timezone</InputLabel>
                                     <Select
@@ -247,7 +252,7 @@ const SettingsPage = () => {
 
                         <Typography variant="h6" gutterBottom>Security</Typography>
                         <Grid container spacing={3}>
-                            <Grid size={12}>
+                            <Grid item xs={12}>
                                 <TextField
                                     label="New Password"
                                     type="password"
@@ -257,7 +262,7 @@ const SettingsPage = () => {
                                     helperText="Leave blank to keep current password"
                                 />
                             </Grid>
-                            <Grid size={12}>
+                            <Grid item xs={12}>
                                 <TextField
                                     label="Current Password"
                                     type="password"
@@ -289,13 +294,17 @@ const SettingsPage = () => {
                                 </Box>
                             ) : (
                                 <>
-                                    <Typography variant="h6" gutterBottom>Workspace Profile</Typography>
-                                    <Typography variant="body2" color="text.secondary" paragraph>
-                                        These settings apply only to this workspace.
+                                    <Typography variant="h6" gutterBottom>
+                                        Workspace Profile: {workspaceName}
                                     </Typography>
+                                    <Alert severity="info" sx={{ mb: 3 }}>
+                                        <strong>Workspace Specific Settings</strong>
+                                        <br />
+                                        These settings apply ONLY to the <strong>{workspaceName}</strong> workspace.
+                                    </Alert>
 
                                     <Grid container spacing={3}>
-                                        <Grid size={12}>
+                                        <Grid item xs={12}>
                                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
                                                 <Avatar
                                                     sx={{ width: 64, height: 64, bgcolor: 'primary.main', fontSize: '1.5rem' }}
@@ -307,7 +316,7 @@ const SettingsPage = () => {
                                                 </Button>
                                             </Box>
                                         </Grid>
-                                        <Grid size={12}>
+                                        <Grid item xs={12}>
                                             <TextField
                                                 label="Display Name"
                                                 fullWidth
@@ -316,7 +325,7 @@ const SettingsPage = () => {
                                                 helperText="How you appear to others in this workspace"
                                             />
                                         </Grid>
-                                        <Grid size={{ xs: 12, sm: 6 }}>
+                                        <Grid item xs={12} sm={6}>
                                             <FormControl fullWidth>
                                                 <InputLabel>Language</InputLabel>
                                                 <Select
@@ -329,7 +338,7 @@ const SettingsPage = () => {
                                                 </Select>
                                             </FormControl>
                                         </Grid>
-                                        <Grid size={{ xs: 12, sm: 6 }}>
+                                        <Grid item xs={12} sm={6}>
                                             <FormControl fullWidth>
                                                 <InputLabel>Timezone</InputLabel>
                                                 <Select
