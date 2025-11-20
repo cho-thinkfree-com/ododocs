@@ -21,6 +21,7 @@ import {
 } from '@mui/material';
 import { useAuth } from '../../context/AuthContext';
 import { updateAccount, getWorkspaceMemberProfile, updateWorkspaceMemberProfile, getWorkspace } from '../../lib/api';
+import { ChangePasswordDialog } from './ChangePasswordDialog';
 
 interface TabPanelProps {
     children?: React.ReactNode;
@@ -61,8 +62,7 @@ const SettingsPage = () => {
     const [legalName, setLegalName] = useState('');
     const [preferredLocale, setPreferredLocale] = useState('en');
     const [preferredTimezone, setPreferredTimezone] = useState('UTC');
-    const [currentPassword, setCurrentPassword] = useState('');
-    const [newPassword, setNewPassword] = useState('');
+    const [isPasswordDialogOpen, setIsPasswordDialogOpen] = useState(false);
 
     // Workspace Profile State
     const [workspaceName, setWorkspaceName] = useState('');
@@ -130,34 +130,6 @@ const SettingsPage = () => {
             await updateAccount(tokens.accessToken, updates);
             await refreshProfile(); // Refresh global user data
             setSuccess('Account settings updated successfully.');
-        } catch (err) {
-            setError((err as Error).message);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const handlePasswordChange = async () => {
-        if (!tokens) return;
-        if (!currentPassword || !newPassword) {
-            setError('Current and new password are required.');
-            return;
-        }
-
-        setLoading(true);
-        setError(null);
-        setSuccess(null);
-
-        try {
-            const updates: any = {
-                currentPassword,
-                newPassword
-            };
-
-            await updateAccount(tokens.accessToken, updates);
-            setSuccess('Password changed successfully.');
-            setCurrentPassword('');
-            setNewPassword('');
         } catch (err) {
             setError((err as Error).message);
         } finally {
@@ -287,39 +259,16 @@ const SettingsPage = () => {
                         <Divider sx={{ my: 4 }} />
 
                         <Typography variant="h6" gutterBottom>Security</Typography>
-                        <Grid container spacing={3}>
-                            <Grid size={12}>
-                                <TextField
-                                    label="New Password"
-                                    type="password"
-                                    fullWidth
-                                    value={newPassword}
-                                    onChange={(e) => setNewPassword(e.target.value)}
-                                    helperText="Leave blank to keep current password"
-                                />
-                            </Grid>
-                            <Grid size={12}>
-                                <TextField
-                                    label="Current Password"
-                                    type="password"
-                                    fullWidth
-                                    value={currentPassword}
-                                    onChange={(e) => setCurrentPassword(e.target.value)}
-                                    helperText="Required for changing email or password"
-                                />
-                            </Grid>
-                        </Grid>
-
-
-
-                        <Box sx={{ mt: 2, display: 'flex', justifyContent: 'flex-end' }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                            <Typography variant="body1">
+                                Password
+                            </Typography>
                             <Button
-                                variant="contained"
-                                color="error"
-                                onClick={handlePasswordChange}
-                                disabled={loading}
+                                variant="outlined"
+                                color="primary"
+                                onClick={() => setIsPasswordDialogOpen(true)}
                             >
-                                {loading ? <CircularProgress size={24} /> : 'Change Password'}
+                                Change Password
                             </Button>
                         </Box>
                     </TabPanel>
@@ -409,6 +358,10 @@ const SettingsPage = () => {
                     )}
                 </Box>
             </Paper >
+            <ChangePasswordDialog
+                open={isPasswordDialogOpen}
+                onClose={() => setIsPasswordDialogOpen(false)}
+            />
         </Container >
     );
 };
