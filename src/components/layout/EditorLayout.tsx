@@ -6,7 +6,6 @@ import EditorTableOfContents from '../editor/EditorTableOfContents';
 import type { DocumentSummary } from '../../lib/api';
 import type { Editor } from '@tiptap/react';
 import { useEffect, useState } from 'react';
-import { useDebouncedCallback } from '../../lib/useDebounce';
 
 interface EditorLayoutProps {
     editor: Editor | null;
@@ -34,13 +33,6 @@ const EditorLayout = ({ editor, document, onContentChange, onTitleChange, onClos
         }
     }, [editor, onContentChange]);
 
-    // Debounce title change to avoid calling onTitleChange on every keystroke
-    const debouncedTitleChange = useDebouncedCallback((newTitle: string) => {
-        if (newTitle.trim() && newTitle !== document.title) {
-            onTitleChange(newTitle);
-        }
-    }, 500); // 500ms delay
-
     const getSaveStatusText = () => {
         switch (saveStatus) {
             case 'saving':
@@ -58,8 +50,10 @@ const EditorLayout = ({ editor, document, onContentChange, onTitleChange, onClos
         // Update local state immediately for responsive UI
         setLocalTitle(newTitle);
 
-        // Debounced save
-        debouncedTitleChange(newTitle);
+        // Call onTitleChange directly (debouncing handled in ConnectedEditor)
+        if (newTitle.trim() && newTitle !== document.title) {
+            onTitleChange(newTitle);
+        }
     };
 
     const handleTitleBlur = () => {

@@ -6,6 +6,7 @@ import EditorLayout from '../../components/layout/EditorLayout';
 import useEditorInstance from '../../editor/useEditorInstance';
 import { useDebouncedCallback } from '../../lib/useDebounce';
 import { broadcastSync } from '../../lib/syncEvents';
+import { usePageTitle } from '../../hooks/usePageTitle';
 
 type ConnectedEditorProps = {
     document: DocumentSummary;
@@ -17,6 +18,9 @@ const ConnectedEditor = ({ document, initialRevision }: ConnectedEditorProps) =>
     const [saveStatus, setSaveStatus] = useState<'saved' | 'unsaved' | 'saving'>('saved');
     const [snackbarOpen, setSnackbarOpen] = useState(false);
     const [currentDocument, setCurrentDocument] = useState(document);
+
+    // Update page title when document title changes
+    usePageTitle(currentDocument.title);
 
     // This hook is now called ONLY when ConnectedEditor mounts, which happens after data is loaded.
     const editor = useEditorInstance({ content: initialRevision?.content });

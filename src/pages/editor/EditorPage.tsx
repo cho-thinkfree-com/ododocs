@@ -5,8 +5,6 @@ import { useAuth } from '../../context/AuthContext';
 import { getDocument, getLatestRevision, type DocumentRevision, type DocumentSummary } from '../../lib/api';
 import ConnectedEditor from './ConnectedEditor';
 
-import { usePageTitle } from '../../hooks/usePageTitle';
-
 const EditorPage = () => {
   const { documentId } = useParams<{ documentId: string }>();
   const { tokens } = useAuth();
@@ -14,8 +12,6 @@ const EditorPage = () => {
   const [revision, setRevision] = useState<DocumentRevision | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  usePageTitle(document?.title || 'Document');
 
   useEffect(() => {
     if (tokens && documentId) {
