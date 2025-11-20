@@ -57,9 +57,7 @@ const DashboardLayout = () => {
         navigate('/login');
     };
 
-    const menuItems = [
-        { text: 'Dashboard', icon: <DashboardIcon />, path: '/dashboard' },
-    ];
+    const menuItems: { text: string; icon: React.ReactNode; path: string }[] = [];
 
     const brandingContent = (
         <Box sx={{ p: 3 }}>
