@@ -477,6 +477,8 @@ const DashboardLayout = () => {
                         value={accountName}
                         onChange={(e) => setAccountName(e.target.value)}
                         fullWidth
+                        variant="outlined"
+                        InputLabelProps={{ shrink: true }}
                     />
                     <FormControl fullWidth>
                         <InputLabel shrink>{strings.settings.global.preferredLanguage}</InputLabel>
@@ -530,6 +532,8 @@ const DashboardLayout = () => {
                                 value={workspaceNameForm}
                                 onChange={(e) => setWorkspaceNameForm(e.target.value)}
                                 fullWidth
+                                variant="outlined"
+                                InputLabelProps={{ shrink: true }}
                             />
                             <TextField
                                 label={strings.workspace.descriptionLabel}
@@ -538,6 +542,8 @@ const DashboardLayout = () => {
                                 fullWidth
                                 multiline
                                 minRows={3}
+                                variant="outlined"
+                                InputLabelProps={{ shrink: true }}
                             />
                         </>
                     )}
