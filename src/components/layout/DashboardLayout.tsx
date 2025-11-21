@@ -479,8 +479,9 @@ const DashboardLayout = () => {
                         fullWidth
                         variant="outlined"
                         InputLabelProps={{ shrink: true }}
+                        margin="dense"
                     />
-                    <FormControl fullWidth>
+                    <FormControl fullWidth margin="dense">
                         <InputLabel shrink>{strings.settings.global.preferredLanguage}</InputLabel>
                         <Select
                             native
@@ -492,7 +493,7 @@ const DashboardLayout = () => {
                             <option value="ja-JP">{languageOptions['ja-JP']}</option>
                         </Select>
                     </FormControl>
-                    <FormControl fullWidth>
+                    <FormControl fullWidth margin="dense">
                         <InputLabel shrink>{strings.settings.global.timezone}</InputLabel>
                         <Select
                             native
@@ -534,6 +535,7 @@ const DashboardLayout = () => {
                                 fullWidth
                                 variant="outlined"
                                 InputLabelProps={{ shrink: true }}
+                                margin="dense"
                             />
                             <TextField
                                 label={strings.workspace.descriptionLabel}
@@ -544,6 +546,7 @@ const DashboardLayout = () => {
                                 minRows={3}
                                 variant="outlined"
                                 InputLabelProps={{ shrink: true }}
+                                margin="dense"
                             />
                         </>
                     )}
