@@ -90,23 +90,7 @@ body {
 
 [data-testid='rich-text-editor'] {
   position: relative;
-}
-
-.tiptap.ProseMirror {
-  box-sizing: border-box;
-}
-
-.MuiTiptap-RichTextField-content,
-.MuiTiptap-RichTextField-paper {
-  position: relative;
-  overflow: visible;
-}
-
-/* Callout blocks */
-.callout-block {
-  padding: 0.5rem;
-  border-left: 4px solid;
-  margin: 0.5rem 0;
+  margin: 0;
   border-radius: 4px;
 }
 
