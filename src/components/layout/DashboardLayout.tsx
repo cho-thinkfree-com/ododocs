@@ -10,6 +10,7 @@ import { useAuth } from '../../context/AuthContext';
 import { getWorkspaces, getWorkspaceMemberProfile, getWorkspace, updateWorkspace, updateAccount, updateWorkspaceMemberProfile, type WorkspaceSummary, type MembershipSummary } from '../../lib/api';
 import { useI18n, type Locale } from '../../lib/i18n';
 import WorkspaceLanguageSync from '../common/WorkspaceLanguageSync';
+import { ChangePasswordDialog } from '../../pages/settings/ChangePasswordDialog';
 
 const DRAWER_WIDTH = 260;
 
@@ -40,6 +41,7 @@ const DashboardLayout = () => {
     const [workspaceSaving, setWorkspaceSaving] = useState(false);
     const [workspaceError, setWorkspaceError] = useState<string | null>(null);
     const [workspaceLoading, setWorkspaceLoading] = useState(false);
+    const [isPasswordDialogOpen, setIsPasswordDialogOpen] = useState(false);
     const { strings } = useI18n();
 
     useEffect(() => {
@@ -554,6 +556,9 @@ const DashboardLayout = () => {
                     <Button onClick={() => setAccountDialogOpen(false)} disabled={accountSaving}>
                         {strings.dashboard.createWorkspaceDialogCancel}
                     </Button>
+                    <Button onClick={() => setIsPasswordDialogOpen(true)} variant="outlined">
+                        {strings.settings.global.changePassword}
+                    </Button>
                     <Button onClick={handleSaveAccount} disabled={accountSaving} variant="contained">
                         {accountSaving ? <CircularProgress size={18} /> : strings.settings.global.saveChanges}
                     </Button>
@@ -643,6 +648,7 @@ const DashboardLayout = () => {
                     </Button>
                 </DialogActions>
             </Dialog>
+            <ChangePasswordDialog open={isPasswordDialogOpen} onClose={() => setIsPasswordDialogOpen(false)} />
         </Box>
     );
 };
