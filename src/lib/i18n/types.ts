@@ -112,7 +112,10 @@ export type AuthStrings = {
     heroTitle: string
     heroDescription: string
     featureIntro: string
-    features: string[]
+    features: {
+      title: string
+      desc: string
+    }[]
     loginLabel: string
     signupLabel: string
     loginTitle: string

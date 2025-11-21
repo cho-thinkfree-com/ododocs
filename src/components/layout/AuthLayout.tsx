@@ -9,7 +9,11 @@ interface AuthLayoutProps {
     subtitle?: string;
 }
 
+import { useI18n } from '../../lib/i18n';
+
 const AuthLayout = ({ children, title, subtitle }: AuthLayoutProps) => {
+    const { strings } = useI18n();
+
     return (
         <Box sx={{ display: 'flex', minHeight: '100vh', width: '100%' }}>
             {/* Left Side - Branding */}
@@ -28,19 +32,18 @@ const AuthLayout = ({ children, title, subtitle }: AuthLayoutProps) => {
             >
                 <Box sx={{ position: 'relative', zIndex: 1, maxWidth: 600, mx: 'auto' }}>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 6 }}>
-                        <AutoAwesomeIcon sx={{ fontSize: 48, color: 'common.white' }} />
+                        <img src="/logo.png" alt="ododocs logo" style={{ width: 48, height: 48 }} />
                         <Typography variant="h4" fontWeight="800" color="inherit" sx={{ letterSpacing: '-0.02em' }}>
                             ododocs
                         </Typography>
                     </Box>
 
                     <Typography variant="h2" fontWeight="800" sx={{ mb: 3, lineHeight: 1.1, color: 'common.white' }}>
-                        Write, Collaborate, Publish.
+                        {strings.auth.landing.heroTitle}
                     </Typography>
 
                     <Typography variant="h5" sx={{ mb: 6, opacity: 0.8, fontWeight: 500, lineHeight: 1.6, color: 'common.white' }}>
-                        The all-in-one workspace for your documentation.
-                        Simple enough for notes, powerful enough for knowledge bases.
+                        {strings.auth.landing.heroDescription}
                     </Typography>
 
                     <Box sx={{
@@ -54,11 +57,7 @@ const AuthLayout = ({ children, title, subtitle }: AuthLayoutProps) => {
                         border: '1px solid rgba(255, 255, 255, 0.1)',
                         boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.2)',
                     }}>
-                        {[
-                            { title: 'Real-time Collaboration', desc: 'Edit documents together with your team, instantly.' },
-                            { title: 'Block-based Editing', desc: 'Focus on content with a distraction-free, modern editor.' },
-                            { title: 'Smart Organization', desc: 'Keep everything structured with nested workspaces and folders.' }
-                        ].map((feature, index) => (
+                        {strings.auth.landing.features.map((feature, index) => (
                             <Box key={index} sx={{ display: 'flex', gap: 2, alignItems: 'flex-start' }}>
                                 <Box
                                     sx={{

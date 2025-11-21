@@ -339,13 +339,22 @@
     },
     "auth": {
       "landing": {
-        "heroTitle": "Workspace-grade writing for teams",
-        "heroDescription": "Coordinate documents, exports, and activity across your workspaces with a single experience.",
+        "heroTitle": "Write, Collaborate, Publish.",
+        "heroDescription": "The all-in-one workspace for your documentation. Simple enough for notes, powerful enough for knowledge bases.",
         "featureIntro": "Get started with these capabilities.",
         "features": [
-          "Realtime collaboration and version history",
-          "Export to Markdown/PDF/HTML with one click",
-          "Workspace-level activity and member controls"
+          {
+            "title": "Real-time Collaboration",
+            "desc": "Edit documents together with your team, instantly."
+          },
+          {
+            "title": "Block-based Editing",
+            "desc": "Focus on content with a distraction-free, modern editor."
+          },
+          {
+            "title": "Smart Organization",
+            "desc": "Keep everything structured with nested workspaces and folders."
+          }
         ],
         "loginLabel": "Login",
         "signupLabel": "Sign up",
@@ -816,13 +825,22 @@
     },
     "auth": {
       "landing": {
-        "heroTitle": "팀을 위한 협업 문서 워크스페이스",
-        "heroDescription": "문서, 내보내기, 활동 로그를 한 곳에서 관리하는 경험을 제공해요.",
-        "featureIntro": "다음 기능을 갖추고 있습니다.",
+        "heroTitle": "작성하고, 협업하고, 게시하세요.",
+        "heroDescription": "문서화를 위한 올인원 워크스페이스. 메모장처럼 간편하지만, 지식 베이스 구축에는 강력합니다.",
+        "featureIntro": "다음 기능들로 시작해보세요.",
         "features": [
-          "실시간 공동작성과 변경 이력",
-          "PDF/HTML/Markdown 내보내기",
-          "워크스페이스 활동 및 멤버 제어"
+          {
+            "title": "실시간 협업",
+            "desc": "팀원들과 함께 문서를 실시간으로 편집하세요."
+          },
+          {
+            "title": "블록 기반 편집",
+            "desc": "방해 없는 모던 에디터로 콘텐츠에 집중하세요."
+          },
+          {
+            "title": "스마트한 정리",
+            "desc": "중첩된 워크스페이스와 폴더로 모든 것을 체계적으로 관리하세요."
+          }
         ],
         "loginLabel": "로그인",
         "signupLabel": "회원가입",
@@ -1287,13 +1305,22 @@
     },
     "auth": {
       "landing": {
-        "heroTitle": "Workspace-grade writing for teams",
-        "heroDescription": "Coordinate documents, exports, and activity across your workspaces with a single experience.",
+        "heroTitle": "チームのためのワークスペース級ライティング",
+        "heroDescription": "ドキュメント、エクスポート、アクティビティをすべてのワークスペースで一元管理。",
         "featureIntro": "Get started with these capabilities.",
         "features": [
-          "Realtime collaboration and version history",
-          "Export to Markdown/PDF/HTML with one click",
-          "Workspace-level activity and member controls"
+          {
+            "title": "リアルタイムコラボレーション",
+            "desc": "チームと瞬時にドキュメントを共同編集できます。"
+          },
+          {
+            "title": "ブロックベースの編集",
+            "desc": "気が散らないモダンなエディタでコンテンツに集中できます。"
+          },
+          {
+            "title": "スマートな整理整頓",
+            "desc": "ネストされたワークスペースとフォルダですべてを構造化して管理します。"
+          }
         ],
         "loginLabel": "Login",
         "signupLabel": "Sign up",

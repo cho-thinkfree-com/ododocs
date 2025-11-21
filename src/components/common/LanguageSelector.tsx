@@ -15,7 +15,7 @@ const LanguageSelector = () => {
     ];
 
     return (
-        <FormControl size="small" variant="outlined">
+        <FormControl size="small" variant="outlined" data-testid="language-selector-wrapper">
             <Select
                 value={locale}
                 onChange={handleChange}
