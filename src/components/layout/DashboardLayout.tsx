@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { Box, AppBar, Toolbar, Typography, IconButton, Drawer, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Avatar, Menu, MenuItem, Divider, useTheme, useMediaQuery, Button, Dialog, DialogTitle, DialogContent, DialogActions, TextField, FormControl, InputLabel, Select, CircularProgress } from '@mui/material';
 import MenuIcon from '@mui/icons-material/Menu';
 import DashboardIcon from '@mui/icons-material/Dashboard';
@@ -69,8 +69,8 @@ const DashboardLayout = () => {
 
     const languageOptions = strings.settings.languageOptions ?? {
         'en-US': 'English (English)',
-        'ko-KR': '한국어 (한국어)',
-        'ja-JP': '日本語 (日本語)',
+        'ko-KR': '?쒓뎅??(?쒓뎅??',
+        'ja-JP': '?ζ쑍沃?(?ζ쑍沃?',
     };
     const accountLanguageLabelId = 'account-language-label';
     const accountTimezoneLabelId = 'account-timezone-label';
@@ -636,3 +636,4 @@ const DashboardLayout = () => {
 };
 
 export default DashboardLayout;
+
