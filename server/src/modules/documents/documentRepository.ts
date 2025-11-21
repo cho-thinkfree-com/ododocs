@@ -292,7 +292,15 @@ export class DocumentRepository {
   }
 }
 
-const toEntity = (document: DocumentModel & { revisions?: ({ createdByMembership: { account: { legalName: string | null } | null } | null })[], tags: { name: string }[] }): DocumentEntity => ({
+const toEntity = (document: DocumentModel & { revisions?: ({ createdByMembership: { account: { legalName: string | null } | null } | null } | null)[]; tags: { name: string }[] }): DocumentEntity => {
+  const latestRevision = document.revisions?.[0] as any
+  const revisionContentSize = latestRevision?.contentSize as number | undefined
+  const revisionContent = latestRevision?.content
+  const fallbackSize =
+    revisionContentSize ??
+    (revisionContent ? Buffer.byteLength(JSON.stringify(revisionContent), 'utf8') : 0)
+
+  return {
   id: document.id,
   workspaceId: document.workspaceId,
   folderId: document.folderId,
@@ -302,10 +310,7 @@ const toEntity = (document: DocumentModel & { revisions?: ({ createdByMembership
   status: document.status,
   visibility: document.visibility,
   summary: document.summary,
-  contentSize: (document as any).contentSize
-    ?? ((document as any).revisions?.[0]?.content
-      ? Buffer.byteLength(JSON.stringify((document as any).revisions?.[0]?.content), 'utf8')
-      : 0),
+  contentSize: (document as any).contentSize ?? fallbackSize,
   sortOrder: document.sortOrder,
   workspaceDefaultAccess: document.workspaceDefaultAccess,
   workspaceEditorAdminsOnly: document.workspaceEditorAdminsOnly,
@@ -314,4 +319,5 @@ const toEntity = (document: DocumentModel & { revisions?: ({ createdByMembership
   updatedAt: document.updatedAt,
   tags: document.tags?.map((tag) => tag.name) ?? [],
   lastModifiedBy: document.revisions?.[0]?.createdByMembership?.account?.legalName,
-})
+  }
+}
