@@ -60,6 +60,8 @@ const DashboardLayout = () => {
         'ko-KR': '한국어 (한국어)',
         'ja-JP': '日本語 (日本語)',
     };
+    const accountLanguageLabelId = 'account-language-label';
+    const accountTimezoneLabelId = 'account-timezone-label';
     const timezoneOptions = [
         'UTC',
         'Asia/Seoul',
@@ -482,9 +484,11 @@ const DashboardLayout = () => {
                         margin="dense"
                     />
                     <FormControl fullWidth margin="dense" variant="outlined" size="small">
-                        <InputLabel shrink>{strings.settings.global.preferredLanguage}</InputLabel>
+                        <InputLabel id={accountLanguageLabelId}>{strings.settings.global.preferredLanguage}</InputLabel>
                         <Select
                             native
+                            labelId={accountLanguageLabelId}
+                            label={strings.settings.global.preferredLanguage}
                             value={accountLocale}
                             onChange={(e) => setAccountLocale(e.target.value as Locale)}
                         >
@@ -494,9 +498,11 @@ const DashboardLayout = () => {
                         </Select>
                     </FormControl>
                     <FormControl fullWidth margin="dense" variant="outlined" size="small">
-                        <InputLabel shrink>{strings.settings.global.timezone}</InputLabel>
+                        <InputLabel id={accountTimezoneLabelId}>{strings.settings.global.timezone}</InputLabel>
                         <Select
                             native
+                            labelId={accountTimezoneLabelId}
+                            label={strings.settings.global.timezone}
                             value={accountTimezone}
                             onChange={(e) => setAccountTimezone(e.target.value)}
                         >
