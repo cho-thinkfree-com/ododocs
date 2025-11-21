@@ -74,7 +74,7 @@ body {
 
 .ProseMirror-dropcursor {
   box-sizing: border-box;
-  animation: dropcursor-hide 200ms ease 150ms forwards;
+  animation: dropcursor-hide 100ms ease 75ms forwards;
 }
 
 @keyframes dropcursor-hide {
