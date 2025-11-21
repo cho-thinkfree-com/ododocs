@@ -161,8 +161,8 @@ const DashboardLayout = () => {
             setWorkspaceDescForm(ws.description || '');
             setWorkspaceDisplayName(member.displayName || null);
             setWorkspaceMember(member);
-            setWorkspaceLocale(member.preferredLocale || 'en-US');
-            setWorkspaceTimezone(member.timezone || 'UTC');
+            setWorkspaceLocaleState((member.preferredLocale as Locale) || 'en-US');
+            setWorkspaceTimezoneState(member.timezone || 'UTC');
         } catch (err) {
             setWorkspaceError((err as Error).message);
         } finally {
