@@ -100,11 +100,46 @@ export type DashboardStrings = {
   manageDocuments: string
 }
 
+export type SettingsStrings = {
+  global: {
+    title: string
+    personalInfo: string
+    security: string
+    legalName: string
+    email: string
+    preferredLanguage: string
+    timezone: string
+    password: string
+    changePassword: string
+    saveChanges: string
+    updateSuccess: string
+    updateError: string
+  }
+  workspaceProfile: {
+    title: string
+    subtitle: string
+    workspaceSpecific: string
+    workspaceSpecificDesc: string
+    emailPasswordHint: string
+    globalAccountSettings: string
+    profileInfo: string
+    displayName: string
+    displayNameHelper: string
+    language: string
+    changeAvatar: string
+    saveProfile: string
+    updateSuccess: string
+    updateError: string
+    loadError: string
+  }
+}
+
 export type AppStrings = {
   editor: EditorStrings
   auth: AuthStrings
   workspace: WorkspaceStrings
   dashboard: DashboardStrings
+  settings: SettingsStrings
 }
 
 export type AuthStrings = {

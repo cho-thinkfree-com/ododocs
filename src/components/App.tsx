@@ -7,7 +7,8 @@ import WorkspaceDashboardPage from '../pages/dashboard/WorkspaceDashboardPage';
 import WorkspacePage from '../pages/workspace/WorkspacePage';
 import WorkspaceSettingsPage from '../pages/workspace/WorkspaceSettingsPage';
 import WorkspaceMembersPage from '../pages/workspace/WorkspaceMembersPage';
-import SettingsPage from '../pages/settings/SettingsPage';
+import GlobalSettingsPage from '../pages/settings/GlobalSettingsPage';
+import WorkspaceProfilePage from '../pages/settings/WorkspaceProfilePage';
 import EditorPage from '../pages/editor/EditorPage';
 
 const ProtectedRoute = () => {
@@ -36,10 +37,10 @@ const AppRoutes = () => {
       <Route element={<ProtectedRoute />}>
         <Route element={<DashboardLayout />}>
           <Route path="/dashboard" element={<WorkspaceDashboardPage />} />
-          <Route path="/settings" element={<SettingsPage />} />
+          <Route path="/settings" element={<GlobalSettingsPage />} />
           <Route path="/workspace/:workspaceId" element={<WorkspacePage />} />
           <Route path="/workspace/:workspaceId/settings" element={<WorkspaceSettingsPage />} />
-          <Route path="/workspace/:workspaceId/profile" element={<SettingsPage />} />
+          <Route path="/workspace/:workspaceId/profile" element={<WorkspaceProfilePage />} />
           <Route path="/workspace/:workspaceId/members" element={<WorkspaceMembersPage />} />
         </Route>
         {/* Editor route is outside DashboardLayout to have its own full-screen layout */}

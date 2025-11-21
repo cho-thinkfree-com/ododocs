@@ -483,6 +483,39 @@
       "folderEmpty": "This folder is empty.",
       "createFirstDocument": "Create your first document",
       "manageDocuments": "Manage your workspaces and documents."
+    },
+    "settings": {
+      "global": {
+        "title": "Account Settings",
+        "personalInfo": "Personal Information",
+        "security": "Security",
+        "legalName": "Legal Name",
+        "email": "Email",
+        "preferredLanguage": "Preferred Language",
+        "timezone": "Timezone",
+        "password": "Password",
+        "changePassword": "Change Password",
+        "saveChanges": "Save Changes",
+        "updateSuccess": "Account settings updated successfully.",
+        "updateError": "Failed to update account settings."
+      },
+      "workspaceProfile": {
+        "title": "My Workspace Profile",
+        "subtitle": "Manage your profile for {workspaceName}",
+        "workspaceSpecific": "Workspace Specific Settings",
+        "workspaceSpecificDesc": "These settings apply ONLY to the {workspaceName} workspace.",
+        "emailPasswordHint": "To change your email or password, visit",
+        "globalAccountSettings": "Global Account Settings",
+        "profileInfo": "Profile Information",
+        "displayName": "Display Name",
+        "displayNameHelper": "How you appear to others in this workspace",
+        "language": "Language",
+        "changeAvatar": "Change Avatar",
+        "saveProfile": "Save Profile",
+        "updateSuccess": "Workspace profile updated successfully.",
+        "updateError": "Failed to update workspace profile.",
+        "loadError": "Failed to load workspace profile"
+      }
     }
   },
   "ko-KR": {
@@ -963,6 +996,39 @@
       "folderEmpty": "이 폴더는 비어 있습니다.",
       "createFirstDocument": "첫 번째 문서 만들기",
       "manageDocuments": "워크스페이스와 문서를 관리하세요."
+    },
+    "settings": {
+      "global": {
+        "title": "계정 설정",
+        "personalInfo": "개인 정보",
+        "security": "보안",
+        "legalName": "이름",
+        "email": "이메일",
+        "preferredLanguage": "선호 언어",
+        "timezone": "시간대",
+        "password": "비밀번호",
+        "changePassword": "비밀번호 변경",
+        "saveChanges": "변경사항 저장",
+        "updateSuccess": "계정 설정이 성공적으로 업데이트되었습니다.",
+        "updateError": "계정 설정 업데이트에 실패했습니다."
+      },
+      "workspaceProfile": {
+        "title": "나의 워크스페이스 프로필",
+        "subtitle": "{workspaceName}의 프로필 관리",
+        "workspaceSpecific": "워크스페이스 전용 설정",
+        "workspaceSpecificDesc": "이 설정은 {workspaceName} 워크스페이스에만 적용됩니다.",
+        "emailPasswordHint": "이메일이나 비밀번호를 변경하려면",
+        "globalAccountSettings": "전역 계정 설정",
+        "profileInfo": "프로필 정보",
+        "displayName": "표시 이름",
+        "displayNameHelper": "이 워크스페이스에서 다른 사람에게 표시되는 이름",
+        "language": "언어",
+        "changeAvatar": "아바타 변경",
+        "saveProfile": "프로필 저장",
+        "updateSuccess": "워크스페이스 프로필이 성공적으로 업데이트되었습니다.",
+        "updateError": "워크스페이스 프로필 업데이트에 실패했습니다.",
+        "loadError": "워크스페이스 프로필을 불러오는데 실패했습니다"
+      }
     }
   },
   "ja-JP": {
@@ -1449,6 +1515,39 @@
       "folderEmpty": "このフォルダは空です。",
       "createFirstDocument": "最初の文書を作成",
       "manageDocuments": "ワークスペースと文書を管理します。"
+    },
+    "settings": {
+      "global": {
+        "title": "アカウント設定",
+        "personalInfo": "個人情報",
+        "security": "セキュリティ",
+        "legalName": "名前",
+        "email": "メールアドレス",
+        "preferredLanguage": "優先言語",
+        "timezone": "タイムゾーン",
+        "password": "パスワード",
+        "changePassword": "パスワード変更",
+        "saveChanges": "変更を保存",
+        "updateSuccess": "アカウント設定が正常に更新されました。",
+        "updateError": "アカウント設定の更新に失敗しました。"
+      },
+      "workspaceProfile": {
+        "title": "マイワークスペースプロフィール",
+        "subtitle": "{workspaceName}のプロフィール管理",
+        "workspaceSpecific": "ワークスペース専用設定",
+        "workspaceSpecificDesc": "これらの設定は{workspaceName}ワークスペースにのみ適用されます。",
+        "emailPasswordHint": "メールアドレスまたはパスワードを変更するには",
+        "globalAccountSettings": "グローバルアカウント設定",
+        "profileInfo": "プロフィール情報",
+        "displayName": "表示名",
+        "displayNameHelper": "このワークスペースで他のユーザーに表示される名前",
+        "language": "言語",
+        "changeAvatar": "アバターを変更",
+        "saveProfile": "プロフィールを保存",
+        "updateSuccess": "ワークスペースプロフィールが正常に更新されました。",
+        "updateError": "ワークスペースプロフィールの更新に失敗しました。",
+        "loadError": "ワークスペースプロフィールの読み込みに失敗しました"
+      }
     }
   }
 }
