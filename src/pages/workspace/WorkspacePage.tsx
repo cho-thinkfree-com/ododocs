@@ -26,6 +26,14 @@ const WorkspacePage = () => {
   const { tokens } = useAuth();
   const [workspace, setWorkspace] = useState<WorkspaceSummary | null>(null);
   const { strings } = useI18n();
+  const formatBytes = (bytes?: number) => {
+    if (bytes === undefined || bytes === null) return '-';
+    if (bytes === 0) return '0 B';
+    const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+    const i = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
+    const value = bytes / Math.pow(1024, i);
+    return `${value < 10 ? value.toFixed(1) : Math.round(value)} ${units[i]}`;
+  };
 
   usePageTitle(workspace?.name || 'Workspace');
   const [ancestors, setAncestors] = useState<FolderSummary[]>([]);
@@ -362,9 +370,10 @@ const WorkspacePage = () => {
         <Table>
           <TableHead>
             <TableRow>
-              <TableCell width="50%">{strings.workspace.nameColumn}</TableCell>
+              <TableCell width="40%">{strings.workspace.nameColumn}</TableCell>
+              <TableCell width="15%">{strings.workspace.sizeColumn}</TableCell>
               <TableCell width="20%">{strings.workspace.lastModifiedColumn}</TableCell>
-              <TableCell width="20%">{strings.workspace.modifiedByColumn}</TableCell>
+              <TableCell width="15%">{strings.workspace.modifiedByColumn}</TableCell>
               <TableCell align="right" width="10%">{strings.workspace.actionsColumn}</TableCell>
             </TableRow>
           </TableHead>
@@ -377,6 +386,7 @@ const WorkspacePage = () => {
                     {folder.name}
                   </Link>
                 </TableCell>
+                <TableCell />
                 <TableCell>
                   <Typography variant="body2" color="text.secondary">{formatRelativeDate(folder.updatedAt)}</Typography>
                 </TableCell>
@@ -395,6 +405,9 @@ const WorkspacePage = () => {
                     <ArticleIcon color="action" sx={{ mr: 1.5 }} />
                     {doc.title}
                   </Link>
+                </TableCell>
+                <TableCell>
+                  <Typography variant="body2" color="text.secondary">{formatBytes(doc.contentSize)}</Typography>
                 </TableCell>
                 <TableCell>
                   <Typography variant="body2" color="text.secondary">{formatRelativeDate(doc.updatedAt)}</Typography>

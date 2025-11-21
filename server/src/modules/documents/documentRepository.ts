@@ -16,6 +16,7 @@ export interface DocumentEntity {
   status: DocumentStatus
   visibility: DocumentVisibility
   summary?: string | null
+  contentSize: number
   sortOrder: number
   workspaceDefaultAccess: DocumentWorkspaceAccess
   workspaceEditorAdminsOnly: boolean
@@ -35,6 +36,7 @@ export interface DocumentCreateInput {
   status: DocumentStatus
   visibility: DocumentVisibility
   summary?: string | null
+  contentSize?: number
   sortOrder?: number
   workspaceDefaultAccess?: DocumentWorkspaceAccess
   workspaceEditorAdminsOnly?: boolean
@@ -47,6 +49,7 @@ export interface DocumentUpdateInput {
   status?: DocumentStatus
   visibility?: DocumentVisibility
   summary?: string | null
+  contentSize?: number
   sortOrder?: number
   workspaceDefaultAccess?: DocumentWorkspaceAccess
   workspaceEditorAdminsOnly?: boolean
@@ -76,6 +79,7 @@ export class DocumentRepository {
         status: input.status,
         visibility: input.visibility,
         summary: input.summary,
+        contentSize: input.contentSize ?? 0,
         sortOrder: input.sortOrder ?? 0,
         workspaceEditorAdminsOnly: input.workspaceEditorAdminsOnly,
       },
@@ -100,6 +104,7 @@ export class DocumentRepository {
         status: input.status,
         visibility: input.visibility,
         summary: input.summary,
+        contentSize: input.contentSize,
         sortOrder: input.sortOrder,
         workspaceDefaultAccess: input.workspaceDefaultAccess,
         workspaceEditorAdminsOnly: input.workspaceEditorAdminsOnly,
@@ -130,6 +135,7 @@ export class DocumentRepository {
         status: input.status,
         visibility: input.visibility,
         summary: input.summary,
+        contentSize: input.contentSize,
         sortOrder: input.sortOrder,
         workspaceDefaultAccess: input.workspaceDefaultAccess,
         workspaceEditorAdminsOnly: input.workspaceEditorAdminsOnly,
@@ -296,6 +302,7 @@ const toEntity = (document: DocumentModel & { revisions?: ({ createdByMembership
   status: document.status,
   visibility: document.visibility,
   summary: document.summary,
+  contentSize: (document as any).contentSize ?? 0,
   sortOrder: document.sortOrder,
   workspaceDefaultAccess: document.workspaceDefaultAccess,
   workspaceEditorAdminsOnly: document.workspaceEditorAdminsOnly,

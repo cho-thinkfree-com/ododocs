@@ -198,6 +198,7 @@ export interface DocumentSummary {
   visibility: string
   folderId?: string | null
   summary?: string | null
+  contentSize?: number
   createdAt: string
   updatedAt: string
   tags: string[]
@@ -326,6 +327,7 @@ export interface DocumentRevision {
   id: string;
   documentId: string;
   content: Record<string, unknown>;
+  contentSize?: number;
   authorId: string;
   createdAt: string;
 }

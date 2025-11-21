@@ -274,6 +274,7 @@ export type WorkspaceStrings = {
   settingsAccessRestrictedDetail: string
   filesTitle: string
   nameColumn: string
+  sizeColumn: string
   lastModifiedColumn: string
   modifiedByColumn: string
   actionsColumn: string

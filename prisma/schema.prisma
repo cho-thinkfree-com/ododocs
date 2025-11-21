@@ -235,6 +235,7 @@ model Document {
   status             DocumentStatus       @default(draft)
   visibility         DocumentVisibility   @default(private)
   summary            String?              @map("summary")
+  contentSize        Int                  @map("content_size") @default(0)
   sortOrder          Int                  @map("sort_order") @default(0)
   workspaceDefaultAccess DocumentWorkspaceAccess @map("workspace_default_access") @default(none)
   workspaceEditorAdminsOnly Boolean @map("workspace_editor_admins_only") @default(false)
@@ -285,6 +286,7 @@ model DocumentRevision {
   document              Document            @relation(fields: [documentId], references: [id], onDelete: Cascade)
   documentId            String              @map("document_id")
   version               Int
+  contentSize           Int                  @map("content_size") @default(0)
   content               Json                @map("content")
   summary               String?             @map("summary")
   createdByMembership   WorkspaceMembership @relation("RevisionAuthor", fields: [createdByMembershipId], references: [id])

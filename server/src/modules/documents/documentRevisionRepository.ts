@@ -6,6 +6,7 @@ export interface DocumentRevisionEntity {
   documentId: string
   version: number
   content: unknown
+  contentSize: number
   summary?: string | null
   createdByMembershipId: string
   createdAt: Date
@@ -15,6 +16,7 @@ export interface DocumentRevisionCreateInput {
   documentId: string
   version: number
   content: unknown
+  contentSize: number
   summary?: string | null
   createdByMembershipId: string
 }
@@ -28,6 +30,7 @@ export class DocumentRevisionRepository {
         documentId: input.documentId,
         version: input.version,
         content: input.content as any,
+        contentSize: input.contentSize,
         summary: input.summary,
         createdByMembershipId: input.createdByMembershipId,
       },
@@ -58,6 +61,7 @@ const toEntity = (revision: RevisionModel): DocumentRevisionEntity => ({
   documentId: revision.documentId,
   version: revision.version,
   content: revision.content as unknown,
+  contentSize: (revision as any).contentSize ?? 0,
   summary: revision.summary,
   createdByMembershipId: revision.createdByMembershipId,
   createdAt: revision.createdAt,

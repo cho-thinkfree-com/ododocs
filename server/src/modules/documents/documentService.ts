@@ -55,6 +55,15 @@ const revisionSchema = z.object({
   summary: z.string().trim().max(280).optional(),
 })
 
+const calculateContentSize = (content: unknown): number => {
+  try {
+    const json = JSON.stringify(content ?? {})
+    return Buffer.byteLength(json, 'utf8')
+  } catch {
+    return 0
+  }
+}
+
 export class DocumentService {
   constructor(
     private readonly documentRepository: DocumentRepository,
@@ -110,6 +119,9 @@ export class DocumentService {
       strict: Boolean(input.slug),
     })
 
+    const initialContent = input.initialRevision?.content ?? { type: 'doc', content: [] }
+    const initialContentSize = calculateContentSize(initialContent)
+
     const document = await this.documentRepository.create({
       workspaceId,
       folderId: input.folderId ?? null,
@@ -119,13 +131,15 @@ export class DocumentService {
       status: input.status,
       visibility: input.visibility,
       summary: input.summary,
+      contentSize: initialContentSize,
       sortOrder: input.sortOrder,
     })
 
     await this.revisionRepository.create({
       documentId: document.id,
       version: 1,
-      content: input.initialRevision?.content ?? { type: 'doc', content: [] },
+      content: initialContent,
+      contentSize: initialContentSize,
       summary: input.initialRevision?.summary,
       createdByMembershipId: membership.id,
     })
@@ -199,14 +213,20 @@ export class DocumentService {
     const input = revisionSchema.parse(rawInput)
     const latest = await this.revisionRepository.findLatest(documentId)
     const nextVersion = (latest?.version ?? 0) + 1
+    const contentSize = calculateContentSize(input.content)
 
-    return this.revisionRepository.create({
+    const revision = await this.revisionRepository.create({
       documentId,
       version: nextVersion,
       content: input.content,
+      contentSize,
       summary: input.summary,
       createdByMembershipId: membership.id,
     })
+
+    await this.documentRepository.update(documentId, { contentSize })
+
+    return revision
   }
 
   async getLatestRevision(accountId: string, documentId: string) {
