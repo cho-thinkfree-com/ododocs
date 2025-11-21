@@ -196,13 +196,12 @@ const DashboardLayout = () => {
 
             <Divider sx={{ my: 2 }} />
 
-            <Box sx={{ p: 2, display: 'flex', flexDirection: 'column', gap: 1 }}>
+            <Box sx={{ p: 2 }}>
                 <ListItemButton
-                    onClick={() => navigate('/settings')}
+                    onClick={handleMenuOpen}
                     sx={{
                         borderRadius: 2,
                         border: `1px solid ${theme.palette.divider}`,
-                        mb: workspaceId ? 1 : 0,
                     }}
                 >
                     <ListItemIcon sx={{ minWidth: 40 }}>
@@ -212,37 +211,39 @@ const DashboardLayout = () => {
                     </ListItemIcon>
                     <ListItemText
                         primary={sidebarDisplayName}
-                        secondary={strings.layout.dashboard.accountSettingsLabel}
+                        secondary={workspaceId ? strings.layout.dashboard.workspaceSettingsLabel : strings.layout.dashboard.accountSettingsLabel}
                         primaryTypographyProps={{ variant: 'body2', fontWeight: 600, noWrap: true }}
-                        secondaryTypographyProps={{ variant: 'caption', color: 'text.secondary' }}
+                        secondaryTypographyProps={{ variant: 'caption', color: 'text.secondary', noWrap: true }}
                     />
                 </ListItemButton>
-
-                {workspaceId && (
-                    <ListItemButton
-                        onClick={() => navigate(`/workspace/${workspaceId}/settings`)}
-                        sx={{
-                            borderRadius: 2,
-                            border: `1px solid ${theme.palette.divider}`,
-                        }}
-                    >
-                        <ListItemIcon sx={{ minWidth: 40 }}>
+                <Menu
+                    anchorEl={anchorEl}
+                    open={Boolean(anchorEl)}
+                    onClose={handleMenuClose}
+                    anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+                    transformOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+                >
+                    <MenuItem onClick={() => { handleMenuClose(); navigate('/settings'); }}>
+                        <ListItemIcon>
                             <SettingsIcon fontSize="small" />
                         </ListItemIcon>
-                        <ListItemText
-                            primary={strings.layout.dashboard.workspaceSettingsLabel}
-                            primaryTypographyProps={{ variant: 'body2', fontWeight: 600, noWrap: true }}
-                        />
-                    </ListItemButton>
-                )}
-
-                <Button
-                    startIcon={<LogoutIcon fontSize="small" />}
-                    onClick={handleLogout}
-                    sx={{ mt: 1, justifyContent: 'flex-start' }}
-                >
-                    {strings.layout.dashboard.logout}
-                </Button>
+                        {strings.layout.dashboard.accountSettingsLabel}
+                    </MenuItem>
+                    {workspaceId && (
+                        <MenuItem onClick={() => { handleMenuClose(); navigate(`/workspace/${workspaceId}/settings`); }}>
+                            <ListItemIcon>
+                                <DashboardIcon fontSize="small" />
+                            </ListItemIcon>
+                            {strings.layout.dashboard.workspaceSettingsLabel}
+                        </MenuItem>
+                    )}
+                    <MenuItem onClick={() => { handleMenuClose(); handleLogout(); }}>
+                        <ListItemIcon>
+                            <LogoutIcon fontSize="small" />
+                        </ListItemIcon>
+                        {strings.layout.dashboard.logout}
+                    </MenuItem>
+                </Menu>
             </Box>
         </Box>
     );
