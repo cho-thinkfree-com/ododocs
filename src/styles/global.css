@@ -72,6 +72,18 @@ body {
   user-select: none;
 }
 
+.ProseMirror-dropcursor {
+  box-sizing: border-box;
+  animation: dropcursor-hide 200ms ease 150ms forwards;
+}
+
+@keyframes dropcursor-hide {
+  to {
+    opacity: 0;
+    border-color: transparent;
+  }
+}
+
 [data-block-handle-active='true'] {
   position: relative;
 }
