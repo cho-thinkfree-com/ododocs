@@ -162,7 +162,7 @@ const BlockDragHandle = () => {
     >
       <button type='button' className='editor-block-handle__button' aria-label='Drag block' tabIndex={-1}>
         <svg className='editor-block-handle__icon' viewBox='0 0 24 24' focusable='false' aria-hidden='true'>
-          <path d='M9 18h2v-2H9v2zm0-5h2v-2H9v2zm0-7v2h2V6H9zm4 12h2v-2h-2v2zm0-5h2v-2h-2v2zm0-7v2h2V6h-2z' />
+          <path d='M8 6h2v2H8zM14 6h2v2h-2zM8 11h2v2H8zM14 11h2v2h-2zM8 16h2v2H8zM14 16h2v2h-2z' />
         </svg>
       </button>
     </DragHandle>
