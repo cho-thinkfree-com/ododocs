@@ -7,7 +7,7 @@ import SettingsIcon from '@mui/icons-material/Settings';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { useNavigate, useLocation, Outlet, useParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { getWorkspaces, getWorkspaceMemberProfile, getWorkspace, updateWorkspace, updateAccount, type WorkspaceSummary } from '../../lib/api';
+import { getWorkspaces, getWorkspaceMemberProfile, getWorkspace, updateWorkspace, updateAccount, updateWorkspaceMemberProfile, type WorkspaceSummary, type MembershipSummary } from '../../lib/api';
 import { useI18n, type Locale } from '../../lib/i18n';
 import WorkspaceLanguageSync from '../common/WorkspaceLanguageSync';
 
@@ -25,6 +25,7 @@ const DashboardLayout = () => {
     const { workspaceId } = useParams<{ workspaceId: string }>();
     const [workspaces, setWorkspaces] = useState<WorkspaceSummary[]>([]);
     const [workspaceDisplayName, setWorkspaceDisplayName] = useState<string | null>(null);
+    const [workspaceMember, setWorkspaceMember] = useState<MembershipSummary | null>(null);
     const [accountDialogOpen, setAccountDialogOpen] = useState(false);
     const [workspaceDialogOpen, setWorkspaceDialogOpen] = useState(false);
     const [accountName, setAccountName] = useState('');
@@ -48,10 +49,17 @@ const DashboardLayout = () => {
     useEffect(() => {
         if (tokens && workspaceId) {
             getWorkspaceMemberProfile(workspaceId, tokens.accessToken)
-                .then((profile) => setWorkspaceDisplayName(profile.displayName || null))
-                .catch(() => setWorkspaceDisplayName(null));
+                .then((profile) => {
+                    setWorkspaceDisplayName(profile.displayName || null);
+                    setWorkspaceMember(profile);
+                })
+                .catch(() => {
+                    setWorkspaceDisplayName(null);
+                    setWorkspaceMember(null);
+                });
         } else {
             setWorkspaceDisplayName(null);
+            setWorkspaceMember(null);
         }
     }, [tokens, workspaceId]);
 
@@ -125,6 +133,7 @@ const DashboardLayout = () => {
     const sidebarAvatar = sidebarDisplayName?.charAt(0).toUpperCase() || user?.email?.charAt(0).toUpperCase();
 
     const currentWorkspace = workspaces.find(w => w.id === workspaceId);
+    const isPrivileged = workspaceMember?.role === 'owner' || workspaceMember?.role === 'admin';
 
     const openAccountDialog = () => {
         setAccountError(null);
@@ -140,9 +149,16 @@ const DashboardLayout = () => {
         setWorkspaceLoading(true);
         setWorkspaceDialogOpen(true);
         try {
-            const ws = await getWorkspace(workspaceId, tokens.accessToken);
+            const [ws, member] = await Promise.all([
+                getWorkspace(workspaceId, tokens.accessToken),
+                getWorkspaceMemberProfile(workspaceId, tokens.accessToken),
+            ]);
             setWorkspaceNameForm(ws.name);
             setWorkspaceDescForm(ws.description || '');
+            setWorkspaceDisplayName(member.displayName || null);
+            setWorkspaceMember(member);
+            setWorkspaceLocale(member.preferredLocale || 'en-US');
+            setWorkspaceTimezone(member.timezone || 'UTC');
         } catch (err) {
             setWorkspaceError((err as Error).message);
         } finally {
@@ -180,10 +196,18 @@ const DashboardLayout = () => {
         setWorkspaceSaving(true);
         setWorkspaceError(null);
         try {
-            await updateWorkspace(workspaceId, tokens.accessToken, {
-                name: workspaceNameForm.trim(),
-                description: workspaceDescForm.trim(),
+            const memberUpdate = updateWorkspaceMemberProfile(workspaceId, tokens.accessToken, {
+                displayName: workspaceDisplayName?.trim() || workspaceMember?.displayName || '',
+                preferredLocale: workspaceLocale,
+                timezone: workspaceTimezone,
             });
+            const workspaceUpdate = isPrivileged
+                ? updateWorkspace(workspaceId, tokens.accessToken, {
+                    name: workspaceNameForm.trim(),
+                    description: workspaceDescForm.trim(),
+                })
+                : Promise.resolve();
+            await Promise.all([memberUpdate, workspaceUpdate]);
             setWorkspaceDialogOpen(false);
             getWorkspaces(tokens.accessToken).then(setWorkspaces).catch(console.error);
         } catch (err) {
@@ -542,6 +566,7 @@ const DashboardLayout = () => {
                                 variant="outlined"
                                 InputLabelProps={{ shrink: true }}
                                 margin="dense"
+                                disabled={!isPrivileged}
                             />
                             <TextField
                                 label={strings.workspace.descriptionLabel}
@@ -553,7 +578,43 @@ const DashboardLayout = () => {
                                 variant="outlined"
                                 InputLabelProps={{ shrink: true }}
                                 margin="dense"
+                                disabled={!isPrivileged}
                             />
+                            <TextField
+                                label={strings.settings.workspaceProfile.displayName}
+                                value={workspaceDisplayName || ''}
+                                onChange={(e) => setWorkspaceDisplayName(e.target.value)}
+                                fullWidth
+                                variant="outlined"
+                                InputLabelProps={{ shrink: true }}
+                                margin="dense"
+                            />
+                            <FormControl fullWidth margin="dense" variant="outlined" size="small">
+                                <InputLabel shrink>{strings.settings.workspaceProfile.language}</InputLabel>
+                                <Select
+                                    native
+                                    value={workspaceMember?.preferredLocale || workspaceLocale}
+                                    onChange={(e) => setWorkspaceMember((prev) => prev ? { ...prev, preferredLocale: e.target.value } : prev)}
+                                >
+                                    <option value="en-US">{languageOptions['en-US']}</option>
+                                    <option value="ko-KR">{languageOptions['ko-KR']}</option>
+                                    <option value="ja-JP">{languageOptions['ja-JP']}</option>
+                                </Select>
+                            </FormControl>
+                            <FormControl fullWidth margin="dense" variant="outlined" size="small">
+                                <InputLabel shrink>{strings.settings.global.timezone}</InputLabel>
+                                <Select
+                                    native
+                                    value={workspaceMember?.timezone || workspaceTimezone}
+                                    onChange={(e) => setWorkspaceMember((prev) => prev ? { ...prev, timezone: e.target.value } : prev)}
+                                >
+                                    {timezoneOptionsWithLabel.map((tz) => (
+                                        <option key={tz.value} value={tz.value}>
+                                            {tz.label}
+                                        </option>
+                                    ))}
+                                </Select>
+                            </FormControl>
                         </>
                     )}
                 </DialogContent>
