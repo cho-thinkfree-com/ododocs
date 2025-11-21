@@ -5,6 +5,7 @@ import CssBaseline from '@mui/material/CssBaseline'
 import App from './components/App.tsx'
 import { I18nProvider } from './lib/i18n'
 import { premiumTheme } from './theme/premiumTheme.ts'
+import './styles/global.css'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
