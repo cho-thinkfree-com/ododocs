@@ -481,7 +481,7 @@ const DashboardLayout = () => {
                         InputLabelProps={{ shrink: true }}
                         margin="dense"
                     />
-                    <FormControl fullWidth margin="dense">
+                    <FormControl fullWidth margin="dense" variant="outlined" size="small">
                         <InputLabel shrink>{strings.settings.global.preferredLanguage}</InputLabel>
                         <Select
                             native
@@ -493,7 +493,7 @@ const DashboardLayout = () => {
                             <option value="ja-JP">{languageOptions['ja-JP']}</option>
                         </Select>
                     </FormControl>
-                    <FormControl fullWidth margin="dense">
+                    <FormControl fullWidth margin="dense" variant="outlined" size="small">
                         <InputLabel shrink>{strings.settings.global.timezone}</InputLabel>
                         <Select
                             native
