@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Box, AppBar, Toolbar, Typography, IconButton, Drawer, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Avatar, Menu, MenuItem, Divider, useTheme, useMediaQuery, Button } from '@mui/material';
+import { Box, AppBar, Toolbar, Typography, IconButton, Drawer, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Avatar, Menu, MenuItem, Divider, useTheme, useMediaQuery, Button, Dialog, DialogTitle, DialogContent, DialogActions, TextField, FormControl, InputLabel, Select, CircularProgress } from '@mui/material';
 import MenuIcon from '@mui/icons-material/Menu';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import LogoutIcon from '@mui/icons-material/Logout';
@@ -7,8 +7,8 @@ import SettingsIcon from '@mui/icons-material/Settings';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { useNavigate, useLocation, Outlet, useParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { getWorkspaces, getWorkspaceMemberProfile, type WorkspaceSummary } from '../../lib/api';
-import { useI18n } from '../../lib/i18n';
+import { getWorkspaces, getWorkspaceMemberProfile, getWorkspace, updateWorkspace, updateAccount, type WorkspaceSummary } from '../../lib/api';
+import { useI18n, type Locale } from '../../lib/i18n';
 import WorkspaceLanguageSync from '../common/WorkspaceLanguageSync';
 
 const DRAWER_WIDTH = 260;
@@ -19,12 +19,24 @@ const DashboardLayout = () => {
     const [mobileOpen, setMobileOpen] = useState(false);
     const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
     const [workspaceMenuAnchorEl, setWorkspaceMenuAnchorEl] = useState<null | HTMLElement>(null);
-    const { logout, user, tokens } = useAuth();
+    const { logout, user, tokens, refreshProfile } = useAuth();
     const navigate = useNavigate();
     const location = useLocation();
     const { workspaceId } = useParams<{ workspaceId: string }>();
     const [workspaces, setWorkspaces] = useState<WorkspaceSummary[]>([]);
     const [workspaceDisplayName, setWorkspaceDisplayName] = useState<string | null>(null);
+    const [accountDialogOpen, setAccountDialogOpen] = useState(false);
+    const [workspaceDialogOpen, setWorkspaceDialogOpen] = useState(false);
+    const [accountName, setAccountName] = useState('');
+    const [accountLocale, setAccountLocale] = useState<Locale>('en-US');
+    const [accountTimezone, setAccountTimezone] = useState('UTC');
+    const [accountSaving, setAccountSaving] = useState(false);
+    const [accountError, setAccountError] = useState<string | null>(null);
+    const [workspaceNameForm, setWorkspaceNameForm] = useState('');
+    const [workspaceDescForm, setWorkspaceDescForm] = useState('');
+    const [workspaceSaving, setWorkspaceSaving] = useState(false);
+    const [workspaceError, setWorkspaceError] = useState<string | null>(null);
+    const [workspaceLoading, setWorkspaceLoading] = useState(false);
     const { strings } = useI18n();
 
     useEffect(() => {
@@ -43,6 +55,67 @@ const DashboardLayout = () => {
         }
     }, [tokens, workspaceId]);
 
+    const languageOptions = strings.settings.languageOptions ?? {
+        'en-US': 'English (English)',
+        'ko-KR': '한국어 (한국어)',
+        'ja-JP': '日本語 (日本語)',
+    };
+    const timezoneOptions = [
+        'UTC',
+        'Asia/Seoul',
+        'Asia/Tokyo',
+        'Asia/Shanghai',
+        'Asia/Hong_Kong',
+        'Asia/Taipei',
+        'Asia/Singapore',
+        'Asia/Bangkok',
+        'Asia/Kolkata',
+        'Asia/Dubai',
+        'Asia/Kuala_Lumpur',
+        'Asia/Jakarta',
+        'Asia/Manila',
+        'Europe/London',
+        'Europe/Paris',
+        'Europe/Berlin',
+        'Europe/Madrid',
+        'Europe/Rome',
+        'Europe/Amsterdam',
+        'Europe/Stockholm',
+        'Europe/Istanbul',
+        'Europe/Moscow',
+        'Europe/Warsaw',
+        'Europe/Zurich',
+        'America/New_York',
+        'America/Chicago',
+        'America/Denver',
+        'America/Los_Angeles',
+        'America/Toronto',
+        'America/Vancouver',
+        'America/Mexico_City',
+        'America/Bogota',
+        'America/Lima',
+        'America/Sao_Paulo',
+        'America/Argentina/Buenos_Aires',
+        'Australia/Sydney',
+        'Australia/Melbourne',
+        'Pacific/Auckland',
+      ];
+    const formatTzLabel = (tz: string) => {
+        try {
+            const parts = new Intl.DateTimeFormat('en-US', {
+                timeZone: tz,
+                timeZoneName: 'shortOffset',
+            }).formatToParts(new Date());
+            const offset = parts.find((p) => p.type === 'timeZoneName')?.value ?? 'UTC';
+            return `${tz} (${offset})`;
+        } catch {
+            return tz;
+        }
+    };
+    const timezoneOptionsWithLabel = timezoneOptions
+        .map((tz) => ({ value: tz, label: formatTzLabel(tz) }))
+        .sort((a, b) => a.label.localeCompare(b.label));
+
     const userDisplayName =
         (user?.legalName && user.legalName.trim().length > 0 && user.legalName.trim()) ||
         (user?.email ? user.email.split('@')[0] : '');
@@ -50,6 +123,73 @@ const DashboardLayout = () => {
     const sidebarAvatar = sidebarDisplayName?.charAt(0).toUpperCase() || user?.email?.charAt(0).toUpperCase();
 
     const currentWorkspace = workspaces.find(w => w.id === workspaceId);
+
+    const openAccountDialog = () => {
+        setAccountError(null);
+        setAccountName(userDisplayName);
+        setAccountLocale((user?.preferredLocale as Locale) || 'en-US');
+        setAccountTimezone(user?.preferredTimezone || 'UTC');
+        setAccountDialogOpen(true);
+    };
+
+    const openWorkspaceDialog = async () => {
+        if (!tokens || !workspaceId) return;
+        setWorkspaceError(null);
+        setWorkspaceLoading(true);
+        setWorkspaceDialogOpen(true);
+        try {
+            const ws = await getWorkspace(workspaceId, tokens.accessToken);
+            setWorkspaceNameForm(ws.name);
+            setWorkspaceDescForm(ws.description || '');
+        } catch (err) {
+            setWorkspaceError((err as Error).message);
+        } finally {
+            setWorkspaceLoading(false);
+        }
+    };
+
+    const handleSaveAccount = async () => {
+        if (!tokens) return;
+        setAccountSaving(true);
+        setAccountError(null);
+        try {
+            const trimmedName = accountName.trim();
+            if (!trimmedName) {
+                setAccountError(strings.settings.global.legalNameRequired);
+                setAccountSaving(false);
+                return;
+            }
+            await updateAccount(tokens.accessToken, {
+                legalName: trimmedName,
+                preferredLocale: accountLocale,
+                preferredTimezone: accountTimezone,
+            });
+            await refreshProfile();
+            setAccountDialogOpen(false);
+        } catch (err) {
+            setAccountError((err as Error).message);
+        } finally {
+            setAccountSaving(false);
+        }
+    };
+
+    const handleSaveWorkspace = async () => {
+        if (!tokens || !workspaceId) return;
+        setWorkspaceSaving(true);
+        setWorkspaceError(null);
+        try {
+            await updateWorkspace(workspaceId, tokens.accessToken, {
+                name: workspaceNameForm.trim(),
+                description: workspaceDescForm.trim(),
+            });
+            setWorkspaceDialogOpen(false);
+            getWorkspaces(tokens.accessToken).then(setWorkspaces).catch(console.error);
+        } catch (err) {
+            setWorkspaceError((err as Error).message);
+        } finally {
+            setWorkspaceSaving(false);
+        }
+    };
 
     const handleDrawerToggle = () => {
         setMobileOpen(!mobileOpen);
@@ -223,14 +363,14 @@ const DashboardLayout = () => {
                     anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
                     transformOrigin={{ vertical: 'bottom', horizontal: 'center' }}
                 >
-                    <MenuItem onClick={() => { handleMenuClose(); navigate('/settings'); }}>
+                    <MenuItem onClick={() => { handleMenuClose(); openAccountDialog(); }}>
                         <ListItemIcon>
                             <SettingsIcon fontSize="small" />
                         </ListItemIcon>
                         {strings.layout.dashboard.accountSettingsLabel}
                     </MenuItem>
                     {workspaceId && (
-                        <MenuItem onClick={() => { handleMenuClose(); navigate(`/workspace/${workspaceId}/settings`); }}>
+                        <MenuItem onClick={() => { handleMenuClose(); openWorkspaceDialog(); }}>
                             <ListItemIcon>
                                 <DashboardIcon fontSize="small" />
                             </ListItemIcon>
@@ -327,6 +467,90 @@ const DashboardLayout = () => {
             >
                 <Outlet />
             </Box>
+
+            <Dialog open={accountDialogOpen} onClose={() => setAccountDialogOpen(false)} fullWidth maxWidth="sm">
+                <DialogTitle>{strings.layout.dashboard.accountSettingsLabel}</DialogTitle>
+                <DialogContent sx={{ display: 'grid', gap: 2, pt: 2 }}>
+                    {accountError && <Alert severity="error">{accountError}</Alert>}
+                    <TextField
+                        label={strings.settings.global.legalName}
+                        value={accountName}
+                        onChange={(e) => setAccountName(e.target.value)}
+                        fullWidth
+                    />
+                    <FormControl fullWidth>
+                        <InputLabel shrink>{strings.settings.global.preferredLanguage}</InputLabel>
+                        <Select
+                            native
+                            value={accountLocale}
+                            onChange={(e) => setAccountLocale(e.target.value as Locale)}
+                        >
+                            <option value="en-US">{languageOptions['en-US']}</option>
+                            <option value="ko-KR">{languageOptions['ko-KR']}</option>
+                            <option value="ja-JP">{languageOptions['ja-JP']}</option>
+                        </Select>
+                    </FormControl>
+                    <FormControl fullWidth>
+                        <InputLabel shrink>{strings.settings.global.timezone}</InputLabel>
+                        <Select
+                            native
+                            value={accountTimezone}
+                            onChange={(e) => setAccountTimezone(e.target.value)}
+                        >
+                            {timezoneOptionsWithLabel.map((tz) => (
+                                <option key={tz.value} value={tz.value}>
+                                    {tz.label}
+                                </option>
+                            ))}
+                        </Select>
+                    </FormControl>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setAccountDialogOpen(false)} disabled={accountSaving}>
+                        {strings.dashboard.createWorkspaceDialogCancel}
+                    </Button>
+                    <Button onClick={handleSaveAccount} disabled={accountSaving} variant="contained">
+                        {accountSaving ? <CircularProgress size={18} /> : strings.settings.global.saveChanges}
+                    </Button>
+                </DialogActions>
+            </Dialog>
+
+            <Dialog open={workspaceDialogOpen} onClose={() => setWorkspaceDialogOpen(false)} fullWidth maxWidth="sm">
+                <DialogTitle>{strings.layout.dashboard.workspaceSettingsLabel}</DialogTitle>
+                <DialogContent sx={{ display: 'grid', gap: 2, pt: 2 }}>
+                    {workspaceError && <Alert severity="error">{workspaceError}</Alert>}
+                    {workspaceLoading ? (
+                        <Box sx={{ display: 'flex', justifyContent: 'center', p: 2 }}>
+                            <CircularProgress />
+                        </Box>
+                    ) : (
+                        <>
+                            <TextField
+                                label={strings.workspace.createWorkspacePlaceholder}
+                                value={workspaceNameForm}
+                                onChange={(e) => setWorkspaceNameForm(e.target.value)}
+                                fullWidth
+                            />
+                            <TextField
+                                label={strings.workspace.descriptionLabel}
+                                value={workspaceDescForm}
+                                onChange={(e) => setWorkspaceDescForm(e.target.value)}
+                                fullWidth
+                                multiline
+                                minRows={3}
+                            />
+                        </>
+                    )}
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setWorkspaceDialogOpen(false)} disabled={workspaceSaving}>
+                        {strings.dashboard.createWorkspaceDialogCancel}
+                    </Button>
+                    <Button onClick={handleSaveWorkspace} disabled={workspaceSaving || workspaceLoading} variant="contained">
+                        {workspaceSaving ? <CircularProgress size={18} /> : strings.workspace.updateButton}
+                    </Button>
+                </DialogActions>
+            </Dialog>
         </Box>
     );
 };
