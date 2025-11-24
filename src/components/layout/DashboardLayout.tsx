@@ -6,10 +6,11 @@ import SettingsIcon from '@mui/icons-material/Settings';
 import LockIcon from '@mui/icons-material/Lock';
 import { useNavigate, Outlet, useParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { getWorkspaceMemberProfile, getWorkspace, updateWorkspace, updateAccount, updateWorkspaceMemberProfile, type MembershipSummary } from '../../lib/api';
+import { getWorkspaceMemberProfile, updateAccount, type MembershipSummary } from '../../lib/api';
 import { useI18n, type Locale } from '../../lib/i18n';
 import WorkspaceLanguageSync from '../common/WorkspaceLanguageSync';
 import { ChangePasswordDialog } from '../../pages/settings/ChangePasswordDialog';
+import WorkspaceSettingsDialog from '../workspace/WorkspaceSettingsDialog';
 
 const DashboardLayout = () => {
     const theme = useTheme();
@@ -26,13 +27,6 @@ const DashboardLayout = () => {
     const [accountTimezone, setAccountTimezone] = useState('UTC');
     const [accountSaving, setAccountSaving] = useState(false);
     const [accountError, setAccountError] = useState<string | null>(null);
-    const [workspaceNameForm, setWorkspaceNameForm] = useState('');
-    const [workspaceDescForm, setWorkspaceDescForm] = useState('');
-    const [workspaceLocaleState, setWorkspaceLocaleState] = useState<Locale>('en-US');
-    const [workspaceTimezoneState, setWorkspaceTimezoneState] = useState('UTC');
-    const [workspaceSaving, setWorkspaceSaving] = useState(false);
-    const [workspaceError, setWorkspaceError] = useState<string | null>(null);
-    const [workspaceLoading, setWorkspaceLoading] = useState(false);
     const [isPasswordDialogOpen, setIsPasswordDialogOpen] = useState(false);
     const { strings, locale, setLocale } = useI18n();
 
@@ -42,8 +36,6 @@ const DashboardLayout = () => {
                 .then((profile) => {
                     setWorkspaceDisplayName(profile.displayName || null);
                     setWorkspaceMember(profile);
-                    setWorkspaceLocaleState((profile.preferredLocale as Locale) || 'en-US');
-                    setWorkspaceTimezoneState(profile.timezone || 'UTC');
                     if (profile.preferredLocale && profile.preferredLocale !== locale) {
                         setLocale(profile.preferredLocale as Locale);
                     }
@@ -152,7 +144,7 @@ const DashboardLayout = () => {
 
     const isWorkspaceContext = !!workspaceId;
     // const currentWorkspace = workspaces.find(w => w.id === workspaceId); // Removed unused
-    const isPrivileged = workspaceMember?.role === 'owner' || workspaceMember?.role === 'admin';
+
 
     // Profile Display Logic
     const profileName = isWorkspaceContext
@@ -169,28 +161,9 @@ const DashboardLayout = () => {
         setAccountDialogOpen(true);
     };
 
-    const openWorkspaceDialog = async () => {
-        if (!tokens || !workspaceId) return;
-        setWorkspaceError(null);
-        setWorkspaceLoading(true);
+    const openWorkspaceDialog = () => {
+        if (!workspaceId) return;
         setWorkspaceDialogOpen(true);
-        try {
-            const [ws, member] = await Promise.all([
-                getWorkspace(workspaceId, tokens.accessToken),
-                getWorkspaceMemberProfile(workspaceId, tokens.accessToken),
-            ]);
-            setWorkspaceNameForm(ws.name);
-            setWorkspaceDescForm(ws.description || '');
-            const fallbackDisplay = member.displayName || userDisplayName;
-            setWorkspaceDisplayName(fallbackDisplay || '');
-            setWorkspaceMember(member);
-            setWorkspaceLocaleState((member.preferredLocale as Locale) || 'en-US');
-            setWorkspaceTimezoneState(member.timezone || 'UTC');
-        } catch (err) {
-            setWorkspaceError((err as Error).message);
-        } finally {
-            setWorkspaceLoading(false);
-        }
     };
 
     const handleSaveAccount = async () => {
@@ -218,37 +191,7 @@ const DashboardLayout = () => {
         }
     };
 
-    const handleSaveWorkspace = async () => {
-        if (!tokens || !workspaceId) return;
-        setWorkspaceSaving(true);
-        setWorkspaceError(null);
-        try {
-            const trimmedDisplay = workspaceDisplayName?.trim();
-            const memberPayload: Record<string, unknown> = {
-                preferredLocale: workspaceLocaleState,
-                timezone: workspaceTimezoneState,
-            };
-            if (trimmedDisplay && trimmedDisplay.length > 0) {
-                memberPayload.displayName = trimmedDisplay;
-            }
-            const memberUpdate = updateWorkspaceMemberProfile(workspaceId, tokens.accessToken, memberPayload);
-            const workspaceUpdate = isPrivileged
-                ? updateWorkspace(workspaceId, tokens.accessToken, {
-                    name: workspaceNameForm.trim(),
-                    description: workspaceDescForm.trim(),
-                })
-                : Promise.resolve();
-            await Promise.all([memberUpdate, workspaceUpdate]);
-            if (workspaceLocaleState && workspaceLocaleState !== locale) {
-                setLocale(workspaceLocaleState);
-            }
-            setWorkspaceDialogOpen(false);
-        } catch (err) {
-            setWorkspaceError((err as Error).message);
-        } finally {
-            setWorkspaceSaving(false);
-        }
-    };
+
 
     const handleMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
         setAnchorEl(event.currentTarget);
@@ -469,90 +412,13 @@ const DashboardLayout = () => {
                     </Button>
                 </DialogActions>
             </Dialog>
-
-            <Dialog open={workspaceDialogOpen} onClose={() => setWorkspaceDialogOpen(false)} fullWidth maxWidth="sm">
-                <DialogTitle>{strings.layout.dashboard.workspaceSettingsLabel}</DialogTitle>
-                <DialogContent sx={{ display: 'grid', gap: 2, pt: 2 }}>
-                    {workspaceError && <Alert severity="error">{workspaceError}</Alert>}
-                    {workspaceLoading ? (
-                        <Box sx={{ display: 'flex', justifyContent: 'center', p: 2 }}>
-                            <CircularProgress />
-                        </Box>
-                    ) : (
-                        <>
-                            <TextField
-                                label={strings.workspace.createWorkspacePlaceholder}
-                                value={workspaceNameForm}
-                                onChange={(e) => setWorkspaceNameForm(e.target.value)}
-                                fullWidth
-                                variant="outlined"
-                                InputLabelProps={{ shrink: true }}
-                                margin="dense"
-                                disabled={!isPrivileged}
-                            />
-                            <TextField
-                                label={strings.workspace.descriptionLabel}
-                                value={workspaceDescForm}
-                                onChange={(e) => setWorkspaceDescForm(e.target.value)}
-                                fullWidth
-                                multiline
-                                minRows={3}
-                                variant="outlined"
-                                InputLabelProps={{ shrink: true }}
-                                margin="dense"
-                                disabled={!isPrivileged}
-                            />
-                            <TextField
-                                label={strings.settings.workspaceProfile.displayName}
-                                value={workspaceDisplayName || ''}
-                                onChange={(e) => setWorkspaceDisplayName(e.target.value)}
-                                fullWidth
-                                variant="outlined"
-                                InputLabelProps={{ shrink: true }}
-                                margin="dense"
-                            />
-                            <FormControl fullWidth margin="dense" variant="outlined" size="small">
-                                <InputLabel id="workspace-language">{strings.settings.workspaceProfile.language}</InputLabel>
-                                <Select
-                                    native
-                                    labelId="workspace-language"
-                                    label={strings.settings.workspaceProfile.language}
-                                    value={workspaceLocaleState}
-                                    onChange={(e) => setWorkspaceLocaleState(e.target.value as Locale)}
-                                >
-                                    <option value="en-US">{languageOptions['en-US']}</option>
-                                    <option value="ko-KR">{languageOptions['ko-KR']}</option>
-                                    <option value="ja-JP">{languageOptions['ja-JP']}</option>
-                                </Select>
-                            </FormControl>
-                            <FormControl fullWidth margin="dense" variant="outlined" size="small">
-                                <InputLabel id="workspace-timezone">{strings.settings.global.timezone}</InputLabel>
-                                <Select
-                                    native
-                                    labelId="workspace-timezone"
-                                    label={strings.settings.global.timezone}
-                                    value={workspaceTimezoneState}
-                                    onChange={(e) => setWorkspaceTimezoneState(e.target.value)}
-                                >
-                                    {timezoneOptionsWithLabel.map((tz) => (
-                                        <option key={tz.value} value={tz.value}>
-                                            {tz.label}
-                                        </option>
-                                    ))}
-                                </Select>
-                            </FormControl>
-                        </>
-                    )}
-                </DialogContent>
-                <DialogActions>
-                    <Button onClick={() => setWorkspaceDialogOpen(false)} disabled={workspaceSaving}>
-                        {strings.dashboard.createWorkspaceDialogCancel}
-                    </Button>
-                    <Button onClick={handleSaveWorkspace} disabled={workspaceSaving || workspaceLoading} variant="contained">
-                        {workspaceSaving ? <CircularProgress size={18} /> : strings.workspace.updateButton}
-                    </Button>
-                </DialogActions>
-            </Dialog>
+            {workspaceId && (
+                <WorkspaceSettingsDialog
+                    open={workspaceDialogOpen}
+                    onClose={() => setWorkspaceDialogOpen(false)}
+                    workspaceId={workspaceId}
+                />
+            )}
             <ChangePasswordDialog open={isPasswordDialogOpen} onClose={() => setIsPasswordDialogOpen(false)} />
         </Box >
     );
