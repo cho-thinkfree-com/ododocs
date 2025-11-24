@@ -2,7 +2,7 @@ import { Alert, Box, Breadcrumbs, Button, CircularProgress, Container, Link, Typ
 import { useCallback, useEffect, useState, useMemo, useRef } from 'react';
 import { useParams, useSearchParams, Link as RouterLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { getWorkspaceDocuments, getFolder, createFolder, createDocument, deleteDocument, deleteFolder, renameDocument, renameFolder, getWorkspace, ApiError, type DocumentSummary, type FolderSummary, type WorkspaceSummary } from '../../lib/api';
+import { getWorkspaceDocuments, getFolder, createFolder, createDocument, deleteDocument, deleteFolder, renameDocument, renameFolder, getWorkspace, ApiError, type DocumentSummary, type FolderSummary, type WorkspaceSummary, downloadDocument } from '../../lib/api';
 import { formatRelativeDate } from '../../lib/formatDate';
 import HomeIcon from '@mui/icons-material/Home';
 
@@ -200,6 +200,21 @@ const WorkspacePage = () => {
   const handleRenameClick = () => {
     setRenameDialogOpen(true);
     handleMenuClose();
+  };
+
+  const handleDownloadClick = async () => {
+    if (!tokens || !selectedItem || selectedItem.type !== 'document') return;
+    handleMenuClose();
+
+    try {
+      setLoading(true);
+      await downloadDocument(selectedItem.id, tokens.accessToken);
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setLoading(false);
+      setSelectedItem(null);
+    }
   };
 
   const handleDeleteConfirm = async () => {
@@ -569,6 +584,9 @@ const WorkspacePage = () => {
       >
         {selectedItem?.type === 'document' && (
           <MenuItem onClick={handleShareClick}>{strings.editor.title.share || 'Share'}</MenuItem>
+        )}
+        {selectedItem?.type === 'document' && (
+          <MenuItem onClick={handleDownloadClick}>Download</MenuItem>
         )}
         <MenuItem onClick={handleRenameClick}>{strings.workspace.rename}</MenuItem>
         <MenuItem onClick={handleDeleteClick} sx={{ color: 'error.main' }}>{strings.workspace.delete}</MenuItem>

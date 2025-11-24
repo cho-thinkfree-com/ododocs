@@ -62,6 +62,7 @@ export const buildServer = async ({ prisma, logger = true }: ServerOptions = {})
     origin: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
+    exposedHeaders: ['Content-Disposition'],
     credentials: true,
   })
   app.register(fastifyStatic, {
@@ -202,6 +203,7 @@ export const buildServer = async ({ prisma, logger = true }: ServerOptions = {})
       },
     })
     if (!session) {
+      console.log('Authentication failed for token:', token.slice(0, 10) + '...')
       throw createUnauthorized('Invalid or expired session')
     }
     request.accountId = session.accountId
@@ -788,6 +790,26 @@ export const buildServer = async ({ prisma, logger = true }: ServerOptions = {})
     const document = await loadDocumentWorkspace(documentId)
     const shareLinks = await shareLinkService.list(accountId, document.workspaceId, documentId)
     reply.send({ shareLinks })
+  })
+
+  app.get('/api/documents/:documentId/download', { preHandler: authenticate }, async (request, reply) => {
+    const accountId = requireAccountId(request)
+    const documentId = (request.params as { documentId: string }).documentId
+    const document = await loadDocumentWorkspace(documentId)
+
+    // Check access
+    await documentAccessService.assertCanView(accountId, document.workspaceId, documentId)
+
+    const revision = await documentRevisionRepository.findLatest(documentId)
+    if (!revision) {
+      throw createError(404, 'Document content not found')
+    }
+
+    const filename = encodeURIComponent(`${document.title}.odocs`)
+
+    reply.header('Content-Type', 'application/vnd.odocs')
+    reply.header('Content-Disposition', `attachment; filename="${filename}"; filename*=UTF-8''${filename}`)
+    reply.send(JSON.stringify(revision.content))
   })
 
   app.post('/api/documents/:documentId/share-links', { preHandler: authenticate }, async (request, reply) => {

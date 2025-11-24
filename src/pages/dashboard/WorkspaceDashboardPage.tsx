@@ -2,7 +2,10 @@ import { Alert, Box, Button, Card, CardActionArea, CardContent, CircularProgress
 import { useCallback, useEffect, useState } from 'react';
 import { Link as RouterLink } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { createWorkspace, getWorkspaces, getRecentDocuments, type WorkspaceSummary, type DocumentSummary } from '../../lib/api';
+import { createWorkspace, getWorkspaces, getRecentDocuments, createDocument, type WorkspaceSummary, type DocumentSummary } from '../../lib/api';
+import { readJsonFile } from '../../lib/fileUtils';
+import { ODOCS_EXTENSION, ODOCS_MIME_TYPE } from '../../lib/constants';
+import FileUploadIcon from '@mui/icons-material/FileUpload';
 import AddIcon from '@mui/icons-material/Add';
 import SearchIcon from '@mui/icons-material/Search';
 import ArticleIcon from '@mui/icons-material/Article';
@@ -79,6 +82,37 @@ const WorkspaceDashboardPage = () => {
     fetchWorkspaces();
   };
 
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !tokens || workspaces.length === 0) return;
+
+    if (!file.name.endsWith(ODOCS_EXTENSION)) {
+      alert(`Only ${ODOCS_EXTENSION} files are allowed.`);
+      event.target.value = '';
+      return;
+    }
+
+    try {
+      const content = await readJsonFile(file);
+      // Default to the first workspace for now, or we could add a dialog to select workspace
+      const workspaceId = workspaces[0].id;
+
+      await createDocument(workspaceId, tokens.accessToken, {
+        title: file.name.replace(new RegExp(`\\${ODOCS_EXTENSION}$`), ''),
+        initialRevision: {
+          content,
+        },
+      });
+
+      fetchRecentDocuments();
+      // Reset input
+      event.target.value = '';
+    } catch (error) {
+      console.error('Failed to upload file:', error);
+      // You might want to show an error message to the user here
+    }
+  };
+
   const renderWorkspaces = () => {
     if (loading) return <CircularProgress />;
     if (error) return <Alert severity="error">{error}</Alert>;
@@ -92,6 +126,20 @@ const WorkspaceDashboardPage = () => {
           </Typography>
           <Button variant="contained" startIcon={<AddIcon />} onClick={() => setCreateDialogOpen(true)}>
             {strings.dashboard.createWorkspace}
+          </Button>
+          <Button
+            variant="outlined"
+            component="label"
+            startIcon={<FileUploadIcon />}
+            sx={{ ml: 2 }}
+          >
+            Upload .odocs
+            <input
+              type="file"
+              hidden
+              accept={`${ODOCS_EXTENSION},${ODOCS_MIME_TYPE}`}
+              onChange={handleFileUpload}
+            />
           </Button>
         </Paper>
       );
@@ -141,10 +189,26 @@ const WorkspaceDashboardPage = () => {
       return (
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2 }}>
           <Typography color="text.secondary">{message}</Typography>
-          {workspaces.length === 0 && (
-            <Button variant="contained" startIcon={<AddIcon />} onClick={() => setCreateDialogOpen(true)}>
-              {strings.dashboard.createWorkspace}
-            </Button>
+          {workspaces.length > 0 && (
+            <Box>
+              <Button variant="contained" startIcon={<AddIcon />} onClick={() => setCreateDialogOpen(true)}>
+                {strings.dashboard.createWorkspace}
+              </Button>
+              <Button
+                variant="outlined"
+                component="label"
+                startIcon={<FileUploadIcon />}
+                sx={{ ml: 2 }}
+              >
+                Upload .odocs
+                <input
+                  type="file"
+                  hidden
+                  accept=".odocs,application/vnd.odocs+json"
+                  onChange={handleFileUpload}
+                />
+              </Button>
+            </Box>
           )}
         </Box>
       );

@@ -4,7 +4,8 @@ import MenuIcon from '@mui/icons-material/Menu';
 import EditorToolbar from '../editor/EditorToolbar';
 import EditorWorkspace from '../editor/EditorWorkspace';
 import EditorTableOfContents from '../editor/EditorTableOfContents';
-import type { DocumentSummary } from '../../lib/api';
+import { type DocumentSummary, downloadDocument } from '../../lib/api';
+import { useAuth } from '../../context/AuthContext';
 import type { Editor } from '@tiptap/react';
 import { useEffect, useState } from 'react';
 import ShareDialog from '../editor/ShareDialog';
@@ -24,6 +25,7 @@ const EditorLayout = ({ editor, document, onContentChange, onTitleChange, onClos
     const [localTitle, setLocalTitle] = useState(document.title);
     const [shareOpen, setShareOpen] = useState(false);
     const [hasHeadings, setHasHeadings] = useState(false);
+    const { tokens } = useAuth();
 
     useEffect(() => {
         setLocalTitle(document.title);
@@ -168,6 +170,20 @@ const EditorLayout = ({ editor, document, onContentChange, onTitleChange, onClos
                         {!readOnly && (
                             <Button color="primary" variant="contained" onClick={onClose}>
                                 Close
+                            </Button>
+                        )}
+                        {!readOnly && (
+                            <Button
+                                color="inherit"
+                                variant="outlined"
+                                onClick={() => {
+                                    if (editor && tokens) {
+                                        downloadDocument(document.id, tokens.accessToken);
+                                    }
+                                }}
+                                sx={{ ml: 1 }}
+                            >
+                                Download .odocs
                             </Button>
                         )}
                     </Toolbar>

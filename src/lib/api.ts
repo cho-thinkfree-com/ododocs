@@ -82,6 +82,7 @@ const requestJSON = async <T>(path: string, options: RequestOptions = {}): Promi
     headers.set('Authorization', `Bearer ${token}`)
   }
 
+  console.log(`[API] ${method} ${path} token=${token?.slice(0, 10)}...`)
   const response = await fetch(url, {
     method,
     headers,
@@ -89,6 +90,7 @@ const requestJSON = async <T>(path: string, options: RequestOptions = {}): Promi
   })
 
   if (response.status === 401 && !skipRefresh) {
+    console.log(`[API] 401 on ${path}, attempting refresh...`)
     try {
       const stored = typeof window !== 'undefined' ? window.localStorage.getItem('tiptap-example-auth') : null
       if (stored) {
@@ -457,3 +459,39 @@ export const updateDocument = (
     sortOrder?: number
   },
 ) => requestJSON<DocumentSummary>(`/api/documents/${documentId}`, { method: 'PATCH', token, body })
+
+export const downloadDocument = async (documentId: string, token: string) => {
+  const url = `${API_BASE_URL}/api/documents/${documentId}/download`
+  const headers = new Headers()
+  if (token) {
+    headers.set('Authorization', `Bearer ${token}`)
+  }
+
+  const response = await fetch(url, {
+    method: 'GET',
+    headers,
+  })
+
+  if (!response.ok) {
+    throw new ApiError(response.statusText, response.status)
+  }
+
+  const blob = await response.blob()
+  const contentDisposition = response.headers.get('Content-Disposition')
+  let filename = 'document.odocs'
+  if (contentDisposition) {
+    const filenameMatch = contentDisposition.match(/filename\*=UTF-8''(.+)/) || contentDisposition.match(/filename="(.+)"/)
+    if (filenameMatch && filenameMatch[1]) {
+      filename = decodeURIComponent(filenameMatch[1])
+    }
+  }
+
+  const downloadUrl = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = downloadUrl
+  link.download = filename
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+  URL.revokeObjectURL(downloadUrl)
+}
