@@ -86,6 +86,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       refreshTokenExpiresAt: result.refreshTokenExpiresAt,
     })
     setLogoutMessage(null)
+    // Clear manual logout flag on login
+    if (typeof window !== 'undefined') {
+      window.sessionStorage.removeItem('manual-logout')
+    }
     return result
   }, [])
 
@@ -104,6 +108,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const accessToken = tokens?.accessToken
 
   const logout = useCallback(async () => {
+    // Set manual logout flag
+    if (typeof window !== 'undefined') {
+      window.sessionStorage.setItem('manual-logout', 'true')
+    }
+
     try {
       if (accessToken) {
         await logoutRequest(accessToken)

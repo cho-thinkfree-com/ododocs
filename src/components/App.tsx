@@ -17,11 +17,18 @@ const ProtectedRoute = () => {
   const location = useLocation();
 
   if (!isAuthenticated) {
-    // Don't add redirect parameter for dashboard since it's the default landing page
-    if (location.pathname === '/dashboard') {
+    // Check if this is a manual logout
+    const isManualLogout = typeof window !== 'undefined' && window.sessionStorage.getItem('manual-logout') === 'true';
+
+    if (isManualLogout) {
+      // Clear the flag and redirect to login without redirect parameter
+      if (typeof window !== 'undefined') {
+        window.sessionStorage.removeItem('manual-logout');
+      }
       return <Navigate to="/login" replace />;
     }
 
+    // For automatic logouts (session expiry), preserve the redirect parameter
     const redirectUrl = encodeURIComponent(location.pathname + location.search);
     return <Navigate to={`/login?redirect=${redirectUrl}`} replace />;
   }
