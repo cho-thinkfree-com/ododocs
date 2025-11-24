@@ -204,7 +204,7 @@ const DashboardLayout = () => {
     const handleLogout = async () => {
         handleMenuClose();
         await logout();
-        navigate('/login', { replace: true });
+        // Don't navigate manually - let ProtectedRoute handle it with the manual-logout flag
     };
 
     return (
