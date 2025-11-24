@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate, Outlet, useLocation } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, Outlet, useLocation, useSearchParams } from 'react-router-dom';
 import { AuthProvider, useAuth } from '../context/AuthContext';
 import LoginPage from '../pages/auth/LoginPage';
 import SignupPage from '../pages/auth/SignupPage';
@@ -26,7 +26,14 @@ const ProtectedRoute = () => {
 
 const PublicRoute = () => {
   const { isAuthenticated } = useAuth();
-  return isAuthenticated ? <Navigate to="/dashboard" replace /> : <Outlet />;
+  const [searchParams] = useSearchParams();
+  const redirectUrl = searchParams.get('redirect');
+
+  if (isAuthenticated) {
+    return <Navigate to={redirectUrl || '/dashboard'} replace />;
+  }
+
+  return <Outlet />;
 };
 
 const AppRoutes = () => {

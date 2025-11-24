@@ -204,7 +204,7 @@ const DashboardLayout = () => {
     const handleLogout = () => {
         handleMenuClose();
         logout();
-        navigate('/login');
+        navigate('/');
     };
 
     return (
