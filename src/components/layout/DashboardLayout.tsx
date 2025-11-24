@@ -201,10 +201,10 @@ const DashboardLayout = () => {
         setAnchorEl(null);
     };
 
-    const handleLogout = () => {
+    const handleLogout = async () => {
         handleMenuClose();
-        logout();
-        navigate('/');
+        await logout();
+        navigate('/login', { replace: true });
     };
 
     return (
