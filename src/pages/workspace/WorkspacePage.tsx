@@ -254,7 +254,12 @@ const WorkspacePage = () => {
 
   const { breadcrumbPaths, hiddenBreadcrumbItems } = useMemo(() => {
     const paths: { name: string; fullName: string; path: string; icon?: React.ReactNode }[] = [
-      { name: 'Root', fullName: 'Root', path: `/workspace/${workspaceId}`, icon: <HomeIcon sx={{ mr: 0.5 }} fontSize="inherit" /> }
+      {
+        name: workspace?.name || 'Workspace',
+        fullName: workspace?.name || 'Workspace',
+        path: `/workspace/${workspaceId}`,
+        icon: <HomeIcon sx={{ mr: 0.5 }} fontSize="inherit" />
+      }
     ];
 
     if (Array.isArray(ancestors)) {
