@@ -3,7 +3,7 @@ import { useEffect } from 'react';
 export const usePageTitle = (title: string) => {
     useEffect(() => {
         const prevTitle = document.title;
-        document.title = `${title} | Tiptap App`;
+        document.title = `${title} | ododocs`;
 
         return () => {
             document.title = prevTitle;

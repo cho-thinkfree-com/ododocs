@@ -4,7 +4,7 @@ import { useParams } from 'react-router-dom';
 import { resolveShareLink, type DocumentSummary, type DocumentRevision } from '../../lib/api';
 import EditorLayout from '../../components/layout/EditorLayout';
 import useEditorInstance from '../../editor/useEditorInstance';
-import { usePageTitle } from '../../hooks/usePageTitle';
+import { useSEO } from '../../hooks/useSEO';
 
 const SharedDocumentPage = () => {
     const { token } = useParams<{ token: string }>();
@@ -26,7 +26,37 @@ const SharedDocumentPage = () => {
         }
     }, [editor, revision]);
 
-    usePageTitle(document?.title || 'Shared Document');
+    // Extract text content for description
+    const getTextContent = (content: any): string => {
+        if (!content) return '';
+
+        let text = '';
+        const traverse = (node: any) => {
+            if (node.type === 'text') {
+                text += node.text + ' ';
+            } else if (node.content) {
+                node.content.forEach(traverse);
+            }
+        };
+
+        if (content.content) {
+            content.content.forEach(traverse);
+        }
+
+        return text.trim().substring(0, 160); // Limit to 160 characters for meta description
+    };
+
+    // SEO metadata
+    useSEO({
+        title: document?.title || 'Shared Document',
+        description: revision ? getTextContent(revision.content) : 'View shared document on ododocs',
+        author: document?.lastModifiedBy || undefined,
+        publishedTime: document?.createdAt,
+        modifiedTime: revision?.createdAt,
+        url: typeof window !== 'undefined' ? window.location.href : undefined,
+        type: 'article',
+    });
+
 
     const fetchDocument = async (pwd?: string) => {
         if (!token) return;
