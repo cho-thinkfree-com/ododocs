@@ -17,6 +17,11 @@ const ProtectedRoute = () => {
   const location = useLocation();
 
   if (!isAuthenticated) {
+    // Don't add redirect parameter for dashboard since it's the default landing page
+    if (location.pathname === '/dashboard') {
+      return <Navigate to="/login" replace />;
+    }
+
     const redirectUrl = encodeURIComponent(location.pathname + location.search);
     return <Navigate to={`/login?redirect=${redirectUrl}`} replace />;
   }
