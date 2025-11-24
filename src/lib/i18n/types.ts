@@ -165,12 +165,25 @@ export type SettingsStrings = {
   languageOptions: Record<Locale, string>
 }
 
+export type LayoutStrings = {
+  dashboard: {
+    workspace: string
+    allWorkspaces: string
+    settings: string
+    logout: string
+    ododocs: string
+    accountSettingsLabel: string
+    workspaceSettingsLabel: string
+  }
+}
+
 export type AppStrings = {
   editor: EditorStrings
   auth: AuthStrings
   workspace: WorkspaceStrings
   dashboard: DashboardStrings
   settings: SettingsStrings
+  layout: LayoutStrings
 }
 
 export type AuthStrings = {

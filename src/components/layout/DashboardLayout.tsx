@@ -1,10 +1,11 @@
 ﻿import { useState, useEffect } from 'react';
-import { Box, AppBar, Toolbar, Typography, IconButton, Drawer, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Avatar, Menu, MenuItem, Divider, useTheme, useMediaQuery, Button, Dialog, DialogTitle, DialogContent, DialogActions, TextField, FormControl, InputLabel, Select, CircularProgress, Alert } from '@mui/material';
+import { Box, AppBar, Toolbar, Typography, IconButton, Drawer, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Avatar, Menu, MenuItem, Divider, useTheme, useMediaQuery, Button, Dialog, DialogTitle, DialogContent, DialogActions, TextField, FormControl, InputLabel, Select, CircularProgress, Alert, InputAdornment } from '@mui/material';
 import MenuIcon from '@mui/icons-material/Menu';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import LogoutIcon from '@mui/icons-material/Logout';
 import SettingsIcon from '@mui/icons-material/Settings';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import LockIcon from '@mui/icons-material/Lock';
 import { useNavigate, useLocation, Outlet, useParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { getWorkspaces, getWorkspaceMemberProfile, getWorkspace, updateWorkspace, updateAccount, updateWorkspaceMemberProfile, type WorkspaceSummary, type MembershipSummary } from '../../lib/api';
@@ -74,8 +75,8 @@ const DashboardLayout = () => {
 
     const languageOptions = strings.settings.languageOptions ?? {
         'en-US': 'English (English)',
-        'ko-KR': '?쒓뎅??(?쒓뎅??',
-        'ja-JP': '?ζ쑍沃?(?ζ쑍沃?',
+        'ko-KR': '한국어(한국어)',
+        'ja-JP': '日本語(日本語)',
     };
     const accountLanguageLabelId = 'account-language-label';
     const accountTimezoneLabelId = 'account-timezone-label';
@@ -163,7 +164,13 @@ const DashboardLayout = () => {
     const userDisplayName =
         (user?.legalName && user.legalName.trim().length > 0 && user.legalName.trim()) ||
         (user?.email ? user.email.split('@')[0] : '');
-    const sidebarDisplayName = workspaceDisplayName?.trim() || userDisplayName;
+
+    const isWorkspaceContext = !!workspaceId;
+    const sidebarDisplayName = isWorkspaceContext
+        ? (workspaceDisplayName?.trim() || userDisplayName)
+        : userDisplayName;
+    const sidebarSecondaryText = isWorkspaceContext ? null : user?.email;
+
     const sidebarAvatar = sidebarDisplayName?.charAt(0).toUpperCase() || user?.email?.charAt(0).toUpperCase();
 
     const currentWorkspace = workspaces.find(w => w.id === workspaceId);
@@ -214,7 +221,7 @@ const DashboardLayout = () => {
             }
             await updateAccount(tokens.accessToken, {
                 legalName: trimmedName,
-                preferredLocale: accountLocale,
+                preferredLanguage: accountLocale,
                 preferredTimezone: accountTimezone,
             });
             await refreshProfile();
@@ -419,7 +426,7 @@ const DashboardLayout = () => {
                     </ListItemIcon>
                     <ListItemText
                         primary={sidebarDisplayName}
-                        secondary={workspaceId ? strings.layout.dashboard.workspaceSettingsLabel : strings.layout.dashboard.accountSettingsLabel}
+                        secondary={sidebarSecondaryText}
                         primaryTypographyProps={{ variant: 'body2', fontWeight: 600, noWrap: true }}
                         secondaryTypographyProps={{ variant: 'caption', color: 'text.secondary', noWrap: true }}
                     />
@@ -540,6 +547,22 @@ const DashboardLayout = () => {
                 <DialogTitle>{strings.layout.dashboard.accountSettingsLabel}</DialogTitle>
                 <DialogContent sx={{ display: 'grid', gap: 2, pt: 2 }}>
                     {accountError && <Alert severity="error">{accountError}</Alert>}
+                    <TextField
+                        label="Email"
+                        value={user?.email || ''}
+                        fullWidth
+                        variant="outlined"
+                        InputLabelProps={{ shrink: true }}
+                        margin="dense"
+                        InputProps={{
+                            readOnly: true,
+                            endAdornment: (
+                                <InputAdornment position="end">
+                                    <LockIcon fontSize="small" color="action" />
+                                </InputAdornment>
+                            ),
+                        }}
+                    />
                     <TextField
                         label={strings.settings.global.legalName}
                         value={accountName}
@@ -687,4 +710,3 @@ const DashboardLayout = () => {
 };
 
 export default DashboardLayout;
-
