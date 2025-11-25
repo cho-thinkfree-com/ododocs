@@ -682,6 +682,29 @@ export const buildServer = async ({ prisma, logger = true }: ServerOptions = {})
     reply.status(204).send()
   })
 
+  // Trash management endpoints
+  app.get('/api/workspaces/:workspaceId/trash', { preHandler: authenticate }, async (request, reply) => {
+    const accountId = requireAccountId(request)
+    const workspaceId = (request.params as { workspaceId: string }).workspaceId
+    const documents = await documentService.listTrashed(accountId, workspaceId)
+    reply.send({ documents, folders: [] })
+  })
+
+  app.post('/api/trash/restore/document/:documentId', { preHandler: authenticate }, async (request, reply) => {
+    const accountId = requireAccountId(request)
+    const documentId = (request.params as { documentId: string }).documentId
+    const document = await documentService.restoreDocument(accountId, documentId)
+    reply.send(document)
+  })
+
+  app.delete('/api/trash/document/:documentId', { preHandler: authenticate }, async (request, reply) => {
+    const accountId = requireAccountId(request)
+    const documentId = (request.params as { documentId: string }).documentId
+    await documentService.permanentlyDeleteDocument(accountId, documentId)
+    reply.status(204).send()
+  })
+
+
   app.post('/api/documents/:documentId/tags', { preHandler: authenticate }, async (request, reply) => {
     const accountId = requireAccountId(request)
     const documentId = (request.params as { documentId: string }).documentId
