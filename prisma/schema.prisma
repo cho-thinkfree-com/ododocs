@@ -214,6 +214,8 @@ model Folder {
   pathCache   String     @map("path_cache")
   sortOrder   Int        @map("sort_order") @default(0)
   deletedAt   DateTime?  @map("deleted_at")
+  deletedBy   String?    @map("deleted_by")
+  originalParentId String? @map("original_parent_id")
   createdAt   DateTime   @default(now()) @map("created_at")
   updatedAt   DateTime   @updatedAt @map("updated_at")
   documents   Document[]
@@ -240,6 +242,8 @@ model Document {
   workspaceDefaultAccess DocumentWorkspaceAccess @map("workspace_default_access") @default(none)
   workspaceEditorAdminsOnly Boolean @map("workspace_editor_admins_only") @default(false)
   deletedAt          DateTime?            @map("deleted_at")
+  deletedBy          String?              @map("deleted_by")
+  originalFolderId   String?              @map("original_folder_id")
   createdAt          DateTime             @default(now()) @map("created_at")
   updatedAt          DateTime             @updatedAt @map("updated_at")
   revisions          DocumentRevision[]

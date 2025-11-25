@@ -284,11 +284,102 @@ export class DocumentRepository {
     })
   }
 
-  async softDelete(id: string): Promise<void> {
+  async softDelete(id: string, deletedByMembershipId: string): Promise<void> {
+    const doc = await this.prisma.document.findUnique({
+      where: { id },
+      select: { folderId: true },
+    });
+
     await this.prisma.document.update({
       where: { id },
-      data: { deletedAt: new Date() },
+      data: {
+        deletedAt: new Date(),
+        deletedBy: deletedByMembershipId,
+        originalFolderId: doc?.folderId || null,
+      },
     });
+  }
+
+  async findTrashed(workspaceId: string): Promise<DocumentEntity[]> {
+    const documents = await this.prisma.document.findMany({
+      where: {
+        workspaceId,
+        deletedAt: { not: null },
+      },
+      orderBy: { deletedAt: 'desc' },
+      include: {
+        tags: {
+          select: {
+            name: true,
+          },
+        },
+        revisions: {
+          orderBy: {
+            version: 'desc',
+          },
+          take: 1,
+          include: {
+            createdByMembership: {
+              include: {
+                account: true,
+              },
+            },
+          },
+        },
+      },
+    });
+    return documents.map(toEntity);
+  }
+
+  async restore(id: string, targetFolderId: string | null): Promise<DocumentEntity> {
+    const updated = await this.prisma.document.update({
+      where: { id },
+      data: {
+        deletedAt: null,
+        deletedBy: null,
+        originalFolderId: null,
+        folderId: targetFolderId,
+      },
+      include: {
+        tags: {
+          select: {
+            name: true,
+          },
+        },
+        revisions: {
+          orderBy: {
+            version: 'desc',
+          },
+          take: 1,
+          include: {
+            createdByMembership: {
+              include: {
+                account: true,
+              },
+            },
+          },
+        },
+      },
+    });
+    return toEntity(updated);
+  }
+
+  async permanentDelete(id: string): Promise<void> {
+    await this.prisma.document.delete({
+      where: { id },
+    });
+  }
+
+  async deleteOldTrashed(olderThan: Date): Promise<number> {
+    const result = await this.prisma.document.deleteMany({
+      where: {
+        deletedAt: {
+          not: null,
+          lt: olderThan,
+        },
+      },
+    });
+    return result.count;
   }
 }
 
@@ -301,23 +392,23 @@ const toEntity = (document: DocumentModel & { revisions?: ({ createdByMembership
     (revisionContent ? Buffer.byteLength(JSON.stringify(revisionContent), 'utf8') : 0)
 
   return {
-  id: document.id,
-  workspaceId: document.workspaceId,
-  folderId: document.folderId,
-  ownerMembershipId: document.ownerMembershipId,
-  title: document.title,
-  slug: document.slug,
-  status: document.status,
-  visibility: document.visibility,
-  summary: document.summary,
-  contentSize: (document as any).contentSize ?? fallbackSize,
-  sortOrder: document.sortOrder,
-  workspaceDefaultAccess: document.workspaceDefaultAccess,
-  workspaceEditorAdminsOnly: document.workspaceEditorAdminsOnly,
-  deletedAt: document.deletedAt,
-  createdAt: document.createdAt,
-  updatedAt: document.updatedAt,
-  tags: document.tags?.map((tag) => tag.name) ?? [],
-  lastModifiedBy: document.revisions?.[0]?.createdByMembership?.account?.legalName,
+    id: document.id,
+    workspaceId: document.workspaceId,
+    folderId: document.folderId,
+    ownerMembershipId: document.ownerMembershipId,
+    title: document.title,
+    slug: document.slug,
+    status: document.status,
+    visibility: document.visibility,
+    summary: document.summary,
+    contentSize: (document as any).contentSize ?? fallbackSize,
+    sortOrder: document.sortOrder,
+    workspaceDefaultAccess: document.workspaceDefaultAccess,
+    workspaceEditorAdminsOnly: document.workspaceEditorAdminsOnly,
+    deletedAt: document.deletedAt,
+    createdAt: document.createdAt,
+    updatedAt: document.updatedAt,
+    tags: document.tags?.map((tag) => tag.name) ?? [],
+    lastModifiedBy: document.revisions?.[0]?.createdByMembership?.account?.legalName,
   }
 }
