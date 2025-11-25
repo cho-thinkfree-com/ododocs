@@ -301,6 +301,7 @@ export type WorkspaceStrings = {
   actionsColumn: string
   newFolder: string
   newDocument: string
+  upload: string
   emptyFolder: string
   createFirstDocument: string
   confirmDeletionTitle: string

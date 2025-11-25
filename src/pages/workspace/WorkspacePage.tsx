@@ -1,4 +1,4 @@
-import { Alert, Box, Breadcrumbs, Button, CircularProgress, Container, Link, Typography, Menu, MenuItem, IconButton, Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Chip } from '@mui/material';
+import { Alert, Box, Breadcrumbs, Button, CircularProgress, Container, Link, Typography, Menu, MenuItem, IconButton, Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Chip, useTheme, Snackbar } from '@mui/material';
 import { useCallback, useEffect, useState, useMemo, useRef } from 'react';
 import { useParams, useSearchParams, Link as RouterLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
@@ -9,6 +9,7 @@ import HomeIcon from '@mui/icons-material/Home';
 import FolderIcon from '@mui/icons-material/Folder';
 import ArticleIcon from '@mui/icons-material/Article';
 import AddIcon from '@mui/icons-material/Add';
+import UploadFileIcon from '@mui/icons-material/UploadFile';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
 import NavigateNextIcon from '@mui/icons-material/NavigateNext';
 import CreateFolderDialog from '../../components/workspace/CreateFolderDialog';
@@ -20,7 +21,10 @@ import { broadcastSync } from '../../lib/syncEvents';
 import { useSyncChannel } from '../../hooks/useSyncChannel';
 import { useI18n } from '../../lib/i18n';
 
+import { validateDocumentContent } from '../../lib/documentValidation';
+
 const WorkspacePage = () => {
+  const theme = useTheme();
   const { workspaceId } = useParams<{ workspaceId: string }>();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -52,9 +56,15 @@ const WorkspacePage = () => {
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [renameDialogOpen, setRenameDialogOpen] = useState(false);
   const [shareDialogOpen, setShareDialogOpen] = useState(false);
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState('');
+  const [snackbarSeverity, setSnackbarSeverity] = useState<'success' | 'error'>('success');
 
   const breadcrumbContainerRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [containerWidth, setContainerWidth] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragTargetFolderId, setDragTargetFolderId] = useState<string | null>(null);
 
   const fetchContents = useCallback(() => {
     if (tokens && workspaceId) {
@@ -174,6 +184,95 @@ const WorkspacePage = () => {
       setError((err as Error).message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const processFile = async (file: File, targetFolderId?: string) => {
+    if (!file.name.endsWith('.odocs')) {
+      setSnackbarMessage('Only .odocs files are supported');
+      setSnackbarSeverity('error');
+      setSnackbarOpen(true);
+      return;
+    }
+
+    try {
+      const text = await file.text();
+      let content;
+      try {
+        content = JSON.parse(text);
+      } catch (e) {
+        setSnackbarMessage('Invalid file format: Not a valid JSON');
+        setSnackbarSeverity('error');
+        setSnackbarOpen(true);
+        return;
+      }
+
+      if (!validateDocumentContent(content, strings)) {
+        setSnackbarMessage('Invalid .odocs file: Content structure is incorrect');
+        setSnackbarSeverity('error');
+        setSnackbarOpen(true);
+        return;
+      }
+
+      if (!tokens || !workspaceId) return;
+
+      setLoading(true);
+      // Remove extension for title
+      const title = file.name.replace(/\.odocs$/, '');
+
+      await createDocument(workspaceId, tokens.accessToken, {
+        folderId: targetFolderId ?? folderId ?? undefined,
+        title,
+        initialRevision: {
+          content
+        }
+      });
+
+      fetchContents();
+      setSnackbarMessage('File uploaded successfully');
+      setSnackbarSeverity('success');
+      setSnackbarOpen(true);
+    } catch (err) {
+      setSnackbarMessage((err as Error).message);
+      setSnackbarSeverity('error');
+      setSnackbarOpen(true);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (!files || files.length === 0) return;
+    await processFile(files[0]);
+    // Reset input
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.currentTarget === e.target) {
+      setIsDragging(false);
+      setDragTargetFolderId(null);
+    }
+  };
+
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    setDragTargetFolderId(null);
+
+    const files = e.dataTransfer.files;
+    if (files && files.length > 0) {
+      await processFile(files[0]);
     }
   };
 
@@ -412,7 +511,36 @@ const WorkspacePage = () => {
           </TableHead>
           <TableBody>
             {folders.map((folder) => (
-              <TableRow key={folder.id} hover>
+              <TableRow
+                key={folder.id}
+                hover
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setDragTargetFolderId(folder.id);
+                }}
+                onDragLeave={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  if (dragTargetFolderId === folder.id) {
+                    setDragTargetFolderId(null);
+                  }
+                }}
+                onDrop={async (e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setIsDragging(false);
+                  setDragTargetFolderId(null);
+                  const files = e.dataTransfer.files;
+                  if (files && files.length > 0) {
+                    await processFile(files[0], folder.id);
+                  }
+                }}
+                sx={{
+                  bgcolor: dragTargetFolderId === folder.id ? 'action.hover' : 'inherit',
+                  border: dragTargetFolderId === folder.id ? `2px dashed ${theme.palette.primary.main}` : undefined
+                }}
+              >
                 <TableCell>
                   <Link component={RouterLink} to={`?folderId=${folder.id}`} sx={{ display: 'flex', alignItems: 'center', textDecoration: 'none', color: 'inherit', fontWeight: 500 }}>
                     <FolderIcon color="primary" sx={{ mr: 1.5, opacity: 0.8 }} />
@@ -462,7 +590,36 @@ const WorkspacePage = () => {
   };
 
   return (
-    <Container maxWidth="xl">
+    <Container
+      maxWidth="xl"
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+      sx={{
+        minHeight: 'calc(100vh - 64px)',
+        position: 'relative',
+        '&::after': isDragging ? {
+          content: '""',
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(25, 118, 210, 0.08)',
+          border: '2px dashed #1976d2',
+          borderRadius: 2,
+          zIndex: 10,
+          pointerEvents: 'none'
+        } : {}
+      }}
+    >
+      <input
+        type="file"
+        ref={fileInputRef}
+        style={{ display: 'none' }}
+        accept=".odocs"
+        onChange={handleFileUpload}
+      />
       <Dialog open={notFoundError}>
         <DialogTitle>{strings.dashboard.noWorkspacesFound || 'Workspace Not Found'}</DialogTitle>
         <DialogContent>
@@ -552,6 +709,9 @@ const WorkspacePage = () => {
           <Button variant="outlined" startIcon={<AddIcon />} onClick={() => setCreateFolderDialogOpen(true)}>
             {strings.workspace.newFolder}
           </Button>
+          <Button variant="outlined" startIcon={<UploadFileIcon />} onClick={() => fileInputRef.current?.click()}>
+            {strings.workspace.upload || 'Upload'}
+          </Button>
           <Button variant="contained" startIcon={<AddIcon />} onClick={() => handleCreateDocument()}>
             {strings.workspace.newDocument}
           </Button>
@@ -635,6 +795,17 @@ const WorkspacePage = () => {
           documentId={selectedItem.id}
         />
       )}
+
+      <Snackbar
+        open={snackbarOpen}
+        autoHideDuration={6000}
+        onClose={() => setSnackbarOpen(false)}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+      >
+        <Alert onClose={() => setSnackbarOpen(false)} severity={snackbarSeverity} sx={{ width: '100%' }}>
+          {snackbarMessage}
+        </Alert>
+      </Snackbar>
     </Container >
   );
 };

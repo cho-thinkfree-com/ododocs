@@ -17,6 +17,7 @@ const baseEditorProps: NonNullable<EditorOptions['editorProps']> = {
 type UseEditorInstanceOptions = Partial<EditorOptions> & {
   localeStrings?: AppStrings
   extensionOptions?: BaseExtensionOptions
+  onError?: (error: Error) => void
 }
 
 const useEditorInstance = (options?: UseEditorInstanceOptions) => {
@@ -26,6 +27,7 @@ const useEditorInstance = (options?: UseEditorInstanceOptions) => {
     extensions: optionExtensions,
     editorProps: optionEditorProps,
     content,
+    onError,
     ...editorConfig
   } = options ?? {}
 
@@ -57,7 +59,7 @@ const useEditorInstance = (options?: UseEditorInstanceOptions) => {
   const editor = useEditor({
     autofocus: editorConfig.autofocus ?? 'end',
     ...editorConfig,
-    content,
+    content: undefined, // Defer content loading to validate first
     extensions,
     editorProps,
   })
@@ -68,12 +70,26 @@ const useEditorInstance = (options?: UseEditorInstanceOptions) => {
     }
 
     const initialContent = content ?? defaultContent
-    editor.commands.setContent(initialContent, { emitUpdate: false })
+
+    try {
+      // Validate JSON content against the schema before setting it
+      // This prevents the editor from entering an invalid state or logging warnings
+      if (typeof initialContent === 'object' && initialContent !== null) {
+        editor.schema.nodeFromJSON(initialContent)
+      }
+
+      editor.commands.setContent(initialContent, { emitUpdate: false })
+    } catch (error) {
+      console.warn('Editor content validation failed:', error)
+      if (onError) {
+        onError(error as Error)
+      }
+    }
+
     hasInitialized.current = true
-  }, [editor, content])
+  }, [editor, content, onError])
 
   return editor
 }
 
 export default useEditorInstance
-

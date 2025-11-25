@@ -1,4 +1,4 @@
-import { Snackbar } from '@mui/material';
+import { Snackbar, Alert, Box, Button } from '@mui/material';
 import { useCallback, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { appendRevision, renameDocument, type DocumentRevision, type DocumentSummary } from '../../lib/api';
@@ -18,12 +18,18 @@ const ConnectedEditor = ({ document, initialRevision }: ConnectedEditorProps) =>
     const [saveStatus, setSaveStatus] = useState<'saved' | 'unsaved' | 'saving'>('saved');
     const [snackbarOpen, setSnackbarOpen] = useState(false);
     const [currentDocument, setCurrentDocument] = useState(document);
+    const [editorError, setEditorError] = useState<string | null>(null);
 
     // Update page title when document title changes
     usePageTitle(currentDocument.title);
 
     // This hook is now called ONLY when ConnectedEditor mounts, which happens after data is loaded.
-    const editor = useEditorInstance({ content: initialRevision?.content });
+    const editor = useEditorInstance({
+        content: initialRevision?.content,
+        onError: () => {
+            setEditorError('The document content is invalid or corrupted.');
+        }
+    });
 
     const handleSave = useCallback(async () => {
         if (!editor || !tokens) {
@@ -97,6 +103,17 @@ const ConnectedEditor = ({ document, initialRevision }: ConnectedEditorProps) =>
     const handleClose = () => {
         window.close();
     };
+
+    if (editorError) {
+        return (
+            <Box sx={{ height: '100dvh', minHeight: '100dvh', overflow: 'hidden', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2 }}>
+                <Alert severity="error">{editorError}</Alert>
+                <Button variant="contained" onClick={handleClose}>
+                    Close
+                </Button>
+            </Box>
+        );
+    }
 
     return (
         <>
