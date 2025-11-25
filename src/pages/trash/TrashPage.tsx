@@ -13,6 +13,12 @@ import {
     IconButton,
     Tooltip,
     CircularProgress,
+    Dialog,
+    DialogTitle,
+    DialogContent,
+    DialogContentText,
+    DialogActions,
+    Button,
 } from '@mui/material'
 import RestoreIcon from '@mui/icons-material/Restore'
 import DeleteForeverIcon from '@mui/icons-material/DeleteForever'
@@ -54,6 +60,8 @@ export default function TrashPage() {
     const [items, setItems] = useState<TrashItem[]>([])
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
+    const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+    const [itemToDelete, setItemToDelete] = useState<TrashItem | null>(null)
 
     const loadTrash = async () => {
         if (!workspaceId || !tokens?.accessToken) return
@@ -113,30 +121,38 @@ export default function TrashPage() {
         }
     }
 
-    const handlePermanentDelete = async (item: TrashItem) => {
+    const handlePermanentDelete = (item: TrashItem) => {
         if (!tokens?.accessToken) {
             alert('Please log in to perform this action.')
             return
         }
-        const message = item.type === 'folder'
-            ? 'Are you sure you want to permanently delete this folder and all its contents? This cannot be undone.'
-            : 'Are you sure you want to permanently delete this document? This cannot be undone.'
+        setItemToDelete(item)
+        setDeleteDialogOpen(true)
+    }
 
-        if (!confirm(message)) {
-            return
-        }
+    const confirmPermanentDelete = async () => {
+        if (!itemToDelete || !tokens?.accessToken) return
+
+        setDeleteDialogOpen(false)
 
         try {
-            if (item.type === 'document') {
-                await permanentlyDeleteDocument(item.id, tokens.accessToken)
+            if (itemToDelete.type === 'document') {
+                await permanentlyDeleteDocument(itemToDelete.id, tokens.accessToken)
             } else {
-                await permanentlyDeleteFolder(item.id, tokens.accessToken)
+                await permanentlyDeleteFolder(itemToDelete.id, tokens.accessToken)
             }
             await loadTrash()
         } catch (err) {
             console.error('Failed to delete:', err)
             alert('Failed to permanently delete item. Please try again.')
+        } finally {
+            setItemToDelete(null)
         }
+    }
+
+    const cancelPermanentDelete = () => {
+        setDeleteDialogOpen(false)
+        setItemToDelete(null)
     }
 
     const formatDate = (dateString: string) => {
@@ -231,6 +247,26 @@ export default function TrashPage() {
                     </Table>
                 </TableContainer>
             )}
+
+            <Dialog
+                open={deleteDialogOpen}
+                onClose={cancelPermanentDelete}
+            >
+                <DialogTitle>Confirm Permanent Delete</DialogTitle>
+                <DialogContent>
+                    <DialogContentText>
+                        {itemToDelete?.type === 'folder'
+                            ? 'Are you sure you want to permanently delete this folder and all its contents? This cannot be undone.'
+                            : 'Are you sure you want to permanently delete this document? This cannot be undone.'}
+                    </DialogContentText>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={cancelPermanentDelete}>Cancel</Button>
+                    <Button onClick={confirmPermanentDelete} color="error" variant="contained">
+                        Delete Forever
+                    </Button>
+                </DialogActions>
+            </Dialog>
         </Box>
     )
 }
