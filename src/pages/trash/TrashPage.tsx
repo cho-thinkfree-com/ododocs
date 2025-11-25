@@ -16,8 +16,10 @@ import {
 } from '@mui/material'
 import RestoreIcon from '@mui/icons-material/Restore'
 import DeleteForeverIcon from '@mui/icons-material/DeleteForever'
+import FolderIcon from '@mui/icons-material/Folder'
+import ArticleIcon from '@mui/icons-material/Article'
 import { useAuth } from '../../context/AuthContext'
-import { listTrash, restoreDocument, permanentlyDeleteDocument } from '../../lib/api'
+import { listTrash, restoreDocument, permanentlyDeleteDocument, restoreFolder, permanentlyDeleteFolder } from '../../lib/api'
 
 interface TrashDocument {
     id: string
@@ -28,10 +30,25 @@ interface TrashDocument {
     contentSize: number
 }
 
+interface TrashFolder {
+    id: string
+    name: string
+    deletedAt: string
+    originalParentId?: string | null
+}
+
+interface TrashItem {
+    id: string
+    name: string
+    type: 'document' | 'folder'
+    deletedAt: string
+    size?: number
+}
+
 export default function TrashPage() {
     const { workspaceId } = useParams<{ workspaceId: string }>()
     const { tokens } = useAuth()
-    const [documents, setDocuments] = useState<TrashDocument[]>([])
+    const [items, setItems] = useState<TrashItem[]>([])
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
 
@@ -41,8 +58,25 @@ export default function TrashPage() {
         try {
             setLoading(true)
             setError(null)
-            const data = await listTrash(workspaceId, tokens.accessToken) as { documents: TrashDocument[] }
-            setDocuments(data.documents || [])
+            const data = await listTrash(workspaceId, tokens.accessToken) as { documents: TrashDocument[], folders: TrashFolder[] }
+
+            const combinedItems: TrashItem[] = [
+                ...(data.folders || []).map(f => ({
+                    id: f.id,
+                    name: f.name,
+                    type: 'folder' as const,
+                    deletedAt: f.deletedAt,
+                })),
+                ...(data.documents || []).map(d => ({
+                    id: d.id,
+                    name: d.title,
+                    type: 'document' as const,
+                    deletedAt: d.deletedAt,
+                    size: d.contentSize,
+                }))
+            ].sort((a, b) => new Date(b.deletedAt).getTime() - new Date(a.deletedAt).getTime())
+
+            setItems(combinedItems)
         } catch (err) {
             setError('Failed to load trash')
             console.error(err)
@@ -55,25 +89,37 @@ export default function TrashPage() {
         loadTrash()
     }, [workspaceId, tokens?.accessToken])
 
-    const handleRestore = async (documentId: string) => {
+    const handleRestore = async (item: TrashItem) => {
         if (!tokens?.accessToken) return
 
         try {
-            await restoreDocument(documentId, tokens.accessToken)
+            if (item.type === 'document') {
+                await restoreDocument(item.id, tokens.accessToken)
+            } else {
+                await restoreFolder(item.id, tokens.accessToken)
+            }
             await loadTrash()
         } catch (err) {
             console.error('Failed to restore:', err)
         }
     }
 
-    const handlePermanentDelete = async (documentId: string) => {
+    const handlePermanentDelete = async (item: TrashItem) => {
         if (!tokens?.accessToken) return
-        if (!confirm('Are you sure you want to permanently delete this document? This cannot be undone.')) {
+        const message = item.type === 'folder'
+            ? 'Are you sure you want to permanently delete this folder and all its contents? This cannot be undone.'
+            : 'Are you sure you want to permanently delete this document? This cannot be undone.'
+
+        if (!confirm(message)) {
             return
         }
 
         try {
-            await permanentlyDeleteDocument(documentId, tokens.accessToken)
+            if (item.type === 'document') {
+                await permanentlyDeleteDocument(item.id, tokens.accessToken)
+            } else {
+                await permanentlyDeleteFolder(item.id, tokens.accessToken)
+            }
             await loadTrash()
         } catch (err) {
             console.error('Failed to delete:', err)
@@ -84,7 +130,8 @@ export default function TrashPage() {
         return new Date(dateString).toLocaleString()
     }
 
-    const formatSize = (bytes: number) => {
+    const formatSize = (bytes?: number) => {
+        if (bytes === undefined) return '-'
         if (bytes < 1024) return `${bytes} B`
         if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
         return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
@@ -115,7 +162,7 @@ export default function TrashPage() {
                 Items in trash are permanently deleted after 7 days
             </Typography>
 
-            {documents.length === 0 ? (
+            {items.length === 0 ? (
                 <Box mt={4}>
                     <Typography color="text.secondary">Trash is empty</Typography>
                 </Box>
@@ -131,16 +178,19 @@ export default function TrashPage() {
                             </TableRow>
                         </TableHead>
                         <TableBody>
-                            {documents.map((doc) => (
-                                <TableRow key={doc.id}>
-                                    <TableCell>{doc.title}</TableCell>
-                                    <TableCell>{formatDate(doc.deletedAt)}</TableCell>
-                                    <TableCell>{formatSize(doc.contentSize)}</TableCell>
+                            {items.map((item) => (
+                                <TableRow key={item.id}>
+                                    <TableCell sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                        {item.type === 'folder' ? <FolderIcon color="action" /> : <ArticleIcon color="action" />}
+                                        {item.name}
+                                    </TableCell>
+                                    <TableCell>{formatDate(item.deletedAt)}</TableCell>
+                                    <TableCell>{formatSize(item.size)}</TableCell>
                                     <TableCell align="right">
                                         <Tooltip title="Restore">
                                             <IconButton
                                                 size="small"
-                                                onClick={() => handleRestore(doc.id)}
+                                                onClick={() => handleRestore(item)}
                                                 color="primary"
                                             >
                                                 <RestoreIcon />
@@ -149,7 +199,7 @@ export default function TrashPage() {
                                         <Tooltip title="Delete Forever">
                                             <IconButton
                                                 size="small"
-                                                onClick={() => handlePermanentDelete(doc.id)}
+                                                onClick={() => handlePermanentDelete(item)}
                                                 color="error"
                                             >
                                                 <DeleteForeverIcon />

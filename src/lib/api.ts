@@ -517,3 +517,17 @@ export const permanentlyDeleteDocument = async (documentId: string, accessToken:
     token: accessToken,
   })
 }
+
+export const restoreFolder = async (folderId: string, accessToken: string) => {
+  return requestJSON(`/api/trash/restore/folder/${folderId}`, {
+    method: 'POST',
+    token: accessToken,
+  })
+}
+
+export const permanentlyDeleteFolder = async (folderId: string, accessToken: string) => {
+  return requestJSON(`/api/trash/folder/${folderId}`, {
+    method: 'DELETE',
+    token: accessToken,
+  })
+}

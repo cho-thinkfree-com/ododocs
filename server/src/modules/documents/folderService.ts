@@ -2,6 +2,8 @@
 import { FolderRepository, type FolderEntity } from './folderRepository.js'
 import { DocumentRepository } from './documentRepository.js'
 import { WorkspaceAccessService } from '../workspaces/workspaceAccess.js'
+import { MembershipRepository } from '../workspaces/membershipRepository.js'
+import { MembershipAccessDeniedError } from '../workspaces/membershipService.js'
 
 const createFolderSchema = z.object({
   name: z.string().trim().min(1).max(80),
@@ -28,11 +30,17 @@ export class FolderService {
     private readonly folderRepository: FolderRepository,
     private readonly workspaceAccess: WorkspaceAccessService,
     private readonly documentRepository: DocumentRepository,
+    private readonly membershipRepository: MembershipRepository,
   ) { }
 
   async listFolders(accountId: string, workspaceId: string, includeDeleted = false): Promise<FolderEntity[]> {
     await this.workspaceAccess.assertMember(accountId, workspaceId)
     return this.folderRepository.listByWorkspace(workspaceId, includeDeleted)
+  }
+
+  async listTrashed(accountId: string, workspaceId: string): Promise<FolderEntity[]> {
+    await this.workspaceAccess.assertMember(accountId, workspaceId)
+    return this.folderRepository.findTrashed(workspaceId)
   }
 
   async getFolderWithAncestors(accountId: string, workspaceId: string, folderId: string) {
@@ -120,16 +128,61 @@ export class FolderService {
     return this.ensureFolder(workspaceId, folder.id)
   }
 
+  async restoreFolder(accountId: string, folderId: string): Promise<FolderEntity> {
+    const folder = await this.folderRepository.findById(folderId)
+    if (!folder || !folder.deletedAt) {
+      throw new FolderNotFoundError()
+    }
+    await this.workspaceAccess.assertMember(accountId, folder.workspaceId)
+
+    const originalParentId = (folder as any).originalParentId
+    let targetParentId: string | null = null
+
+    if (originalParentId) {
+      const parentPath = await this.validateFolderPath(originalParentId, folder.workspaceId)
+      if (parentPath) {
+        targetParentId = originalParentId
+      }
+    }
+
+    const restored = await this.folderRepository.restore(folderId, targetParentId)
+    await this.rebuildSubtreePaths(folder.workspaceId, folder.id)
+    return restored
+  }
+
+  async permanentlyDeleteFolder(accountId: string, folderId: string): Promise<void> {
+    const folder = await this.folderRepository.findById(folderId)
+    if (!folder) return
+    await this.workspaceAccess.assertAdminOrOwner(accountId, folder.workspaceId)
+    await this.folderRepository.permanentDelete(folderId)
+  }
+
   async deleteFolder(accountId: string, workspaceId: string, folderId: string) {
     await this.workspaceAccess.assertAdminOrOwner(accountId, workspaceId)
     const folder = await this.ensureFolder(workspaceId, folderId)
     if (folder.deletedAt) return
-    const children = await this.folderRepository.listChildren(workspaceId, folder.id)
-    if (children.length > 0) {
-      throw new FolderHasChildrenError()
+
+    const membership = await this.membershipRepository.findByWorkspaceAndAccount(workspaceId, accountId)
+    if (!membership) {
+      throw new MembershipAccessDeniedError()
     }
-    await this.documentRepository.reassignFolder(folder.id, folder.parentId ?? null)
-    await this.folderRepository.softDelete(folder.id)
+
+    // We no longer check for children, as we support deleting non-empty folders (move to trash)
+    // We also don't reassign documents.
+
+    await this.folderRepository.softDelete(folder.id, membership.id)
+  }
+
+  private async validateFolderPath(folderId: string, workspaceId: string): Promise<boolean> {
+    const result = await this.folderRepository.findByIdWithAncestors(folderId)
+    if (!result || result.folder.workspaceId !== workspaceId || result.folder.deletedAt) {
+      return false
+    }
+    // Check if any ancestor is deleted
+    for (const ancestor of result.ancestors) {
+      if (ancestor.deletedAt) return false
+    }
+    return true
   }
 
   private async ensureFolder(workspaceId: string, folderId: string): Promise<FolderEntity> {

@@ -108,7 +108,7 @@ export const buildServer = async ({ prisma, logger = true }: ServerOptions = {})
   const documentRepository = new DocumentRepository(db)
   const documentRevisionRepository = new DocumentRevisionRepository(db)
   const folderRepository = new FolderRepository(db)
-  const folderService = new FolderService(folderRepository, workspaceAccess, documentRepository)
+  const folderService = new FolderService(folderRepository, workspaceAccess, documentRepository, membershipRepository)
   const documentPermissionRepository = new DocumentPermissionRepository(db)
   const documentAccessService = new DocumentAccessService(
     documentRepository,
@@ -686,8 +686,11 @@ export const buildServer = async ({ prisma, logger = true }: ServerOptions = {})
   app.get('/api/workspaces/:workspaceId/trash', { preHandler: authenticate }, async (request, reply) => {
     const accountId = requireAccountId(request)
     const workspaceId = (request.params as { workspaceId: string }).workspaceId
-    const documents = await documentService.listTrashed(accountId, workspaceId)
-    reply.send({ documents, folders: [] })
+    const [documents, folders] = await Promise.all([
+      documentService.listTrashed(accountId, workspaceId),
+      folderService.listTrashed(accountId, workspaceId)
+    ])
+    reply.send({ documents, folders })
   })
 
   app.post('/api/trash/restore/document/:documentId', { preHandler: authenticate }, async (request, reply) => {
@@ -701,6 +704,20 @@ export const buildServer = async ({ prisma, logger = true }: ServerOptions = {})
     const accountId = requireAccountId(request)
     const documentId = (request.params as { documentId: string }).documentId
     await documentService.permanentlyDeleteDocument(accountId, documentId)
+    reply.status(204).send()
+  })
+
+  app.post('/api/trash/restore/folder/:folderId', { preHandler: authenticate }, async (request, reply) => {
+    const accountId = requireAccountId(request)
+    const folderId = (request.params as { folderId: string }).folderId
+    const folder = await folderService.restoreFolder(accountId, folderId)
+    reply.send(folder)
+  })
+
+  app.delete('/api/trash/folder/:folderId', { preHandler: authenticate }, async (request, reply) => {
+    const accountId = requireAccountId(request)
+    const folderId = (request.params as { folderId: string }).folderId
+    await folderService.permanentlyDeleteFolder(accountId, folderId)
     reply.status(204).send()
   })
 
