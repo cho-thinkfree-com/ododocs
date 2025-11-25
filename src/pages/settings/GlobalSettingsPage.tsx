@@ -22,7 +22,7 @@ import { ChangePasswordDialog } from './ChangePasswordDialog';
 import { useNavigate } from 'react-router-dom';
 
 const GlobalSettingsPage = () => {
-    const { user, tokens, refreshProfile } = useAuth();
+    const { user, isAuthenticated, refreshProfile } = useAuth();
     const { strings } = useI18n();
     const navigate = useNavigate();
 
@@ -49,7 +49,7 @@ const GlobalSettingsPage = () => {
     }, [user]);
 
     const handleSave = async () => {
-        if (!tokens) return;
+        if (!isAuthenticated) return;
         setLoading(true);
         setError(null);
         setSuccess(false);
@@ -68,7 +68,7 @@ const GlobalSettingsPage = () => {
                 preferredTimezone
             };
 
-            await updateAccount(tokens.accessToken, updates);
+            await updateAccount(updates);
             await refreshProfile(); // Refresh global user data
             setSuccess(true);
         } catch (err) {

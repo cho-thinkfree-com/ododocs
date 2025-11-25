@@ -23,7 +23,7 @@ interface ChangePasswordDialogProps {
 }
 
 export const ChangePasswordDialog = ({ open, onClose }: ChangePasswordDialogProps) => {
-    const { tokens } = useAuth();
+    const { isAuthenticated } = useAuth();
     const { strings } = useI18n();
     const t = strings.settings.global.changePasswordDialog;
     const [currentPassword, setCurrentPassword] = useState('');
@@ -54,7 +54,7 @@ export const ChangePasswordDialog = ({ open, onClose }: ChangePasswordDialogProp
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!tokens) return;
+        if (!isAuthenticated) return;
 
         if (!currentPassword || !newPassword || !confirmPassword) {
             setError(t.requiredError);
@@ -76,7 +76,7 @@ export const ChangePasswordDialog = ({ open, onClose }: ChangePasswordDialogProp
         setSuccess(null);
 
         try {
-            await updateAccount(tokens.accessToken, {
+            await updateAccount({
                 currentPassword,
                 newPassword
             });

@@ -63,7 +63,7 @@ interface TrashItem {
 
 export default function TrashPage() {
     const { workspaceId } = useParams<{ workspaceId: string }>()
-    const { tokens } = useAuth()
+    const { isAuthenticated } = useAuth()
     const navigate = useNavigate()
     const [items, setItems] = useState<TrashItem[]>([])
     const [loading, setLoading] = useState(true)
@@ -74,12 +74,12 @@ export default function TrashPage() {
     const [snackbarMessage, setSnackbarMessage] = useState('')
 
     const loadTrash = async () => {
-        if (!workspaceId || !tokens?.accessToken) return
+        if (!workspaceId || !isAuthenticated) return
 
         try {
             setLoading(true)
             setError(null)
-            const data = await listTrash(workspaceId, tokens.accessToken) as { documents: TrashDocument[], folders: TrashFolder[] }
+            const data = await listTrash(workspaceId) as { documents: TrashDocument[], folders: TrashFolder[] }
 
             const combinedItems: TrashItem[] = [
                 ...(data.folders || []).map(f => ({
@@ -110,19 +110,19 @@ export default function TrashPage() {
 
     useEffect(() => {
         loadTrash()
-    }, [workspaceId, tokens?.accessToken])
+    }, [workspaceId, isAuthenticated])
 
     const handleRestore = async (item: TrashItem) => {
-        if (!tokens?.accessToken) {
+        if (!isAuthenticated) {
             alert('Please log in to perform this action.')
             return
         }
 
         try {
             if (item.type === 'document') {
-                await restoreDocument(item.id, tokens.accessToken)
+                await restoreDocument(item.id)
             } else {
-                await restoreFolder(item.id, tokens.accessToken)
+                await restoreFolder(item.id)
             }
             setSnackbarMessage(`"${item.name}" restored successfully`)
             setSnackbarOpen(true)
@@ -134,7 +134,7 @@ export default function TrashPage() {
     }
 
     const handlePermanentDelete = (item: TrashItem) => {
-        if (!tokens?.accessToken) {
+        if (!isAuthenticated) {
             alert('Please log in to perform this action.')
             return
         }
@@ -143,15 +143,15 @@ export default function TrashPage() {
     }
 
     const confirmPermanentDelete = async () => {
-        if (!itemToDelete || !tokens?.accessToken) return
+        if (!itemToDelete || !isAuthenticated) return
 
         setDeleteDialogOpen(false)
 
         try {
             if (itemToDelete.type === 'document') {
-                await permanentlyDeleteDocument(itemToDelete.id, tokens.accessToken)
+                await permanentlyDeleteDocument(itemToDelete.id)
             } else {
-                await permanentlyDeleteFolder(itemToDelete.id, tokens.accessToken)
+                await permanentlyDeleteFolder(itemToDelete.id)
             }
             await loadTrash()
         } catch (err) {

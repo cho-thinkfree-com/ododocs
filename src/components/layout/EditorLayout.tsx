@@ -25,7 +25,7 @@ const EditorLayout = ({ editor, document, onContentChange, onTitleChange, onClos
     const [localTitle, setLocalTitle] = useState(document.title);
     const [shareOpen, setShareOpen] = useState(false);
     const [hasHeadings, setHasHeadings] = useState(false);
-    const { tokens } = useAuth();
+    const { isAuthenticated } = useAuth();
 
     useEffect(() => {
         setLocalTitle(document.title);
@@ -177,8 +177,8 @@ const EditorLayout = ({ editor, document, onContentChange, onTitleChange, onClos
                                 color="inherit"
                                 variant="outlined"
                                 onClick={() => {
-                                    if (editor && tokens) {
-                                        downloadDocument(document.id, tokens.accessToken);
+                                    if (editor && isAuthenticated) {
+                                        downloadDocument(document.id);
                                     }
                                 }}
                                 sx={{ ml: 1 }}

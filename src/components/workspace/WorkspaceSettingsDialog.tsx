@@ -17,7 +17,10 @@ import {
     Select,
     CircularProgress,
     Alert,
-    useTheme
+    useTheme,
+    Avatar,
+    Grid,
+    Link
 } from '@mui/material';
 import { useAuth } from '../../context/AuthContext';
 import { useI18n, type Locale } from '../../lib/i18n';
@@ -34,16 +37,18 @@ interface WorkspaceSettingsDialogProps {
     open: boolean;
     onClose: () => void;
     workspaceId: string;
+    initialTab?: Tab;
+    onWorkspaceUpdated?: () => void;
 }
 
-type Tab = 'general' | 'profile';
+type Tab = 'general' | 'profile' | 'subscription';
 
-const WorkspaceSettingsDialog = ({ open, onClose, workspaceId }: WorkspaceSettingsDialogProps) => {
-    const { tokens } = useAuth();
-    const { strings, locale } = useI18n();
+const WorkspaceSettingsDialog = ({ open, onClose, workspaceId, initialTab = 'general', onWorkspaceUpdated }: WorkspaceSettingsDialogProps) => {
+    const { isAuthenticated } = useAuth();
+    const { strings, locale, setLocale } = useI18n();
     const theme = useTheme();
 
-    const [activeTab, setActiveTab] = useState<Tab>('general');
+    const [activeTab, setActiveTab] = useState<Tab>(initialTab);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -64,28 +69,81 @@ const WorkspaceSettingsDialog = ({ open, onClose, workspaceId }: WorkspaceSettin
     const isPrivileged = member?.role === 'owner' || member?.role === 'admin';
 
     // Options
-    const languageOptions = {
-        'en-US': 'English',
-        'ko-KR': '한국어',
-        'ja-JP': '日本語',
+    const languageOptions = strings.settings.languageOptions ?? {
+        'en-US': 'English (English)',
+        'ko-KR': '한국어 (한국어)',
+        'ja-JP': '日本語 (日本語)',
     };
 
-    const timezoneOptionsWithLabel = [
-        { value: 'UTC', label: 'UTC' },
-        { value: 'Asia/Seoul', label: 'Seoul (KST)' },
-        { value: 'Asia/Tokyo', label: 'Tokyo (JST)' },
-        { value: 'America/New_York', label: 'New York (EST/EDT)' },
-        { value: 'America/Los_Angeles', label: 'Los Angeles (PST/PDT)' },
-        { value: 'Europe/London', label: 'London (GMT/BST)' },
+    const timezoneOptions = [
+        'UTC',
+        // Asia
+        'Asia/Seoul',
+        'Asia/Tokyo',
+        'Asia/Shanghai',
+        'Asia/Hong_Kong',
+        'Asia/Taipei',
+        'Asia/Singapore',
+        'Asia/Bangkok',
+        'Asia/Kolkata',
+        'Asia/Dubai',
+        'Asia/Kuala_Lumpur',
+        'Asia/Jakarta',
+        'Asia/Manila',
+        // Europe
+        'Europe/London',
+        'Europe/Paris',
+        'Europe/Berlin',
+        'Europe/Madrid',
+        'Europe/Rome',
+        'Europe/Amsterdam',
+        'Europe/Stockholm',
+        'Europe/Istanbul',
+        'Europe/Moscow',
+        'Europe/Warsaw',
+        'Europe/Zurich',
+        // Americas
+        'America/New_York',
+        'America/Chicago',
+        'America/Denver',
+        'America/Los_Angeles',
+        'America/Toronto',
+        'America/Vancouver',
+        'America/Mexico_City',
+        'America/Bogota',
+        'America/Lima',
+        'America/Sao_Paulo',
+        'America/Argentina/Buenos_Aires',
+        // Oceania
+        'Australia/Sydney',
+        'Australia/Melbourne',
+        'Pacific/Auckland',
     ];
 
+    const formatTzLabel = (tz: string) => {
+        try {
+            const parts = new Intl.DateTimeFormat('en-US', {
+                timeZone: tz,
+                timeZoneName: 'shortOffset',
+            }).formatToParts(new Date());
+            const offset = parts.find((p) => p.type === 'timeZoneName')?.value ?? 'UTC';
+            return `${tz} (${offset})`;
+        } catch {
+            return tz;
+        }
+    };
+
+    const timezoneOptionsWithLabel = timezoneOptions
+        .map((tz) => ({ value: tz, label: formatTzLabel(tz) }))
+        .sort((a, b) => a.label.localeCompare(b.label));
+
     useEffect(() => {
-        if (open && tokens && workspaceId) {
+        if (open && isAuthenticated && workspaceId) {
             setLoading(true);
             setError(null);
             Promise.all([
-                getWorkspace(workspaceId, tokens.accessToken),
-                getWorkspaceMemberProfile(workspaceId, tokens.accessToken)
+                getWorkspace(workspaceId),
+                getWorkspaceMemberProfile(workspaceId)
             ])
                 .then(([wsData, memberData]) => {
                     setWorkspace(wsData);
@@ -96,9 +154,9 @@ const WorkspaceSettingsDialog = ({ open, onClose, workspaceId }: WorkspaceSettin
                     setWorkspaceDesc(wsData.description || '');
 
                     // Init Profile Form
-                    setDisplayName(memberData.name);
-                    setProfileLocale((memberData.locale as Locale) || 'en-US');
-                    setProfileTimezone(memberData.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone);
+                    setDisplayName(memberData.displayName || '');
+                    setProfileLocale((memberData.preferredLocale as Locale) || 'en-US');
+                    setProfileTimezone(memberData.timezone || 'UTC');
                 })
                 .catch((err) => {
                     setError((err as Error).message);
@@ -107,20 +165,25 @@ const WorkspaceSettingsDialog = ({ open, onClose, workspaceId }: WorkspaceSettin
                     setLoading(false);
                 });
         }
-    }, [open, tokens, workspaceId]);
+    }, [open, isAuthenticated, workspaceId]);
 
     const handleSaveGeneral = async () => {
-        if (!tokens || !workspaceId) return;
+        if (!isAuthenticated || !workspaceId) return;
         setLoading(true);
         setError(null);
         setSuccessMessage(null);
         try {
-            const updated = await updateWorkspace(workspaceId, tokens.accessToken, {
+            const updated = await updateWorkspace(workspaceId, {
                 name: workspaceName,
                 description: workspaceDesc,
             });
             setWorkspace(updated);
             setSuccessMessage(strings.workspace.updateSuccess || 'Workspace updated successfully');
+
+            // Notify parent component that workspace was updated
+            if (onWorkspaceUpdated) {
+                onWorkspaceUpdated();
+            }
         } catch (err) {
             setError((err as Error).message);
         } finally {
@@ -129,21 +192,32 @@ const WorkspaceSettingsDialog = ({ open, onClose, workspaceId }: WorkspaceSettin
     };
 
     const handleSaveProfile = async () => {
-        if (!tokens || !workspaceId) return;
+        if (!isAuthenticated || !workspaceId) return;
         setLoading(true);
         setError(null);
         setSuccessMessage(null);
         try {
-            const updated = await updateWorkspaceMemberProfile(workspaceId, tokens.accessToken, {
-                name: displayName,
-                locale: profileLocale,
+            if (!displayName.trim()) {
+                setError(strings.settings.workspaceProfile?.displayNameRequired || 'Display name is required');
+                setLoading(false);
+                return;
+            }
+            await updateWorkspaceMemberProfile(workspaceId, {
+                displayName: displayName.trim(),
                 timezone: profileTimezone,
+                preferredLocale: profileLocale
             });
-            setMember(updated);
-            setSuccessMessage(strings.workspace.profileUpdateSuccess || 'Profile updated successfully');
 
-            // If the updated locale is different from current app locale, we might want to reload or notify
-            // But for now, just saving is enough. The app might need a reload to reflect locale change fully if it relies on this setting immediately.
+            // Set success message before changing locale so it shows in the new language
+            const successMsg = strings.settings.workspaceProfile?.updateSuccess || 'Profile updated successfully';
+
+            // Apply the new locale immediately after saving so the UI mirrors the selection
+            setLocale(profileLocale);
+
+            // Use setTimeout to ensure the success message appears after locale change
+            setTimeout(() => {
+                setSuccessMessage(successMsg);
+            }, 100);
         } catch (err) {
             setError((err as Error).message);
         } finally {
@@ -195,86 +269,144 @@ const WorkspaceSettingsDialog = ({ open, onClose, workspaceId }: WorkspaceSettin
 
     const renderProfileTab = () => (
         <Box sx={{ display: 'grid', gap: 2 }}>
+            <Alert severity="info" sx={{ mb: 2 }}>
+                <Typography variant="body2">
+                    {strings.settings.workspaceProfile?.workspaceSpecific || 'Workspace-only settings.'}{' '}
+                    <Link
+                        component="button"
+                        variant="body2"
+                        onClick={() => {
+                            onClose();
+                            // Navigate to global settings - assuming we're in DashboardLayout context
+                            window.location.href = '/settings';
+                        }}
+                        sx={{ cursor: 'pointer', fontWeight: 'bold' }}
+                    >
+                        {strings.settings.workspaceProfile?.globalAccountSettings || 'Change email/password in global account settings'}
+                    </Link>
+                </Typography>
+            </Alert>
+
             <Typography variant="h6" gutterBottom>
-                {strings.workspace.profileTitle || 'Profile'}
+                {strings.settings.workspaceProfile?.profileInfo || 'Profile Information'}
             </Typography>
-            <TextField
-                label={strings.settings.workspaceProfile.displayName}
-                value={displayName}
-                onChange={(e) => setDisplayName(e.target.value)}
-                fullWidth
-                variant="outlined"
-                InputLabelProps={{ shrink: true }}
-            />
-            <FormControl fullWidth variant="outlined" size="small">
-                <InputLabel id="workspace-language">{strings.settings.workspaceProfile.language}</InputLabel>
-                <Select
-                    native
-                    labelId="workspace-language"
-                    label={strings.settings.workspaceProfile.language}
-                    value={profileLocale}
-                    onChange={(e) => setProfileLocale(e.target.value as Locale)}
-                >
-                    <option value="en-US">{languageOptions['en-US']}</option>
-                    <option value="ko-KR">{languageOptions['ko-KR']}</option>
-                    <option value="ja-JP">{languageOptions['ja-JP']}</option>
-                </Select>
-            </FormControl>
-            <FormControl fullWidth variant="outlined" size="small">
-                <InputLabel id="workspace-timezone">{strings.settings.global.timezone}</InputLabel>
-                <Select
-                    native
-                    labelId="workspace-timezone"
-                    label={strings.settings.global.timezone}
-                    value={profileTimezone}
-                    onChange={(e) => setProfileTimezone(e.target.value)}
-                >
-                    {timezoneOptionsWithLabel.map((tz) => (
-                        <option key={tz.value} value={tz.value}>
-                            {tz.label}
-                        </option>
-                    ))}
-                </Select>
-            </FormControl>
+
+            <Grid container spacing={3}>
+                <Grid size={12}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
+                        <Avatar
+                            sx={{ width: 64, height: 64, bgcolor: 'primary.main', fontSize: '1.5rem' }}
+                        >
+                            {displayName ? displayName.charAt(0).toUpperCase() : 'U'}
+                        </Avatar>
+                        <Button variant="outlined" size="small" disabled>
+                            {strings.settings.workspaceProfile?.changeAvatar || 'Change Avatar'}
+                        </Button>
+                    </Box>
+                </Grid>
+                <Grid size={12}>
+                    <TextField
+                        label={strings.settings.workspaceProfile?.displayName || 'Display Name'}
+                        fullWidth
+                        value={displayName}
+                        onChange={(e) => setDisplayName(e.target.value)}
+                        helperText={strings.settings.workspaceProfile?.displayNameHelper || 'How you appear to others in this workspace'}
+                        variant="outlined"
+                        InputLabelProps={{ shrink: true }}
+                    />
+                </Grid>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                    <FormControl fullWidth>
+                        <InputLabel shrink>{strings.settings.workspaceProfile?.language || 'Language'}</InputLabel>
+                        <Select
+                            native
+                            value={profileLocale}
+                            label={strings.settings.workspaceProfile?.language || 'Language'}
+                            onChange={(e) => setProfileLocale(e.target.value as Locale)}
+                        >
+                            <option value="en-US">{languageOptions['en-US']}</option>
+                            <option value="ko-KR">{languageOptions['ko-KR']}</option>
+                            <option value="ja-JP">{languageOptions['ja-JP']}</option>
+                        </Select>
+                    </FormControl>
+                </Grid>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                    <FormControl fullWidth>
+                        <InputLabel shrink>{strings.settings.global?.timezone || 'Timezone'}</InputLabel>
+                        <Select
+                            native
+                            value={profileTimezone}
+                            label={strings.settings.global?.timezone || 'Timezone'}
+                            onChange={(e) => setProfileTimezone(e.target.value)}
+                        >
+                            {timezoneOptionsWithLabel.map((tz) => (
+                                <option key={tz.value} value={tz.value}>
+                                    {tz.label}
+                                </option>
+                            ))}
+                        </Select>
+                    </FormControl>
+                </Grid>
+            </Grid>
+
             <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 2 }}>
                 <Button
                     variant="contained"
                     onClick={handleSaveProfile}
                     disabled={loading}
                 >
-                    {loading ? <CircularProgress size={24} /> : strings.settings.global.saveChanges}
+                    {loading ? <CircularProgress size={24} /> : (strings.settings.workspaceProfile?.saveProfile || 'Save Profile')}
                 </Button>
             </Box>
         </Box>
     );
 
+    const renderSubscriptionTab = () => (
+        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '300px', gap: 2 }}>
+            <Typography variant="h5" color="text.secondary">
+                Coming Soon
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+                Subscription management features will be available soon.
+            </Typography>
+        </Box>
+    );
+
+
+    const isProfileOnly = initialTab === 'profile';
+    const dialogTitle = isProfileOnly
+        ? (strings.settings.workspaceProfile?.title?.replace('{workspaceName}', workspace?.name || '') || 'Workspace Profile')
+        : (strings.layout.dashboard.workspaceSettingsLabel || 'Workspace Settings');
+
     return (
-        <Dialog open={open} onClose={onClose} fullWidth maxWidth="md">
+        <Dialog open={open} onClose={onClose} fullWidth maxWidth={isProfileOnly ? "sm" : "md"}>
             <DialogTitle sx={{ borderBottom: `1px solid ${theme.palette.divider}`, px: 3, py: 2 }}>
-                {strings.layout.dashboard.workspaceSettingsLabel}
+                {dialogTitle}
             </DialogTitle>
-            <DialogContent sx={{ p: 0, display: 'flex', height: '500px' }}>
-                {/* Sidebar */}
-                <Box sx={{ width: '240px', borderRight: `1px solid ${theme.palette.divider}`, bgcolor: 'background.default' }}>
-                    <List component="nav" sx={{ pt: 2 }}>
-                        <ListItem disablePadding>
-                            <ListItemButton
-                                selected={activeTab === 'general'}
-                                onClick={() => setActiveTab('general')}
-                            >
-                                <ListItemText primary={strings.layout.dashboard.workspace || 'Workspace'} />
-                            </ListItemButton>
-                        </ListItem>
-                        <ListItem disablePadding>
-                            <ListItemButton
-                                selected={activeTab === 'profile'}
-                                onClick={() => setActiveTab('profile')}
-                            >
-                                <ListItemText primary={strings.workspace.profileTitle || 'Profile'} />
-                            </ListItemButton>
-                        </ListItem>
-                    </List>
-                </Box>
+            <DialogContent sx={{ p: 0, display: 'flex', height: isProfileOnly ? 'auto' : '500px' }}>
+                {/* Sidebar - only show for workspace settings */}
+                {!isProfileOnly && (
+                    <Box sx={{ width: '240px', borderRight: `1px solid ${theme.palette.divider}`, bgcolor: 'background.default' }}>
+                        <List component="nav" sx={{ pt: 2 }}>
+                            <ListItem disablePadding>
+                                <ListItemButton
+                                    selected={activeTab === 'general'}
+                                    onClick={() => setActiveTab('general')}
+                                >
+                                    <ListItemText primary="General" />
+                                </ListItemButton>
+                            </ListItem>
+                            <ListItem disablePadding>
+                                <ListItemButton
+                                    selected={activeTab === 'subscription'}
+                                    onClick={() => setActiveTab('subscription')}
+                                >
+                                    <ListItemText primary="Subscription" />
+                                </ListItemButton>
+                            </ListItem>
+                        </List>
+                    </Box>
+                )}
 
                 {/* Content */}
                 <Box sx={{ flex: 1, p: 3, overflowY: 'auto' }}>
@@ -286,7 +418,9 @@ const WorkspaceSettingsDialog = ({ open, onClose, workspaceId }: WorkspaceSettin
                             <CircularProgress />
                         </Box>
                     ) : (
-                        activeTab === 'general' ? renderGeneralTab() : renderProfileTab()
+                        activeTab === 'general' ? renderGeneralTab() :
+                            activeTab === 'subscription' ? renderSubscriptionTab() :
+                                renderProfileTab()
                     )}
                 </Box>
             </DialogContent>

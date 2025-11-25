@@ -111,10 +111,7 @@ model Session {
   id               String   @id @default(uuid())
   accountId        String   @map("account_id")
   account          Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  refreshTokenHash String   @map("refresh_token_hash") @unique
-  accessToken      String   @map("access_token")
-  accessExpiresAt  DateTime @map("access_expires_at")
-  refreshExpiresAt DateTime @map("refresh_expires_at")
+  expiresAt        DateTime @map("expires_at")
   createdAt        DateTime @default(now()) @map("created_at")
   revokedAt        DateTime? @map("revoked_at")
   revokedReason    String?  @map("revoked_reason")

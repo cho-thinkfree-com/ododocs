@@ -1,6 +1,7 @@
 import Fastify, { type FastifyInstance, type FastifyRequest } from 'fastify'
 import fastifyStatic from '@fastify/static'
 import fastifyCors from '@fastify/cors'
+import fastifyCookie from '@fastify/cookie'
 import path from 'node:path'
 import { z } from 'zod'
 import { DocumentStatus, DocumentVisibility } from '@prisma/client'
@@ -65,6 +66,12 @@ export const buildServer = async ({ prisma, logger = true }: ServerOptions = {})
     exposedHeaders: ['Content-Disposition'],
     credentials: true,
   })
+
+  app.register(fastifyCookie, {
+    secret: process.env.COOKIE_SECRET || 'super-secret-cookie-secret',
+    hook: 'onRequest',
+  })
+
   app.register(fastifyStatic, {
     root: path.join(process.cwd(), 'docs/api/openapi'),
     prefix: '/api/openapi/',
@@ -185,27 +192,19 @@ export const buildServer = async ({ prisma, logger = true }: ServerOptions = {})
   }
 
   const authenticate = async (request: FastifyRequest) => {
-    const authorization = request.headers.authorization
-    if (!authorization?.startsWith('Bearer ')) {
-      throw createUnauthorized('Missing access token')
+    const sessionId = request.cookies.session_id
+    if (!sessionId) {
+      throw createUnauthorized('Missing session')
     }
-    const token = authorization.slice('Bearer '.length).trim()
-    if (!token) {
-      throw createUnauthorized('Missing access token')
-    }
-    const session = await db.session.findFirst({
-      where: {
-        accessToken: token,
-        revokedAt: null,
-        accessExpiresAt: {
-          gte: new Date(),
-        },
-      },
+
+    const session = await db.session.findUnique({
+      where: { id: sessionId },
     })
-    if (!session) {
-      console.log('Authentication failed for token:', token.slice(0, 10) + '...')
+
+    if (!session || session.revokedAt || session.expiresAt < new Date()) {
       throw createUnauthorized('Invalid or expired session')
     }
+
     request.accountId = session.accountId
     request.sessionId = session.id
   }
@@ -337,8 +336,17 @@ export const buildServer = async ({ prisma, logger = true }: ServerOptions = {})
   })
 
   app.post('/api/auth/login', async (request, reply) => {
-    const tokens = await authService.login(request.body as any)
-    reply.send(tokens)
+    const result = await authService.login(request.body as any)
+
+    reply.setCookie('session_id', result.sessionId, {
+      path: '/',
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      expires: result.expiresAt,
+    })
+
+    reply.send(result)
   })
 
   app.get('/api/auth/me', { preHandler: authenticate }, async (request, reply) => {
@@ -361,10 +369,10 @@ export const buildServer = async ({ prisma, logger = true }: ServerOptions = {})
   })
 
   app.post('/api/auth/logout', { preHandler: authenticate }, async (request, reply) => {
-    if (!request.sessionId) {
-      throw createUnauthorized('Session missing')
+    if (request.sessionId) {
+      await authService.logout(request.sessionId)
     }
-    await authService.logout(request.sessionId)
+    reply.clearCookie('session_id', { path: '/' })
     reply.send({ ok: true })
   })
 
@@ -376,10 +384,7 @@ export const buildServer = async ({ prisma, logger = true }: ServerOptions = {})
     reply.send({ ok: true })
   })
 
-  app.post('/api/auth/refresh', async (request, reply) => {
-    const tokens = await authService.refresh(request.body as any)
-    reply.send(tokens)
-  })
+
 
   app.post('/api/auth/password-reset/request', async (request, reply) => {
     const result = await authService.requestPasswordReset(request.body as any)

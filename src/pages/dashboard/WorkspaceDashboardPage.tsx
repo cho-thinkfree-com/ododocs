@@ -20,7 +20,7 @@ import { useSyncChannel } from '../../hooks/useSyncChannel';
 const WorkspaceDashboardPage = () => {
   const { strings } = useI18n();
   usePageTitle(strings.dashboard.title);
-  const { tokens } = useAuth();
+  const { isAuthenticated } = useAuth();
   const [workspaces, setWorkspaces] = useState<WorkspaceSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -30,9 +30,9 @@ const WorkspaceDashboardPage = () => {
   const [recentDocumentsError, setRecentDocumentsError] = useState<string | null>(null);
 
   const fetchWorkspaces = useCallback(() => {
-    if (tokens) {
+    if (isAuthenticated) {
       setLoading(true);
-      getWorkspaces(tokens.accessToken)
+      getWorkspaces()
         .then((data) => {
           setWorkspaces(data);
         })
@@ -43,12 +43,12 @@ const WorkspaceDashboardPage = () => {
           setLoading(false);
         });
     }
-  }, [tokens]);
+  }, [isAuthenticated]);
 
   const fetchRecentDocuments = useCallback(() => {
-    if (tokens) {
+    if (isAuthenticated) {
       setRecentDocumentsLoading(true);
-      getRecentDocuments(tokens.accessToken)
+      getRecentDocuments()
         .then((data) => {
           setRecentDocuments(data);
         })
@@ -59,7 +59,7 @@ const WorkspaceDashboardPage = () => {
           setRecentDocumentsLoading(false);
         });
     }
-  }, [tokens]);
+  }, [isAuthenticated]);
 
   useEffect(() => {
     fetchWorkspaces();
@@ -75,16 +75,16 @@ const WorkspaceDashboardPage = () => {
   }, [fetchRecentDocuments]));
 
   const handleCreateWorkspace = async (name: string) => {
-    if (!tokens) {
+    if (!isAuthenticated) {
       throw new Error('Not authenticated');
     }
-    await createWorkspace(tokens.accessToken, { name });
+    await createWorkspace({ name });
     fetchWorkspaces();
   };
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (!file || !tokens || workspaces.length === 0) return;
+    if (!file || !isAuthenticated || workspaces.length === 0) return;
 
     if (!file.name.endsWith(ODOCS_EXTENSION)) {
       alert(`Only ${ODOCS_EXTENSION} files are allowed.`);
@@ -97,7 +97,7 @@ const WorkspaceDashboardPage = () => {
       // Default to the first workspace for now, or we could add a dialog to select workspace
       const workspaceId = workspaces[0].id;
 
-      await createDocument(workspaceId, tokens.accessToken, {
+      await createDocument(workspaceId, {
         title: file.name.replace(new RegExp(`\\${ODOCS_EXTENSION}$`), ''),
         initialRevision: {
           content,

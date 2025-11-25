@@ -14,7 +14,7 @@ type ConnectedEditorProps = {
 };
 
 const ConnectedEditor = ({ document, initialRevision }: ConnectedEditorProps) => {
-    const { tokens } = useAuth();
+    const { isAuthenticated } = useAuth();
     const [saveStatus, setSaveStatus] = useState<'saved' | 'unsaved' | 'saving'>('saved');
     const [snackbarOpen, setSnackbarOpen] = useState(false);
     const [currentDocument, setCurrentDocument] = useState(document);
@@ -32,7 +32,7 @@ const ConnectedEditor = ({ document, initialRevision }: ConnectedEditorProps) =>
     });
 
     const handleSave = useCallback(async () => {
-        if (!editor || !tokens) {
+        if (!editor || !isAuthenticated) {
             return;
         }
 
@@ -41,7 +41,7 @@ const ConnectedEditor = ({ document, initialRevision }: ConnectedEditorProps) =>
         try {
             // Save content
             const content = editor.getJSON();
-            await appendRevision(currentDocument.id, tokens.accessToken, { content });
+            await appendRevision(currentDocument.id, { content });
 
             setSaveStatus('saved');
             setSnackbarOpen(true);
@@ -58,17 +58,17 @@ const ConnectedEditor = ({ document, initialRevision }: ConnectedEditorProps) =>
             console.error(err);
             setSaveStatus('unsaved');
         }
-    }, [editor, currentDocument, tokens]);
+    }, [editor, currentDocument, isAuthenticated]);
 
     const handleTitleSave = useCallback(async (newTitle: string) => {
-        if (!tokens || !newTitle.trim()) {
+        if (!isAuthenticated || !newTitle.trim()) {
             return;
         }
 
         setSaveStatus('saving');
 
         try {
-            const updatedDoc = await renameDocument(currentDocument.id, tokens.accessToken, { title: newTitle });
+            const updatedDoc = await renameDocument(currentDocument.id, { title: newTitle });
             setCurrentDocument(updatedDoc);
             setSaveStatus('saved');
             setSnackbarOpen(true);
@@ -85,7 +85,7 @@ const ConnectedEditor = ({ document, initialRevision }: ConnectedEditorProps) =>
             console.error(err);
             setSaveStatus('unsaved');
         }
-    }, [currentDocument, tokens]);
+    }, [currentDocument, isAuthenticated]);
 
     const debouncedSave = useDebouncedCallback(handleSave, 2000);
     const debouncedTitleSave = useDebouncedCallback(handleTitleSave, 2000);

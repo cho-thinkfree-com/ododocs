@@ -26,17 +26,17 @@ interface ShareDialogProps {
 }
 
 export default function ShareDialog({ open, onClose, documentId }: ShareDialogProps) {
-    const { tokens } = useAuth()
+    const { isAuthenticated } = useAuth()
     const [loading, setLoading] = useState(false)
     const [shareLink, setShareLink] = useState<ShareLinkResponse['shareLink'] | null>(null)
     const [error, setError] = useState<string | null>(null)
     const [copied, setCopied] = useState(false)
 
     const fetchLink = async () => {
-        if (!tokens) return
+        if (!isAuthenticated) return
         setLoading(true)
         try {
-            const links = await getShareLinks(documentId, tokens.accessToken)
+            const links = await getShareLinks(documentId)
             // For now, we assume one active link per document for simplicity in this UI
             const activeLink = links.find(l => !l.revokedAt)
             setShareLink(activeLink || null)
@@ -54,13 +54,13 @@ export default function ShareDialog({ open, onClose, documentId }: ShareDialogPr
             setError(null)
             setCopied(false)
         }
-    }, [open, documentId, tokens])
+    }, [open, documentId, isAuthenticated])
 
     const handleCreate = async () => {
-        if (!tokens) return
+        if (!isAuthenticated) return
         setLoading(true)
         try {
-            const result = await createShareLink(documentId, tokens.accessToken)
+            const result = await createShareLink(documentId)
             setShareLink(result.shareLink)
         } catch (err) {
             setError('Failed to create share link')
@@ -70,10 +70,10 @@ export default function ShareDialog({ open, onClose, documentId }: ShareDialogPr
     }
 
     const handleRevoke = async () => {
-        if (!tokens || !shareLink) return
+        if (!isAuthenticated || !shareLink) return
         setLoading(true)
         try {
-            await revokeShareLink(shareLink.id, tokens.accessToken)
+            await revokeShareLink(shareLink.id)
             setShareLink(null)
         } catch (err) {
             setError('Failed to revoke link')

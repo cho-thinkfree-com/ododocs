@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from 'react';
+﻿import { useState, useEffect, useCallback } from 'react';
 import { Box, AppBar, Toolbar, Typography, IconButton, Menu, MenuItem, Divider, useTheme, Button, Dialog, DialogTitle, DialogContent, DialogActions, TextField, FormControl, InputLabel, Select, CircularProgress, Alert, InputAdornment, Avatar, ListItemIcon } from '@mui/material';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import LogoutIcon from '@mui/icons-material/Logout';
@@ -10,19 +10,19 @@ import { getWorkspaceMemberProfile, updateAccount, getWorkspace, type Membership
 import { useI18n, type Locale } from '../../lib/i18n';
 import WorkspaceLanguageSync from '../common/WorkspaceLanguageSync';
 import { ChangePasswordDialog } from '../../pages/settings/ChangePasswordDialog';
-import WorkspaceSettingsDialog from '../workspace/WorkspaceSettingsDialog';
+import WorkspaceAccountSettingsDialog from '../workspace/WorkspaceAccountSettingsDialog';
 
 const DashboardLayout = () => {
     const theme = useTheme();
     const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
-    const { logout, user, tokens, refreshProfile } = useAuth();
+    const { logout, user, isAuthenticated, refreshProfile } = useAuth();
     const navigate = useNavigate();
     const { workspaceId } = useParams<{ workspaceId: string }>();
     const [workspaceDisplayName, setWorkspaceDisplayName] = useState<string | null>(null);
     const [workspaceMember, setWorkspaceMember] = useState<MembershipSummary | null>(null);
     const [workspace, setWorkspace] = useState<WorkspaceSummary | null>(null);
     const [accountDialogOpen, setAccountDialogOpen] = useState(false);
-    const [workspaceDialogOpen, setWorkspaceDialogOpen] = useState(false);
+    const [profileDialogOpen, setProfileDialogOpen] = useState(false);
     const [accountName, setAccountName] = useState('');
     const [accountLocale, setAccountLocale] = useState<Locale>('en-US');
     const [accountTimezone, setAccountTimezone] = useState('UTC');
@@ -31,9 +31,11 @@ const DashboardLayout = () => {
     const [isPasswordDialogOpen, setIsPasswordDialogOpen] = useState(false);
     const { strings, locale, setLocale } = useI18n();
 
-    useEffect(() => {
-        if (tokens && workspaceId) {
-            getWorkspaceMemberProfile(workspaceId, tokens.accessToken)
+
+    // Fetch workspace data
+    const fetchWorkspaceData = useCallback(() => {
+        if (isAuthenticated && workspaceId) {
+            getWorkspaceMemberProfile(workspaceId)
                 .then((profile) => {
                     setWorkspaceDisplayName(profile.displayName || null);
                     setWorkspaceMember(profile);
@@ -46,7 +48,7 @@ const DashboardLayout = () => {
                     setWorkspaceMember(null);
                 });
 
-            getWorkspace(workspaceId, tokens.accessToken)
+            getWorkspace(workspaceId)
                 .then((ws) => {
                     setWorkspace(ws);
                 })
@@ -58,7 +60,24 @@ const DashboardLayout = () => {
             setWorkspaceMember(null);
             setWorkspace(null);
         }
-    }, [tokens, workspaceId, locale, setLocale]);
+    }, [isAuthenticated, workspaceId, locale, setLocale]);
+
+    useEffect(() => {
+        fetchWorkspaceData();
+    }, [fetchWorkspaceData]);
+
+    // Listen for workspace updates
+    useEffect(() => {
+        const handleWorkspaceUpdate = () => {
+            fetchWorkspaceData();
+        };
+
+        window.addEventListener('workspace-updated', handleWorkspaceUpdate);
+        return () => {
+            window.removeEventListener('workspace-updated', handleWorkspaceUpdate);
+        };
+    }, [fetchWorkspaceData]);
+
 
     const languageOptions = strings.settings.languageOptions ?? {
         'en-US': 'English (English)',
@@ -177,7 +196,7 @@ const DashboardLayout = () => {
     };
 
     const handleSaveAccount = async () => {
-        if (!tokens) return;
+        if (!isAuthenticated) return;
         setAccountSaving(true);
         setAccountError(null);
         try {
@@ -187,7 +206,7 @@ const DashboardLayout = () => {
                 setAccountSaving(false);
                 return;
             }
-            await updateAccount(tokens.accessToken, {
+            await updateAccount({
                 legalName: trimmedName,
                 preferredLanguage: accountLocale,
                 preferredTimezone: accountTimezone,
@@ -319,14 +338,15 @@ const DashboardLayout = () => {
                                     </Typography>
                                 )}
                             </Box>
-                            {/* Settings icon always shown, opens appropriate dialog */}
+                            {/* Settings icon - opens account settings or workspace profile dialog */}
                             <IconButton
                                 size="small"
                                 onClick={(e) => {
                                     e.stopPropagation();
                                     handleMenuClose();
                                     if (isWorkspaceContext) {
-                                        openWorkspaceDialog();
+                                        // Open workspace account settings dialog
+                                        setProfileDialogOpen(true);
                                     } else {
                                         openAccountDialog();
                                     }
@@ -450,9 +470,9 @@ const DashboardLayout = () => {
                 </DialogActions>
             </Dialog>
             {workspaceId && (
-                <WorkspaceSettingsDialog
-                    open={workspaceDialogOpen}
-                    onClose={() => setWorkspaceDialogOpen(false)}
+                <WorkspaceAccountSettingsDialog
+                    open={profileDialogOpen}
+                    onClose={() => setProfileDialogOpen(false)}
                     workspaceId={workspaceId}
                 />
             )}

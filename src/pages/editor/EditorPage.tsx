@@ -7,7 +7,7 @@ import ConnectedEditor from './ConnectedEditor';
 
 const EditorPage = () => {
   const { documentId } = useParams<{ documentId: string }>();
-  const { tokens } = useAuth();
+  const { isAuthenticated } = useAuth();
   const [document, setDocument] = useState<DocumentSummary | null>(null);
   const [revision, setRevision] = useState<DocumentRevision | null>(null);
   const [loading, setLoading] = useState(true);
@@ -29,11 +29,11 @@ const EditorPage = () => {
     };
   }, []);
   useEffect(() => {
-    if (tokens && documentId) {
+    if (isAuthenticated && documentId) {
       setLoading(true);
       Promise.all([
-        getDocument(documentId, tokens.accessToken),
-        getLatestRevision(documentId, tokens.accessToken),
+        getDocument(documentId),
+        getLatestRevision(documentId),
       ])
         .then(([docData, revData]) => {
           setDocument(docData);
@@ -46,7 +46,7 @@ const EditorPage = () => {
           setLoading(false);
         });
     }
-  }, [tokens, documentId]);
+  }, [isAuthenticated, documentId]);
 
 
 

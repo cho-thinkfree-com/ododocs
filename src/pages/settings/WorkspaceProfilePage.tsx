@@ -22,7 +22,7 @@ import { useI18n, type Locale } from '../../lib/i18n';
 import { getWorkspaceMemberProfile, updateWorkspaceMemberProfile, getWorkspace } from '../../lib/api';
 
 const WorkspaceProfilePage = () => {
-    const { user, tokens } = useAuth();
+    const { user, isAuthenticated } = useAuth();
     const { workspaceId } = useParams<{ workspaceId: string }>();
     const navigate = useNavigate();
     const { strings, locale, setLocale } = useI18n();
@@ -41,11 +41,11 @@ const WorkspaceProfilePage = () => {
     const [success, setSuccess] = useState<string | null>(null);
 
     useEffect(() => {
-        if (workspaceId && tokens) {
+        if (workspaceId && isAuthenticated) {
             setProfileLoading(true);
             Promise.all([
-                getWorkspaceMemberProfile(workspaceId, tokens.accessToken),
-                getWorkspace(workspaceId, tokens.accessToken)
+                getWorkspaceMemberProfile(workspaceId),
+                getWorkspace(workspaceId)
             ])
                 .then(([profile, workspace]) => {
                     setDisplayName(profile.displayName || '');
@@ -59,10 +59,10 @@ const WorkspaceProfilePage = () => {
                 })
                 .finally(() => setProfileLoading(false));
         }
-    }, [workspaceId, tokens, locale, strings.settings.workspaceProfile.loadError]);
+    }, [workspaceId, isAuthenticated, locale, strings.settings.workspaceProfile.loadError]);
 
     const handleSave = async () => {
-        if (!tokens || !workspaceId) return;
+        if (!isAuthenticated || !workspaceId) return;
         setLoading(true);
         setError(null);
         setSuccess(null);
@@ -74,7 +74,7 @@ const WorkspaceProfilePage = () => {
                 setLoading(false);
                 return;
             }
-            await updateWorkspaceMemberProfile(workspaceId, tokens.accessToken, {
+            await updateWorkspaceMemberProfile(workspaceId, {
                 displayName: displayName.trim(),
                 timezone: workspaceTimezone,
                 preferredLocale: workspaceLocale

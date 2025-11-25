@@ -8,7 +8,7 @@ import DeleteIcon from '@mui/icons-material/Delete';
 
 const WorkspaceMembersPage = () => {
   const { workspaceId } = useParams<{ workspaceId: string }>();
-  const { tokens } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const [members, setMembers] = useState<MembershipSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -18,10 +18,10 @@ const WorkspaceMembersPage = () => {
   const [inviteLoading, setInviteLoading] = useState(false);
 
   const fetchMembers = async () => {
-    if (tokens && workspaceId) {
+    if (isAuthenticated && workspaceId) {
       setLoading(true);
       try {
-        const response = await getWorkspaceMembers(workspaceId, tokens.accessToken);
+        const response = await getWorkspaceMembers(workspaceId);
         setMembers(response.items);
       } catch (err) {
         setError((err as Error).message);
@@ -33,16 +33,16 @@ const WorkspaceMembersPage = () => {
 
   useEffect(() => {
     fetchMembers();
-  }, [tokens, workspaceId]);
+  }, [isAuthenticated, workspaceId]);
 
   const handleInviteMember = async () => {
-    if (!tokens || !workspaceId || !inviteEmail) {
+    if (!isAuthenticated || !workspaceId || !inviteEmail) {
       return;
     }
     setInviteLoading(true);
     setInviteError(null);
     try {
-      await inviteWorkspaceMember(workspaceId, tokens.accessToken, { accountId: inviteEmail }); // Assuming inviteEmail is accountId for now
+      await inviteWorkspaceMember(workspaceId, { accountId: inviteEmail }); // Assuming inviteEmail is accountId for now
       setInviteDialogOpen(false);
       setInviteEmail('');
       fetchMembers();
@@ -54,11 +54,11 @@ const WorkspaceMembersPage = () => {
   };
 
   const handleChangeRole = async (memberId: string, newRole: 'owner' | 'admin' | 'member') => {
-    if (!tokens || !workspaceId) {
+    if (!isAuthenticated || !workspaceId) {
       return;
     }
     try {
-      await changeWorkspaceMemberRole(workspaceId, memberId, tokens.accessToken, newRole);
+      await changeWorkspaceMemberRole(workspaceId, memberId, newRole);
       fetchMembers();
     } catch (err) {
       setError((err as Error).message);
@@ -66,11 +66,11 @@ const WorkspaceMembersPage = () => {
   };
 
   const handleRemoveMember = async (memberId: string) => {
-    if (!tokens || !workspaceId) {
+    if (!isAuthenticated || !workspaceId) {
       return;
     }
     try {
-      await removeWorkspaceMember(workspaceId, memberId, tokens.accessToken);
+      await removeWorkspaceMember(workspaceId, memberId);
       fetchMembers();
     } catch (err) {
       setError((err as Error).message);
@@ -113,7 +113,7 @@ const WorkspaceMembersPage = () => {
                 <Select
                   value={member.role}
                   onChange={(e) => handleChangeRole(member.accountId, e.target.value as 'owner' | 'admin' | 'member')}
-                  disabled={member.accountId === tokens?.accountId} // Disable role change for self
+                  disabled={member.accountId === user?.id} // Disable role change for self
                 >
                   <MenuItem value="owner">Owner</MenuItem>
                   <MenuItem value="admin">Admin</MenuItem>

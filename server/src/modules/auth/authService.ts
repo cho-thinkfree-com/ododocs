@@ -4,7 +4,7 @@ import { AccountService } from '../accounts/accountService.js'
 import type { AccountRepository } from '../accounts/accountRepository.js'
 import { Argon2PasswordHasher, type PasswordHasher } from '../../lib/passwordHasher.js'
 import type { SessionRepository } from './sessionRepository.js'
-import { RandomTokenGenerator, type TokenGenerator, hashToken } from '../../lib/tokenGenerator.js'
+import { hashToken } from '../../lib/tokenGenerator.js'
 import { InMemoryLoginThrottle, type LoginThrottle } from './loginThrottle.js'
 import type { PasswordResetRepository } from './passwordResetRepository.js'
 import {
@@ -36,9 +36,7 @@ const signupSchema = z.object({
   preferredTimezone: z.string().optional(),
 })
 
-const refreshSchema = z.object({
-  refreshToken: z.string().min(1),
-})
+
 
 const resetRequestSchema = z.object({
   email: z.string().trim().email(),
@@ -54,17 +52,13 @@ const deleteSchema = z.object({
   password: z.string().min(8),
 })
 
-const ACCESS_TTL_MS = 15 * 60 * 1000
-const REFRESH_TTL_MS = 10 * 24 * 60 * 60 * 1000
+const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000 // 30 days
 const RESET_TTL_MS = 30 * 60 * 1000
 
 export interface LoginResult {
   sessionId: string
   accountId: string
-  accessToken: string
-  accessTokenExpiresAt: Date
-  refreshToken: string
-  refreshTokenExpiresAt: Date
+  expiresAt: Date
 }
 
 export class AuthService {
@@ -75,7 +69,6 @@ export class AuthService {
     private readonly passwordResetRepository: PasswordResetRepository,
     private readonly accountDeletionGuard: AccountDeletionGuard = new AllowAllAccountDeletionGuard(),
     private readonly passwordHasher: PasswordHasher = new Argon2PasswordHasher(),
-    private readonly tokenGenerator: TokenGenerator = new RandomTokenGenerator(),
     private readonly loginThrottle: LoginThrottle = new InMemoryLoginThrottle(),
   ) { }
 
@@ -117,15 +110,7 @@ export class AuthService {
     return this.issueSession(account.id)
   }
 
-  async refresh(rawInput: z.infer<typeof refreshSchema>): Promise<LoginResult> {
-    const input = refreshSchema.parse(rawInput)
-    const hashed = hashToken(input.refreshToken)
-    const session = await this.sessionRepository.findByRefreshHash(hashed)
-    if (!session) throw new InvalidCredentialsError()
-    if (session.revokedAt || session.refreshExpiresAt.getTime() <= Date.now()) throw new SessionRevokedError()
-    await this.sessionRepository.revokeById(session.id, 'rotated')
-    return this.issueSession(session.accountId)
-  }
+
 
   async logout(sessionId: string): Promise<void> {
     const session = await this.sessionRepository.findById(sessionId)
@@ -208,24 +193,15 @@ export class AuthService {
   }
 
   private async issueSession(accountId: string): Promise<LoginResult> {
-    const { accessToken, refreshToken } = this.tokenGenerator.generateTokens()
-    const now = Date.now()
-    const accessTokenExpiresAt = new Date(now + ACCESS_TTL_MS)
-    const refreshTokenExpiresAt = new Date(now + REFRESH_TTL_MS)
+    const expiresAt = new Date(Date.now() + SESSION_TTL_MS)
     const session = await this.sessionRepository.create({
       accountId,
-      accessToken,
-      refreshTokenHash: hashToken(refreshToken),
-      accessExpiresAt: accessTokenExpiresAt,
-      refreshExpiresAt: refreshTokenExpiresAt,
+      expiresAt,
     })
     return {
       sessionId: session.id,
       accountId,
-      accessToken,
-      accessTokenExpiresAt,
-      refreshToken,
-      refreshTokenExpiresAt,
+      expiresAt,
     }
   }
 }

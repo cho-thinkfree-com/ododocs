@@ -5,6 +5,8 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import SettingsIcon from '@mui/icons-material/Settings';
 import GroupIcon from '@mui/icons-material/Group';
 import { useI18n } from '../../lib/i18n';
+import { useState } from 'react';
+import WorkspaceSettingsDialog from '../workspace/WorkspaceSettingsDialog';
 
 const DRAWER_WIDTH = 240;
 
@@ -15,6 +17,7 @@ const WorkspaceLayout = () => {
     const location = useLocation();
     const { workspaceId } = useParams<{ workspaceId: string }>();
     const { strings } = useI18n();
+    const [settingsDialogOpen, setSettingsDialogOpen] = useState(false);
 
     if (!workspaceId) return null;
 
@@ -23,22 +26,26 @@ const WorkspaceLayout = () => {
             text: strings.workspace.filesTitle || 'Files',
             icon: <FolderIcon />,
             path: `/workspace/${workspaceId}`,
-            exact: true
+            exact: true,
+            onClick: () => navigate(`/workspace/${workspaceId}`)
         },
         {
             text: strings.workspace.trash || 'Trash',
             icon: <DeleteIcon />,
-            path: `/workspace/${workspaceId}/trash`
+            path: `/workspace/${workspaceId}/trash`,
+            onClick: () => navigate(`/workspace/${workspaceId}/trash`)
         },
         {
             text: 'Members', // TODO: Add to i18n
             icon: <GroupIcon />,
-            path: `/workspace/${workspaceId}/members`
+            path: `/workspace/${workspaceId}/members`,
+            onClick: () => navigate(`/workspace/${workspaceId}/members`)
         },
         {
             text: strings.workspace.settingsTitle || 'Settings',
             icon: <SettingsIcon />,
-            path: `/workspace/${workspaceId}/settings`
+            path: `/workspace/${workspaceId}/settings`,
+            onClick: () => setSettingsDialogOpen(true)
         }
     ];
 
@@ -54,7 +61,7 @@ const WorkspaceLayout = () => {
                         <ListItem key={item.path} disablePadding>
                             <ListItemButton
                                 selected={isSelected}
-                                onClick={() => navigate(item.path)}
+                                onClick={item.onClick}
                                 sx={{
                                     '&.Mui-selected': {
                                         bgcolor: 'primary.light',
@@ -117,6 +124,16 @@ const WorkspaceLayout = () => {
             >
                 <Outlet />
             </Box>
+            <WorkspaceSettingsDialog
+                open={settingsDialogOpen}
+                onClose={() => setSettingsDialogOpen(false)}
+                workspaceId={workspaceId}
+                initialTab="general"
+                onWorkspaceUpdated={() => {
+                    // Dispatch custom event to notify DashboardLayout to refresh workspace data
+                    window.dispatchEvent(new CustomEvent('workspace-updated', { detail: { workspaceId } }));
+                }}
+            />
         </Box>
     );
 };

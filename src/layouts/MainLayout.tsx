@@ -26,21 +26,21 @@ const MainLayout = () => {
   const location = useLocation();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
-  const { tokens, logout } = useAuth();
+  const { isAuthenticated, logout } = useAuth();
   const navigate = useNavigate();
 
   const currentWorkspace = workspaces.find(ws => ws.id === workspaceId);
   const isDashboard = location.pathname === '/dashboard';
 
   useEffect(() => {
-    if (tokens) {
+    if (isAuthenticated) {
       setWorkspacesLoading(true);
-      getWorkspaces(tokens.accessToken)
+      getWorkspaces()
         .then(setWorkspaces)
         .catch(console.error)
         .finally(() => setWorkspacesLoading(false));
     }
-  }, [tokens, workspaceId]);
+  }, [isAuthenticated]);
 
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
@@ -181,9 +181,9 @@ const MainLayout = () => {
       </Box>
       <Box
         component="main"
-        sx={{ 
-          flexGrow: 1, 
-          p: 3, 
+        sx={{
+          flexGrow: 1,
+          p: 3,
           transition: theme.transitions.create('margin', {
             easing: theme.transitions.easing.sharp,
             duration: theme.transitions.duration.leavingScreen,

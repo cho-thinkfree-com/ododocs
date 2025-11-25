@@ -22,16 +22,6 @@ const dispatchAuthExpired = (message: string) => {
   )
 }
 
-const dispatchAuthRefreshed = (tokens: LoginResult) => {
-  if (typeof window === 'undefined') {
-    return
-  }
-  window.dispatchEvent(
-    new CustomEvent('tiptap-auth-refreshed', {
-      detail: tokens,
-    }),
-  )
-}
 
 export class ApiError extends Error {
   status: number
@@ -63,74 +53,27 @@ const handleResponse = async <T>(response: Response): Promise<T> => {
 
 interface RequestOptions {
   method?: string
-  token?: string
   body?: unknown
   query?: Record<string, string | number | boolean | undefined>
-  skipRefresh?: boolean
 }
 
-let refreshPromise: Promise<LoginResult> | null = null
-
 const requestJSON = async <T>(path: string, options: RequestOptions = {}): Promise<T> => {
-  const { method = 'GET', token, body, query, skipRefresh } = options
+  const { method = 'GET', body, query } = options
   const url = `${API_BASE_URL}${path}${buildQuery(query)}`
   const headers = new Headers()
   if (body) {
     headers.set('Content-Type', 'application/json')
   }
-  if (token) {
-    headers.set('Authorization', `Bearer ${token}`)
-  }
 
-  console.log(`[API] ${method} ${path} token=${token?.slice(0, 10)}...`)
+  console.log(`[API] ${method} ${path}`)
   const response = await fetch(url, {
     method,
     headers,
     body: body ? JSON.stringify(body) : undefined,
+    credentials: 'include',
   })
 
-  if (response.status === 401 && !skipRefresh) {
-    console.log(`[API] 401 on ${path}, attempting refresh...`)
-    try {
-      const stored = typeof window !== 'undefined' ? window.localStorage.getItem('tiptap-example-auth') : null
-      if (stored) {
-        const { refreshToken } = JSON.parse(stored)
-        if (refreshToken) {
-          // Try to refresh
-          try {
-            if (!refreshPromise) {
-              refreshPromise = fetch(`${API_BASE_URL}/api/auth/refresh`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ refreshToken }),
-              }).then(async (res) => {
-                if (!res.ok) throw new Error('Refresh failed')
-                return res.json() as Promise<LoginResult>
-              })
-            }
-
-            const newTokens = await refreshPromise
-
-            // Update local storage immediately so subsequent requests use it
-            // Note: Multiple requests might do this redundantly but it's safe
-            window.localStorage.setItem('tiptap-example-auth', JSON.stringify(newTokens))
-
-            // Notify AuthContext to update state
-            // Dispatching multiple times is also fine, or we could debounce this
-            dispatchAuthRefreshed(newTokens)
-
-            // Retry original request with new access token
-            return requestJSON<T>(path, { ...options, token: newTokens.accessToken, skipRefresh: true })
-          } finally {
-            // Clear promise so next expiration triggers new refresh
-            refreshPromise = null
-          }
-        }
-      }
-    } catch (e) {
-      // Refresh failed, proceed to logout
-    }
-
+  if (response.status === 401) {
     dispatchAuthExpired('auth.sessionExpired')
   }
 
@@ -151,10 +94,7 @@ export interface SignupInput extends LoginInput {
 export interface LoginResult {
   sessionId: string
   accountId: string
-  accessToken: string
-  accessTokenExpiresAt: string
-  refreshToken: string
-  refreshTokenExpiresAt: string
+  expiresAt: string
 }
 
 export interface AccountResponse {
@@ -246,34 +186,30 @@ export interface ShareLinkResponse {
   token: string
 }
 
-export const login = (input: LoginInput) => requestJSON<LoginResult>('/api/auth/login', { method: 'POST', body: input, skipRefresh: true })
-export const signup = (input: SignupInput) => requestJSON<AccountResponse>('/api/auth/signup', { method: 'POST', body: input, skipRefresh: true })
-export const logout = async (token: string) => {
+export const login = (input: LoginInput) => requestJSON<LoginResult>('/api/auth/login', { method: 'POST', body: input })
+export const signup = (input: SignupInput) => requestJSON<AccountResponse>('/api/auth/signup', { method: 'POST', body: input })
+export const logout = async () => {
   return requestJSON<{ ok: boolean }>('/api/auth/logout', {
     method: 'POST',
-    token,
-    skipRefresh: true,
   })
 }
-export const getMe = (token: string) => requestJSON<AccountResponse>('/api/auth/me', { token })
-export const updateAccount = (token: string, body: { email?: string; legalName?: string; preferredLanguage?: string; preferredTimezone?: string; currentPassword?: string; newPassword?: string }) => requestJSON<AccountResponse>('/api/auth/me', { method: 'PATCH', token, body })
-export const refresh = (input: { refreshToken: string }) => requestJSON<LoginResult>('/api/auth/refresh', { method: 'POST', body: input, skipRefresh: true })
+export const getMe = () => requestJSON<AccountResponse>('/api/auth/me')
+export const updateAccount = (body: { email?: string; legalName?: string; preferredLanguage?: string; preferredTimezone?: string; currentPassword?: string; newPassword?: string }) => requestJSON<AccountResponse>('/api/auth/me', { method: 'PATCH', body })
 
-export const getWorkspaces = (token: string) =>
-  requestJSON<{ items: WorkspaceSummary[] }>('/api/workspaces', { token }).then((payload) => payload.items ?? [])
+export const getWorkspaces = () =>
+  requestJSON<{ items: WorkspaceSummary[] }>('/api/workspaces').then((payload) => payload.items ?? [])
 
-export const getWorkspace = (workspaceId: string, token: string) =>
-  requestJSON<WorkspaceSummary>(`/api/workspaces/${workspaceId}`, { token })
+export const getWorkspace = (workspaceId: string) =>
+  requestJSON<WorkspaceSummary>(`/api/workspaces/${workspaceId}`)
 
-export const getWorkspaceMembers = (workspaceId: string, token: string) =>
-  requestJSON<{ items: MembershipSummary[] }>(`/api/workspaces/${workspaceId}/members`, { token })
+export const getWorkspaceMembers = (workspaceId: string) =>
+  requestJSON<{ items: MembershipSummary[] }>(`/api/workspaces/${workspaceId}/members`)
 
-export const getWorkspaceMemberProfile = (workspaceId: string, token: string) =>
-  requestJSON<MembershipSummary>(`/api/workspaces/${workspaceId}/members/me`, { token })
+export const getWorkspaceMemberProfile = (workspaceId: string) =>
+  requestJSON<MembershipSummary>(`/api/workspaces/${workspaceId}/members/me`)
 
 export const updateWorkspaceMemberProfile = (
   workspaceId: string,
-  token: string,
   body: {
     displayName?: string
     avatarUrl?: string
@@ -283,7 +219,6 @@ export const updateWorkspaceMemberProfile = (
 ) =>
   requestJSON<MembershipSummary>(`/api/workspaces/${workspaceId}/members/me`, {
     method: 'PATCH',
-    token,
     body,
   })
 
@@ -294,42 +229,35 @@ export interface InviteMemberInput {
 
 export const inviteWorkspaceMember = (
   workspaceId: string,
-  token: string,
   input: InviteMemberInput,
 ) =>
   requestJSON<MembershipSummary>(`/api/workspaces/${workspaceId}/members`, {
     method: 'POST',
-    token,
     body: input,
   })
 
 export const changeWorkspaceMemberRole = (
   workspaceId: string,
   accountId: string,
-  token: string,
   role: 'owner' | 'admin' | 'member',
 ) =>
   requestJSON<MembershipSummary>(`/api/workspaces/${workspaceId}/members/${accountId}/role`, {
     method: 'PATCH',
-    token,
     body: { role },
   })
 
-export const removeWorkspaceMember = (workspaceId: string, accountId: string, token: string) =>
+export const removeWorkspaceMember = (workspaceId: string, accountId: string) =>
   requestJSON<void>(`/api/workspaces/${workspaceId}/members/${accountId}`, {
     method: 'DELETE',
-    token,
   })
 
 export const getWorkspaceDocuments = (
   workspaceId: string,
-  token: string,
   options?: { search?: string; folderId?: string },
 ) =>
   requestJSON<{ documents: DocumentSummary[]; folders: FolderSummary[] }>(
     `/api/workspaces/${workspaceId}/documents`,
     {
-      token,
       query: {
         search: options?.search,
         folderId: options?.folderId,
@@ -346,70 +274,64 @@ export interface DocumentRevision {
   createdAt: string;
 }
 
-export const getRecentDocuments = (token: string) =>
-  requestJSON<{ items: DocumentSummary[] }>('/api/documents/recent', { token }).then((payload) => payload.items ?? [])
+export const getRecentDocuments = () =>
+  requestJSON<{ items: DocumentSummary[] }>('/api/documents/recent').then((payload) => payload.items ?? [])
 
-export const getDocument = (documentId: string, token: string) =>
-  requestJSON<DocumentSummary>(`/api/documents/${documentId}`, { token })
+export const getDocument = (documentId: string) =>
+  requestJSON<DocumentSummary>(`/api/documents/${documentId}`)
 
-export const getLatestRevision = (documentId: string, token: string) =>
+export const getLatestRevision = (documentId: string) =>
   requestJSON<{ document: DocumentSummary; revision: DocumentRevision }>(
     `/api/documents/${documentId}/revisions/latest`,
-    { token },
   ).then((payload) => payload.revision)
 
-export const appendRevision = (documentId: string, token: string, body: { content: Record<string, unknown> }) =>
-  requestJSON<DocumentRevision>(`/api/documents/${documentId}/revisions`, { method: 'POST', token, body })
+export const appendRevision = (documentId: string, body: { content: Record<string, unknown> }) =>
+  requestJSON<DocumentRevision>(`/api/documents/${documentId}/revisions`, { method: 'POST', body })
 
-export const createDocument = (workspaceId: string, token: string, body: DocumentCreateInput) =>
-  requestJSON<DocumentSummary>(`/api/workspaces/${workspaceId}/documents`, { method: 'POST', token, body })
+export const createDocument = (workspaceId: string, body: DocumentCreateInput) =>
+  requestJSON<DocumentSummary>(`/api/workspaces/${workspaceId}/documents`, { method: 'POST', body })
 
-export const deleteDocument = (documentId: string, token: string) =>
-  requestJSON<void>(`/api/documents/${documentId}`, { method: 'DELETE', token })
+export const deleteDocument = (documentId: string) =>
+  requestJSON<void>(`/api/documents/${documentId}`, { method: 'DELETE' })
 
-export const renameDocument = (documentId: string, token: string, body: { title: string }) =>
-  requestJSON<DocumentSummary>(`/api/documents/${documentId}`, { method: 'PATCH', token, body })
+export const renameDocument = (documentId: string, body: { title: string }) =>
+  requestJSON<DocumentSummary>(`/api/documents/${documentId}`, { method: 'PATCH', body })
 
-export const createFolder = (workspaceId: string, token: string, body: FolderCreateInput) =>
-  requestJSON<FolderSummary>(`/api/workspaces/${workspaceId}/folders`, { method: 'POST', token, body })
+export const createFolder = (workspaceId: string, body: FolderCreateInput) =>
+  requestJSON<FolderSummary>(`/api/workspaces/${workspaceId}/folders`, { method: 'POST', body })
 
-export const deleteFolder = (folderId: string, token: string) =>
-  requestJSON<void>(`/api/folders/${folderId}`, { method: 'DELETE', token })
+export const deleteFolder = (folderId: string) =>
+  requestJSON<void>(`/api/folders/${folderId}`, { method: 'DELETE' })
 
-export const renameFolder = (folderId: string, token: string, body: { name: string }) =>
-  requestJSON<FolderSummary>(`/api/folders/${folderId}`, { method: 'PATCH', token, body })
+export const renameFolder = (folderId: string, body: { name: string }) =>
+  requestJSON<FolderSummary>(`/api/folders/${folderId}`, { method: 'PATCH', body })
 
-export const getFolder = (folderId: string, token: string) =>
-  requestJSON<{ folder: FolderSummary; ancestors: FolderSummary[] }>(`/api/folders/${folderId}`, { token })
+export const getFolder = (folderId: string) =>
+  requestJSON<{ folder: FolderSummary; ancestors: FolderSummary[] }>(`/api/folders/${folderId}`)
 
-export const addDocumentTag = (documentId: string, token: string, tag: string) =>
-  requestJSON<{ name: string }>(`/api/documents/${documentId}/tags`, { method: 'POST', token, body: { name: tag } })
+export const addDocumentTag = (documentId: string, tag: string) =>
+  requestJSON<{ name: string }>(`/api/documents/${documentId}/tags`, { method: 'POST', body: { name: tag } })
 
-export const removeDocumentTag = (documentId: string, tag: string, token: string) =>
+export const removeDocumentTag = (documentId: string, tag: string) =>
   requestJSON<void>(`/api/documents/${documentId}/tags/${encodeURIComponent(tag)}`, {
     method: 'DELETE',
-    token,
   })
 
-export const createShareLink = (documentId: string, token: string) =>
+export const createShareLink = (documentId: string) =>
   requestJSON<ShareLinkResponse>(`/api/documents/${documentId}/share-links`, {
     method: 'POST',
-    token,
     body: { accessLevel: 'viewer' },
   })
 
-export const getShareLinks = (documentId: string, token: string) =>
-  requestJSON<{ shareLinks: ShareLinkResponse['shareLink'][] }>(`/api/documents/${documentId}/share-links`, {
-    token,
-  }).then((payload) => payload.shareLinks)
+export const getShareLinks = (documentId: string) =>
+  requestJSON<{ shareLinks: ShareLinkResponse['shareLink'][] }>(`/api/documents/${documentId}/share-links`).then((payload) => payload.shareLinks)
 
-export const revokeShareLink = (shareLinkId: string, token: string) =>
-  requestJSON<void>(`/api/share-links/${shareLinkId}`, { method: 'DELETE', token })
+export const revokeShareLink = (shareLinkId: string) =>
+  requestJSON<void>(`/api/share-links/${shareLinkId}`, { method: 'DELETE' })
 
-export const updateShareLink = (shareLinkId: string, token: string, body: { allowExternalEdit: boolean }) =>
+export const updateShareLink = (shareLinkId: string, body: { allowExternalEdit: boolean }) =>
   requestJSON<ShareLinkResponse['shareLink']>(`/api/share-links/${shareLinkId}`, {
     method: 'PATCH',
-    token,
     body,
   })
 
@@ -422,33 +344,29 @@ export const resolveShareLink = (token: string, password?: string) =>
   }>(`/api/share-links/${token}/access`, {
     method: 'POST',
     body: { password },
-    skipRefresh: true,
   })
 
-export const updateWorkspace = (workspaceId: string, token: string, body: { name?: string; description?: string }) =>
-  requestJSON<WorkspaceSummary>(`/api/workspaces/${workspaceId}`, { method: 'PATCH', token, body })
+export const updateWorkspace = (workspaceId: string, body: { name?: string; description?: string }) =>
+  requestJSON<WorkspaceSummary>(`/api/workspaces/${workspaceId}`, { method: 'PATCH', body })
 
-export const closeWorkspace = (workspaceId: string, token: string) =>
-  requestJSON<void>(`/api/workspaces/${workspaceId}`, { method: 'DELETE', token })
+export const closeWorkspace = (workspaceId: string) =>
+  requestJSON<void>(`/api/workspaces/${workspaceId}`, { method: 'DELETE' })
 
-export const createWorkspace = (token: string, body: { name: string }) =>
-  requestJSON<WorkspaceSummary>('/api/workspaces', { method: 'POST', token, body })
+export const createWorkspace = (body: { name: string }) =>
+  requestJSON<WorkspaceSummary>('/api/workspaces', { method: 'POST', body })
 
 export const checkDocumentTitle = (
   workspaceId: string,
-  token: string,
   title: string,
   folderId?: string | null,
   excludeId?: string,
 ) =>
   requestJSON<{ isDuplicate: boolean }>(
     `/api/workspaces/${workspaceId}/documents/check-title?title=${encodeURIComponent(title)}${folderId ? `&folderId=${folderId}` : ''}${excludeId ? `&excludeId=${excludeId}` : ''}`,
-    { token },
   )
 
 export const updateDocument = (
   documentId: string,
-  token: string,
   body: {
     title?: string
     folderId?: string | null
@@ -458,18 +376,14 @@ export const updateDocument = (
     summary?: string
     sortOrder?: number
   },
-) => requestJSON<DocumentSummary>(`/api/documents/${documentId}`, { method: 'PATCH', token, body })
+) => requestJSON<DocumentSummary>(`/api/documents/${documentId}`, { method: 'PATCH', body })
 
-export const downloadDocument = async (documentId: string, token: string) => {
+export const downloadDocument = async (documentId: string) => {
   const url = `${API_BASE_URL}/api/documents/${documentId}/download`
-  const headers = new Headers()
-  if (token) {
-    headers.set('Authorization', `Bearer ${token}`)
-  }
 
   const response = await fetch(url, {
     method: 'GET',
-    headers,
+    credentials: 'include',
   })
 
   if (!response.ok) {
@@ -497,37 +411,32 @@ export const downloadDocument = async (documentId: string, token: string) => {
 }
 
 // Trash management
-export const listTrash = async (workspaceId: string, accessToken: string) => {
+export const listTrash = async (workspaceId: string) => {
   return requestJSON(`/api/workspaces/${workspaceId}/trash`, {
     method: 'GET',
-    token: accessToken,
   })
 }
 
-export const restoreDocument = async (documentId: string, accessToken: string) => {
+export const restoreDocument = async (documentId: string) => {
   return requestJSON(`/api/trash/restore/document/${documentId}`, {
     method: 'POST',
-    token: accessToken,
   })
 }
 
-export const permanentlyDeleteDocument = async (documentId: string, accessToken: string) => {
+export const permanentlyDeleteDocument = async (documentId: string) => {
   return requestJSON(`/api/trash/document/${documentId}`, {
     method: 'DELETE',
-    token: accessToken,
   })
 }
 
-export const restoreFolder = async (folderId: string, accessToken: string) => {
+export const restoreFolder = async (folderId: string) => {
   return requestJSON(`/api/trash/restore/folder/${folderId}`, {
     method: 'POST',
-    token: accessToken,
   })
 }
 
-export const permanentlyDeleteFolder = async (folderId: string, accessToken: string) => {
+export const permanentlyDeleteFolder = async (folderId: string) => {
   return requestJSON(`/api/trash/folder/${folderId}`, {
     method: 'DELETE',
-    token: accessToken,
   })
 }

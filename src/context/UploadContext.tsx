@@ -41,7 +41,7 @@ export const useUpload = () => {
 export const UploadProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const [uploads, setUploads] = useState<UploadItem[]>([]);
     const [isExpanded, setIsExpanded] = useState(false);
-    const { tokens } = useAuth();
+    const { isAuthenticated } = useAuth();
     const { strings } = useI18n();
     const isProcessingRef = useRef<Set<string>>(new Set());
 
@@ -79,7 +79,7 @@ export const UploadProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             }
 
             // 2. Upload
-            if (!tokens || !item.workspaceId) {
+            if (!isAuthenticated || !item.workspaceId) {
                 throw new Error('Authentication lost or workspace not specified');
             }
 
@@ -96,7 +96,7 @@ export const UploadProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                 });
             }, 200);
 
-            const createdDoc = await createDocument(item.workspaceId, tokens.accessToken, {
+            const createdDoc = await createDocument(item.workspaceId, {
                 folderId: item.targetFolderId,
                 title,
                 initialRevision: { content }
@@ -120,7 +120,7 @@ export const UploadProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         } finally {
             isProcessingRef.current.delete(item.id);
         }
-    }, [tokens, strings, updateUpload]);
+    }, [isAuthenticated, strings, updateUpload]);
 
     // Watch for pending uploads and process them
     useEffect(() => {

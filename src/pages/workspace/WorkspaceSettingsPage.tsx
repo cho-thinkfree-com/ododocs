@@ -7,7 +7,7 @@ import { useI18n } from '../../lib/i18n';
 
 const WorkspaceSettingsPage = () => {
   const { workspaceId } = useParams<{ workspaceId: string }>();
-  const { tokens } = useAuth();
+  const { isAuthenticated } = useAuth();
   const { strings } = useI18n();
   const [workspace, setWorkspace] = useState<WorkspaceSummary | null>(null);
   const [membership, setMembership] = useState<MembershipSummary | null>(null);
@@ -24,11 +24,11 @@ const WorkspaceSettingsPage = () => {
   );
 
   useEffect(() => {
-    if (tokens && workspaceId) {
+    if (isAuthenticated && workspaceId) {
       setLoading(true);
       Promise.all([
-        getWorkspace(workspaceId, tokens.accessToken),
-        getWorkspaceMemberProfile(workspaceId, tokens.accessToken),
+        getWorkspace(workspaceId),
+        getWorkspaceMemberProfile(workspaceId),
       ])
         .then(([currentWorkspace, member]) => {
           setWorkspace(currentWorkspace);
@@ -43,10 +43,10 @@ const WorkspaceSettingsPage = () => {
           setLoading(false);
         });
     }
-  }, [tokens, workspaceId]);
+  }, [isAuthenticated, workspaceId]);
 
   const handleSave = async () => {
-    if (!tokens || !workspaceId) {
+    if (!isAuthenticated || !workspaceId) {
       return;
     }
     setIsSaving(true);
@@ -54,7 +54,7 @@ const WorkspaceSettingsPage = () => {
     setSaveSuccess(false);
 
     try {
-      await updateWorkspace(workspaceId, tokens.accessToken, { name, description });
+      await updateWorkspace(workspaceId, { name, description });
       setSaveSuccess(true);
     } catch (err) {
       setError((err as Error).message);

@@ -6,7 +6,7 @@ import { getWorkspaceMemberProfile } from '../../lib/api';
 
 const WorkspaceLanguageSync = () => {
     const { workspaceId } = useParams<{ workspaceId: string }>();
-    const { tokens } = useAuth();
+    const { isAuthenticated } = useAuth();
     const { setLocale } = useI18n();
     const location = useLocation();
 
@@ -24,9 +24,9 @@ const WorkspaceLanguageSync = () => {
         }
 
         const syncLanguage = async () => {
-            if (tokens) {
+            if (isAuthenticated) {
                 try {
-                    const profile = await getWorkspaceMemberProfile(workspaceId, tokens.accessToken);
+                    const profile = await getWorkspaceMemberProfile(workspaceId);
                     if (profile.preferredLocale) {
                         setLocale(profile.preferredLocale as Locale);
                     }
@@ -37,7 +37,7 @@ const WorkspaceLanguageSync = () => {
         };
 
         syncLanguage();
-    }, [workspaceId, tokens, setLocale, location.pathname]);
+    }, [workspaceId, isAuthenticated, setLocale, location.pathname]);
 
     return null;
 };

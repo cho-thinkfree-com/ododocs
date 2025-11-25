@@ -29,7 +29,7 @@ const WorkspacePage = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const folderId = searchParams.get('folderId');
-  const { tokens } = useAuth();
+  const { isAuthenticated } = useAuth();
   const { uploadFiles } = useUpload();
   const [workspace, setWorkspace] = useState<WorkspaceSummary | null>(null);
   const { strings } = useI18n();
@@ -66,17 +66,17 @@ const WorkspacePage = () => {
   const [dragTargetFolderId, setDragTargetFolderId] = useState<string | null>(null);
 
   const fetchContents = useCallback(() => {
-    if (tokens && workspaceId) {
+    if (isAuthenticated && workspaceId) {
       setLoading(true);
 
       const folderDetailsPromise = folderId
-        ? getFolder(folderId, tokens.accessToken)
+        ? getFolder(folderId)
         : Promise.resolve(null);
 
       Promise.all([
-        getWorkspace(workspaceId, tokens.accessToken),
+        getWorkspace(workspaceId),
         folderDetailsPromise,
-        getWorkspaceDocuments(workspaceId, tokens.accessToken, { folderId: folderId ?? undefined }),
+        getWorkspaceDocuments(workspaceId, { folderId: folderId ?? undefined }),
       ])
         .then(([workspaceData, folderResponse, contents]) => {
           setWorkspace(workspaceData);
@@ -110,7 +110,7 @@ const WorkspacePage = () => {
           setLoading(false);
         });
     }
-  }, [tokens, workspaceId, folderId]);
+  }, [isAuthenticated, workspaceId, folderId]);
 
   useEffect(() => {
     fetchContents();
@@ -144,10 +144,10 @@ const WorkspacePage = () => {
   }, [workspaceId, folderId, fetchContents]));
 
   const handleCreateFolder = async (name: string) => {
-    if (!tokens || !workspaceId) {
+    if (!isAuthenticated || !workspaceId) {
       throw new Error('Not authenticated or workspace not found');
     }
-    await createFolder(workspaceId, tokens.accessToken, { name, parentId: folderId ?? undefined });
+    await createFolder(workspaceId, { name, parentId: folderId ?? undefined });
     fetchContents();
 
     // Broadcast folder creation
@@ -160,12 +160,12 @@ const WorkspacePage = () => {
   };
 
   const handleCreateDocument = async () => {
-    if (!tokens || !workspaceId) {
+    if (!isAuthenticated || !workspaceId) {
       throw new Error('Not authenticated or workspace not found');
     }
     try {
       setLoading(true);
-      const newDoc = await createDocument(workspaceId, tokens.accessToken, {
+      const newDoc = await createDocument(workspaceId, {
         folderId: folderId ?? undefined,
         title: strings.editor.title.placeholder,
       });
@@ -241,14 +241,14 @@ const WorkspacePage = () => {
   };
 
   const handleDeleteClick = async () => {
-    if (!tokens || !selectedItem || !workspaceId) return;
+    if (!isAuthenticated || !selectedItem || !workspaceId) return;
     handleMenuClose();
 
     try {
       const itemName = selectedItem.type === 'document' ? selectedItem.title : selectedItem.name;
 
       if (selectedItem.type === 'document') {
-        await deleteDocument(selectedItem.id, tokens.accessToken);
+        await deleteDocument(selectedItem.id);
 
         // Broadcast document deletion
         broadcastSync({
@@ -258,7 +258,7 @@ const WorkspacePage = () => {
           documentId: selectedItem.id
         });
       } else {
-        await deleteFolder(selectedItem.id, tokens.accessToken);
+        await deleteFolder(selectedItem.id);
       }
 
       setSnackbarMessage(`"${itemName}" moved to trash`);
@@ -277,12 +277,12 @@ const WorkspacePage = () => {
   };
 
   const handleDownloadClick = async () => {
-    if (!tokens || !selectedItem || selectedItem.type !== 'document') return;
+    if (!isAuthenticated || !selectedItem || selectedItem.type !== 'document') return;
     handleMenuClose();
 
     try {
       setLoading(true);
-      await downloadDocument(selectedItem.id, tokens.accessToken);
+      await downloadDocument(selectedItem.id);
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -294,12 +294,12 @@ const WorkspacePage = () => {
 
 
   const handleRename = async (newName: string) => {
-    if (!tokens || !selectedItem || !workspaceId) return;
+    if (!isAuthenticated || !selectedItem || !workspaceId) return;
     try {
       if (selectedItem.type === 'document') {
-        await renameDocument(selectedItem.id, tokens.accessToken, { title: newName });
+        await renameDocument(selectedItem.id, { title: newName });
       } else {
-        await renameFolder(selectedItem.id, tokens.accessToken, { name: newName });
+        await renameFolder(selectedItem.id, { name: newName });
 
         // Broadcast folder rename
         broadcastSync({
