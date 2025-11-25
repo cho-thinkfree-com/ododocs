@@ -1,4 +1,4 @@
-import { Alert, Box, Breadcrumbs, CircularProgress, Container, Link, Typography, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Chip } from '@mui/material';
+import { Alert, Box, Breadcrumbs, CircularProgress, Container, Link, Typography, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Chip, Snackbar } from '@mui/material';
 import { useEffect, useState } from 'react';
 import { useParams, Link as RouterLink } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
@@ -9,13 +9,22 @@ import ArticleIcon from '@mui/icons-material/Article';
 import NavigateNextIcon from '@mui/icons-material/NavigateNext';
 import { usePageTitle } from '../../hooks/usePageTitle';
 import { useI18n } from '../../lib/i18n';
+import SelectionToolbar from '../../components/workspace/SelectionToolbar';
+import { useNavigate } from 'react-router-dom';
 
 const RecentDocumentsPage = () => {
     const { workspaceId } = useParams<{ workspaceId: string }>();
     const { isAuthenticated } = useAuth();
+    const navigate = useNavigate();
     const [documents, setDocuments] = useState<DocumentSummary[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [snackbarOpen, setSnackbarOpen] = useState(false);
+    const [snackbarMessage, setSnackbarMessage] = useState('');
+
+    // Multi-select state
+    const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
+    const [lastSelectedId, setLastSelectedId] = useState<string | null>(null);
     const { strings } = useI18n();
 
     usePageTitle('최근 문서함');
@@ -27,6 +36,84 @@ const RecentDocumentsPage = () => {
         const i = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
         const value = bytes / Math.pow(1024, i);
         return `${value < 10 ? value.toFixed(1) : Math.round(value)} ${units[i]}`;
+    };
+
+    const handleRowClick = (itemId: string, event: React.MouseEvent) => {
+        const target = event.target as HTMLElement;
+        if (target.closest('a, button, input')) {
+            return;
+        }
+
+        if (event.shiftKey) {
+            event.preventDefault();
+        }
+
+        const newSelected = new Set(selectedItems);
+
+        if (event.shiftKey && lastSelectedId) {
+            const allIds = documents.map(d => d.id);
+            const lastIndex = allIds.indexOf(lastSelectedId);
+            const currentIndex = allIds.indexOf(itemId);
+            
+            if (lastIndex !== -1 && currentIndex !== -1) {
+                const start = Math.min(lastIndex, currentIndex);
+                const end = Math.max(lastIndex, currentIndex);
+                
+                for (let i = start; i <= end; i++) {
+                    newSelected.add(allIds[i]);
+                }
+            }
+        } else if (event.ctrlKey || event.metaKey) {
+            if (newSelected.has(itemId)) {
+                newSelected.delete(itemId);
+            } else {
+                newSelected.add(itemId);
+            }
+        } else {
+            newSelected.clear();
+            newSelected.add(itemId);
+        }
+
+        setSelectedItems(newSelected);
+        setLastSelectedId(itemId);
+    };
+
+    const handleRowDoubleClick = (itemId: string) => {
+        setSelectedItems(new Set());
+        window.open(`/document/${itemId}`, '_blank');
+    };
+
+    const handleClearSelection = () => {
+        setSelectedItems(new Set());
+    };
+
+    const handleStar = () => {
+        console.log('Star functionality to be implemented');
+    };
+
+    const handlePublish = async () => {
+        const selectedDocs = documents.filter(d => selectedItems.has(d.id));
+        
+        if (selectedDocs.length === 0) {
+            return;
+        }
+
+        const links = selectedDocs.map(doc => {
+            const url = `${window.location.origin}/document/${doc.id}`;
+            return `[${doc.title}](${url})`;
+        }).join('\n');
+
+        try {
+            await navigator.clipboard.writeText(links);
+            setSnackbarMessage(`Copied ${selectedDocs.length} link(s) to clipboard`);
+            setSnackbarOpen(true);
+        } catch (err) {
+            console.error('Failed to copy to clipboard');
+        }
+    };
+
+    const handleDelete = () => {
+        // Delete is disabled for recent documents
     };
 
     useEffect(() => {
@@ -72,12 +159,19 @@ const RecentDocumentsPage = () => {
                     </TableHead>
                     <TableBody>
                         {documents.map((doc) => (
-                            <TableRow key={doc.id} hover>
+                            <TableRow 
+                                key={doc.id} 
+                                hover
+                                selected={selectedItems.has(doc.id)}
+                                onClick={(e) => handleRowClick(doc.id, e)}
+                                onDoubleClick={() => handleRowDoubleClick(doc.id)}
+                                sx={{ cursor: 'pointer', userSelect: 'none' }}
+                            >
                                 <TableCell>
-                                    <Link component={RouterLink} to={`/document/${doc.id}`} target="_blank" sx={{ display: 'flex', alignItems: 'center', textDecoration: 'none', color: 'inherit' }}>
+                                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
                                         <ArticleIcon color="action" sx={{ mr: 1.5 }} />
                                         {doc.title}
-                                    </Link>
+                                    </Box>
                                 </TableCell>
                                 <TableCell>
                                     <Typography variant="body2" color="text.secondary">{formatBytes(doc.contentSize)}</Typography>
@@ -114,8 +208,24 @@ const RecentDocumentsPage = () => {
                 <Typography variant="h5" fontWeight="bold" gutterBottom sx={{ mb: 3 }}>
                     최근 문서함
                 </Typography>
+                <SelectionToolbar
+                    selectedCount={selectedItems.size}
+                    hasDocuments={true}
+                    onDelete={handleDelete}
+                    onClearSelection={handleClearSelection}
+                    onStar={handleStar}
+                    onPublish={handlePublish}
+                    showDelete={false}
+                />
                 {renderDocuments()}
             </Box>
+
+            <Snackbar
+                open={snackbarOpen}
+                autoHideDuration={3000}
+                onClose={() => setSnackbarOpen(false)}
+                message={snackbarMessage}
+            />
         </Container>
     );
 };

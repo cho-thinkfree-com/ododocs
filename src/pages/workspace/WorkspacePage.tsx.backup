@@ -1,4 +1,4 @@
-import { Alert, Box, Breadcrumbs, Button, CircularProgress, Container, Link, Typography, Menu, MenuItem, IconButton, Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Chip, useTheme, Snackbar, Checkbox } from '@mui/material';
+import { Alert, Box, Breadcrumbs, Button, CircularProgress, Container, Link, Typography, Menu, MenuItem, IconButton, Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Chip, useTheme, Snackbar } from '@mui/material';
 import { useCallback, useEffect, useState, useMemo, useRef } from 'react';
 import { useParams, useSearchParams, Link as RouterLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
@@ -13,13 +13,10 @@ import AddIcon from '@mui/icons-material/Add';
 import UploadFileIcon from '@mui/icons-material/UploadFile';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
 import NavigateNextIcon from '@mui/icons-material/NavigateNext';
-import StarBorderIcon from '@mui/icons-material/StarBorder';
-import PublicIcon from '@mui/icons-material/Public';
 
 import CreateFolderDialog from '../../components/workspace/CreateFolderDialog';
 import RenameDialog from '../../components/workspace/RenameDialog';
 import ShareDialog from '../../components/editor/ShareDialog';
-import SelectionToolbar from '../../components/workspace/SelectionToolbar';
 
 import { usePageTitle } from '../../hooks/usePageTitle';
 import { broadcastSync } from '../../lib/syncEvents';
@@ -61,10 +58,6 @@ const WorkspacePage = () => {
   const [shareDialogOpen, setShareDialogOpen] = useState(false);
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
-
-  // Multi-select state
-  const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
-  const [lastSelectedId, setLastSelectedId] = useState<string | null>(null);
 
   const breadcrumbContainerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -245,192 +238,6 @@ const WorkspacePage = () => {
   const handleShareClick = () => {
     setShareDialogOpen(true);
     handleMenuClose();
-  };
-
-  const handleStar = () => {
-    // Placeholder for future implementation
-    console.log('Star functionality to be implemented');
-  };
-
-  const handlePublish = async () => {
-    const selectedDocs = documents.filter(d => selectedItems.has(d.id));
-
-    if (selectedDocs.length === 0) {
-      return;
-    }
-
-    // Copy document links to clipboard
-    const links = selectedDocs.map(doc => {
-      const url = `${window.location.origin}/document/${doc.id}`;
-      return `[${doc.title}](${url})`;
-    }).join('\n');
-
-    try {
-      await navigator.clipboard.writeText(links);
-      setSnackbarMessage(`Copied ${selectedDocs.length} link(s) to clipboard`);
-      setSnackbarOpen(true);
-    } catch (err) {
-      setError('Failed to copy to clipboard');
-    }
-  };
-
-  const handleToggleItem = (itemId: string, event?: React.MouseEvent) => {
-    if (event) {
-      event.stopPropagation();
-    }
-
-    const newSelected = new Set(selectedItems);
-    if (newSelected.has(itemId)) {
-      newSelected.delete(itemId);
-    } else {
-      newSelected.add(itemId);
-    }
-    setSelectedItems(newSelected);
-    setLastSelectedId(itemId);
-  };
-
-  const handleSelectAll = () => {
-    const allIds = [
-      ...folders.map(f => f.id),
-      ...documents.map(d => d.id)
-    ];
-
-    if (selectedItems.size === allIds.length && allIds.length > 0) {
-      setSelectedItems(new Set());
-    } else {
-      setSelectedItems(new Set(allIds));
-    }
-  };
-
-  const handleClearSelection = () => {
-    setSelectedItems(new Set());
-  };
-
-  const handleRowClick = (itemId: string, event: React.MouseEvent) => {
-    // Ignore clicks on links, buttons, and checkboxes
-    const target = event.target as HTMLElement;
-    if (target.closest('a, button, input')) {
-      return;
-    }
-
-    // Prevent text selection when using Shift+click for range selection
-    if (event.shiftKey) {
-      event.preventDefault();
-    }
-
-    const newSelected = new Set(selectedItems);
-
-    if (event.shiftKey && lastSelectedId) {
-      // Shift+click: Range selection
-      const allIds = [...folders.map(f => f.id), ...documents.map(d => d.id)];
-      const lastIndex = allIds.indexOf(lastSelectedId);
-      const currentIndex = allIds.indexOf(itemId);
-
-      if (lastIndex !== -1 && currentIndex !== -1) {
-        const start = Math.min(lastIndex, currentIndex);
-        const end = Math.max(lastIndex, currentIndex);
-
-        for (let i = start; i <= end; i++) {
-          newSelected.add(allIds[i]);
-        }
-      }
-    } else if (event.ctrlKey || event.metaKey) {
-      // Ctrl/Cmd+click: Toggle selection
-      if (newSelected.has(itemId)) {
-        newSelected.delete(itemId);
-      } else {
-        newSelected.add(itemId);
-      }
-    } else {
-      // Regular click: Select only this item
-      newSelected.clear();
-      newSelected.add(itemId);
-    }
-
-    setSelectedItems(newSelected);
-    setLastSelectedId(itemId);
-  };
-
-  const handleRowDoubleClick = (itemId: string, itemType: 'document' | 'folder') => {
-    // Clear selection when opening
-    setSelectedItems(new Set());
-
-    if (itemType === 'document') {
-      window.open(`/document/${itemId}`, '_blank');
-    } else {
-      navigate(`?folderId=${itemId}`);
-    }
-  };
-
-  const handleBulkDelete = async () => {
-    if (!isAuthenticated || !workspaceId) return;
-
-    const itemsToDelete = Array.from(selectedItems);
-    const errors: string[] = [];
-
-    try {
-      await Promise.all(
-        itemsToDelete.map(async (itemId) => {
-          const isDocument = documents.some(d => d.id === itemId);
-          try {
-            if (isDocument) {
-              await deleteDocument(itemId);
-              broadcastSync({
-                type: 'document-deleted',
-                workspaceId,
-                folderId: folderId ?? null,
-                documentId: itemId
-              });
-            } else {
-              await deleteFolder(itemId);
-            }
-          } catch (err) {
-            errors.push(itemId);
-            console.error(`Failed to delete item ${itemId}:`, err);
-          }
-        })
-      );
-
-      const successCount = itemsToDelete.length - errors.length;
-      setSnackbarMessage(`${successCount} item(s) moved to trash`);
-      setSnackbarOpen(true);
-      fetchContents();
-      setSelectedItems(new Set());
-
-      if (errors.length > 0) {
-        setError(`Failed to delete ${errors.length} item(s)`);
-      }
-    } catch (err) {
-      setError((err as Error).message);
-    }
-  };
-
-  // Keyboard shortcuts
-  const handleKeyDown = (event: React.KeyboardEvent) => {
-    // Only handle if exactly one item is selected
-    if (selectedItems.size !== 1) return;
-
-    const selectedId = Array.from(selectedItems)[0];
-    const selectedDoc = documents.find(d => d.id === selectedId);
-    const selectedFolder = folders.find(f => f.id === selectedId);
-    const itemName = selectedDoc?.title || selectedFolder?.name || '';
-    const itemType = selectedDoc ? 'document' : 'folder';
-
-    if (event.key === 'F2') {
-      // F2: Rename
-      event.preventDefault();
-      setSelectedItem({
-        id: selectedId,
-        name: itemName,
-        type: itemType,
-        title: selectedDoc?.title
-      });
-      setRenameDialogOpen(true);
-    } else if (event.key === 'Delete') {
-      // Delete: Delete selected item
-      event.preventDefault();
-      handleBulkDelete();
-    }
   };
 
   const handleDeleteClick = async () => {
@@ -625,14 +432,6 @@ const WorkspacePage = () => {
     return { breadcrumbPaths: paths, hiddenBreadcrumbItems: [] };
   }, [ancestors, currentFolder, workspaceId, containerWidth]);
 
-  const totalItems = folders.length + documents.length;
-  const isAllSelected = selectedItems.size === totalItems && totalItems > 0;
-  const isIndeterminate = selectedItems.size > 0 && selectedItems.size < totalItems;
-  const selectedItemsData = {
-    hasDocuments: Array.from(selectedItems).some(id => documents.some(d => d.id === id)),
-    hasFolders: Array.from(selectedItems).some(id => folders.some(f => f.id === id)),
-  };
-
   const renderFilesAndFolders = () => {
     if (loading) return <CircularProgress />;
     if (error) return <Alert severity="error">{error}</Alert>;
@@ -667,9 +466,6 @@ const WorkspacePage = () => {
               <TableRow
                 key={folder.id}
                 hover
-                selected={selectedItems.has(folder.id)}
-                onClick={(e) => handleRowClick(folder.id, e)}
-                onDoubleClick={() => handleRowDoubleClick(folder.id, 'folder')}
                 onDragOver={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
@@ -693,17 +489,15 @@ const WorkspacePage = () => {
                   }
                 }}
                 sx={{
-                  cursor: 'pointer',
-                  userSelect: 'none',
                   bgcolor: dragTargetFolderId === folder.id ? 'action.hover' : 'inherit',
                   border: dragTargetFolderId === folder.id ? `2px dashed ${theme.palette.primary.main}` : undefined
                 }}
               >
                 <TableCell>
-                  <Box sx={{ display: 'flex', alignItems: 'center', fontWeight: 500 }}>
+                  <Link component={RouterLink} to={`?folderId=${folder.id}`} sx={{ display: 'flex', alignItems: 'center', textDecoration: 'none', color: 'inherit', fontWeight: 500 }}>
                     <FolderIcon color="primary" sx={{ mr: 1.5, opacity: 0.8 }} />
                     {folder.name}
-                  </Box>
+                  </Link>
                 </TableCell>
                 <TableCell />
                 <TableCell>
@@ -718,19 +512,12 @@ const WorkspacePage = () => {
               </TableRow>
             ))}
             {documents.map((doc) => (
-              <TableRow
-                key={doc.id}
-                hover
-                selected={selectedItems.has(doc.id)}
-                onClick={(e) => handleRowClick(doc.id, e)}
-                onDoubleClick={() => handleRowDoubleClick(doc.id, 'document')}
-                sx={{ cursor: 'pointer', userSelect: 'none' }}
-              >
+              <TableRow key={doc.id} hover>
                 <TableCell>
-                  <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                  <Link component={RouterLink} to={`/document/${doc.id}`} target="_blank" sx={{ display: 'flex', alignItems: 'center', textDecoration: 'none', color: 'inherit' }}>
                     <ArticleIcon color="action" sx={{ mr: 1.5 }} />
                     {doc.title}
-                  </Box>
+                  </Link>
                 </TableCell>
                 <TableCell>
                   <Typography variant="body2" color="text.secondary">{formatBytes(doc.contentSize)}</Typography>
@@ -760,8 +547,6 @@ const WorkspacePage = () => {
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
-      onKeyDown={handleKeyDown}
-      tabIndex={0}
       sx={{
         minHeight: 'calc(100vh - 64px)',
         position: 'relative',
@@ -890,14 +675,6 @@ const WorkspacePage = () => {
         <Typography variant="h5" fontWeight="bold" gutterBottom sx={{ mb: 3 }}>
           {strings.workspace.filesTitle}
         </Typography>
-        <SelectionToolbar
-          selectedCount={selectedItems.size}
-          hasDocuments={selectedItemsData.hasDocuments}
-          onDelete={handleBulkDelete}
-          onClearSelection={handleClearSelection}
-          onStar={handleStar}
-          onPublish={handlePublish}
-        />
         {renderFilesAndFolders()}
       </Box>
 
