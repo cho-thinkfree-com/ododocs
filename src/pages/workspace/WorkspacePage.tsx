@@ -1,4 +1,4 @@
-import { Alert, Box, Breadcrumbs, Button, CircularProgress, Container, Link, Typography, Menu, MenuItem, IconButton, Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Chip, useTheme } from '@mui/material';
+import { Alert, Box, Breadcrumbs, Button, CircularProgress, Container, Link, Typography, Menu, MenuItem, IconButton, Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Chip, useTheme, Snackbar } from '@mui/material';
 import { useCallback, useEffect, useState, useMemo, useRef } from 'react';
 import { useParams, useSearchParams, Link as RouterLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
@@ -53,10 +53,11 @@ const WorkspacePage = () => {
   const [isCreateFolderDialogOpen, setCreateFolderDialogOpen] = useState(false);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [anchorElBreadcrumb, setAnchorElBreadcrumb] = useState<null | HTMLElement>(null);
-  const [selectedItem, setSelectedItem] = useState<{ id: string; name: string; type: 'document' | 'folder' } | null>(null);
-  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [selectedItem, setSelectedItem] = useState<{ id: string; name: string; type: 'document' | 'folder'; title?: string } | null>(null);
   const [renameDialogOpen, setRenameDialogOpen] = useState(false);
   const [shareDialogOpen, setShareDialogOpen] = useState(false);
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState('');
 
   const breadcrumbContainerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -239,9 +240,35 @@ const WorkspacePage = () => {
     handleMenuClose();
   };
 
-  const handleDeleteClick = () => {
-    setDeleteConfirmOpen(true);
+  const handleDeleteClick = async () => {
+    if (!tokens || !selectedItem || !workspaceId) return;
     handleMenuClose();
+
+    try {
+      const itemName = selectedItem.type === 'document' ? selectedItem.title : selectedItem.name;
+
+      if (selectedItem.type === 'document') {
+        await deleteDocument(selectedItem.id, tokens.accessToken);
+
+        // Broadcast document deletion
+        broadcastSync({
+          type: 'document-deleted',
+          workspaceId,
+          folderId: folderId ?? null,
+          documentId: selectedItem.id
+        });
+      } else {
+        await deleteFolder(selectedItem.id, tokens.accessToken);
+      }
+
+      setSnackbarMessage(`"${itemName}" moved to trash`);
+      setSnackbarOpen(true);
+      fetchContents();
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setSelectedItem(null);
+    }
   };
 
   const handleRenameClick = () => {
@@ -701,28 +728,6 @@ const WorkspacePage = () => {
         <MenuItem onClick={handleDeleteClick} sx={{ color: 'error.main' }}>{strings.workspace.delete}</MenuItem>
       </Menu>
 
-      <Dialog
-        open={deleteConfirmOpen}
-        onClose={() => {
-          setDeleteConfirmOpen(false);
-          setSelectedItem(null);
-        }}
-      >
-        <DialogTitle>{strings.workspace.confirmDeletionTitle}</DialogTitle>
-        <DialogContent>
-          <DialogContentText>
-            {strings.workspace.confirmDeletionBody.replace('{name}', selectedItem?.name ?? '')}
-          </DialogContentText>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => {
-            setDeleteConfirmOpen(false);
-            setSelectedItem(null);
-          }}>{strings.workspace.cancel}</Button>
-          <Button onClick={handleDeleteConfirm} color="error" variant="contained">{strings.workspace.delete}</Button>
-        </DialogActions>
-      </Dialog>
-
       <RenameDialog
         open={renameDialogOpen}
         onClose={() => {
@@ -744,6 +749,17 @@ const WorkspacePage = () => {
           documentId={selectedItem.id}
         />
       )}
+
+      <Snackbar
+        open={snackbarOpen}
+        autoHideDuration={3000}
+        onClose={() => setSnackbarOpen(false)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert onClose={() => setSnackbarOpen(false)} severity="info" sx={{ width: '100%' }}>
+          {snackbarMessage}
+        </Alert>
+      </Snackbar>
     </Container >
   );
 };
