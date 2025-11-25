@@ -106,6 +106,7 @@ export default function TrashPage() {
             await loadTrash()
         } catch (err) {
             console.error('Failed to restore:', err)
+            alert('Failed to restore item. Please try again.')
         }
     }
 
@@ -128,6 +129,7 @@ export default function TrashPage() {
             await loadTrash()
         } catch (err) {
             console.error('Failed to delete:', err)
+            alert('Failed to permanently delete item. Please try again.')
         }
     }
 
