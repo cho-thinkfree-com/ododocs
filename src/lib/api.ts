@@ -319,6 +319,9 @@ export const deleteFolder = (folderId: string) =>
 export const renameFolder = (folderId: string, body: { name: string }) =>
   requestJSON<FolderSummary>(`/api/folders/${folderId}`, { method: 'PATCH', body })
 
+export const moveFolder = (folderId: string, body: { parentId: string | null }) =>
+  requestJSON<FolderSummary>(`/api/folders/${folderId}/move`, { method: 'PUT', body })
+
 export const getFolder = (folderId: string) =>
   requestJSON<{ folder: FolderSummary; ancestors: FolderSummary[] }>(`/api/folders/${folderId}`)
 

@@ -3,7 +3,7 @@ import { useCallback, useEffect, useState, useMemo, useRef } from 'react';
 import { useParams, useSearchParams, Link as RouterLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useUpload } from '../../context/UploadContext';
-import { getWorkspaceDocuments, getFolder, createFolder, createDocument, deleteDocument, deleteFolder, renameDocument, renameFolder, getWorkspace, ApiError, type DocumentSummary, type FolderSummary, type WorkspaceSummary, downloadDocument } from '../../lib/api';
+import { getWorkspaceDocuments, getFolder, createFolder, createDocument, deleteDocument, deleteFolder, renameDocument, renameFolder, getWorkspace, ApiError, type DocumentSummary, type FolderSummary, type WorkspaceSummary, downloadDocument, moveFolder, updateDocument } from '../../lib/api';
 import { formatRelativeDate } from '../../lib/formatDate';
 import HomeIcon from '@mui/icons-material/Home';
 
@@ -75,6 +75,8 @@ const WorkspacePage = () => {
   const [containerWidth, setContainerWidth] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const [dragTargetFolderId, setDragTargetFolderId] = useState<string | null>(null);
+  const [draggedItems, setDraggedItems] = useState<Set<string>>(new Set());
+  const [dragOverBreadcrumbIndex, setDragOverBreadcrumbIndex] = useState<number | null>(null);
 
   const fetchContents = useCallback(() => {
     if (isAuthenticated && workspaceId) {
@@ -527,6 +529,232 @@ const WorkspacePage = () => {
     }
   };
 
+  // Drag and drop handlers for moving items
+  const handleItemDragStart = (e: React.DragEvent, itemId: string, itemType: 'document' | 'folder') => {
+    // If the dragged item is not in the selection, select only it
+    const itemsToDrag = selectedItems.has(itemId) ? selectedItems : new Set([itemId]);
+    setDraggedItems(itemsToDrag);
+
+    // Set drag data
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('application/x-workspace-items', JSON.stringify({
+      itemIds: Array.from(itemsToDrag),
+      sourceFolder: folderId ?? null
+    }));
+
+    // Create custom drag image showing count
+    const dragImage = document.createElement('div');
+    dragImage.style.position = 'absolute';
+    dragImage.style.top = '-1000px';
+    dragImage.style.padding = '8px 12px';
+    dragImage.style.backgroundColor = theme.palette.primary.main;
+    dragImage.style.color = 'white';
+    dragImage.style.borderRadius = '4px';
+    dragImage.style.fontSize = '14px';
+    dragImage.style.fontWeight = 'bold';
+    dragImage.textContent = itemsToDrag.size === 1 ? '1 item' : `${itemsToDrag.size} items`;
+    document.body.appendChild(dragImage);
+    e.dataTransfer.setDragImage(dragImage, 0, 0);
+    setTimeout(() => document.body.removeChild(dragImage), 0);
+  };
+
+  const handleItemDragEnd = () => {
+    setDraggedItems(new Set());
+    setDragTargetFolderId(null);
+    setDragOverBreadcrumbIndex(null);
+  };
+
+  const isValidDropTarget = (targetFolderId: string | null, draggedItemIds: Set<string>): boolean => {
+    // Can't drop into current location
+    if (targetFolderId === (folderId ?? null)) {
+      return false;
+    }
+
+    // Check if any dragged item is a folder that would create a circular reference
+    for (const itemId of draggedItemIds) {
+      const draggedFolder = folders.find(f => f.id === itemId);
+      if (draggedFolder) {
+        // Can't drop folder into itself
+        if (itemId === targetFolderId) {
+          return false;
+        }
+
+        // Can't drop folder into its own descendant
+        if (targetFolderId) {
+          const targetFolder = folders.find(f => f.id === targetFolderId);
+          if (targetFolder && targetFolder.pathCache.includes(itemId)) {
+            return false;
+          }
+        }
+      }
+    }
+
+    return true;
+  };
+
+  const handleFolderDragOver = (e: React.DragEvent, targetFolderId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const data = e.dataTransfer.types.includes('application/x-workspace-items');
+    if (!data) return; // Only handle workspace items, not file uploads
+
+    if (isValidDropTarget(targetFolderId, draggedItems)) {
+      e.dataTransfer.dropEffect = 'move';
+      setDragTargetFolderId(targetFolderId);
+    } else {
+      e.dataTransfer.dropEffect = 'none';
+    }
+  };
+
+  const handleFolderDragLeave = (e: React.DragEvent, targetFolderId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (dragTargetFolderId === targetFolderId) {
+      setDragTargetFolderId(null);
+    }
+  };
+
+  const handleFolderDrop = async (e: React.DragEvent, targetFolderId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const data = e.dataTransfer.getData('application/x-workspace-items');
+    if (!data) {
+      // Handle file upload
+      const files = e.dataTransfer.files;
+      if (files && files.length > 0 && workspaceId) {
+        uploadFiles(Array.from(files), workspaceId, targetFolderId);
+      }
+      setDragTargetFolderId(null);
+      return;
+    }
+
+    try {
+      const { itemIds } = JSON.parse(data);
+      const itemsToMove = new Set(itemIds);
+
+      if (!isValidDropTarget(targetFolderId, itemsToMove)) {
+        setDragTargetFolderId(null);
+        return;
+      }
+
+      // Move all items
+      const errors: string[] = [];
+      await Promise.all(
+        Array.from(itemsToMove).map(async (itemId) => {
+          try {
+            const isDocument = documents.some(d => d.id === itemId);
+            if (isDocument) {
+              await updateDocument(itemId, { folderId: targetFolderId });
+            } else {
+              await moveFolder(itemId, { parentId: targetFolderId });
+            }
+          } catch (err) {
+            errors.push(itemId);
+            console.error(`Failed to move item ${itemId}:`, err);
+          }
+        })
+      );
+
+      const successCount = itemsToMove.size - errors.length;
+      if (successCount > 0) {
+        setSnackbarMessage(`${successCount} item(s) moved successfully`);
+        setSnackbarOpen(true);
+        fetchContents();
+        setSelectedItems(new Set());
+      }
+
+      if (errors.length > 0) {
+        setError(`Failed to move ${errors.length} item(s)`);
+      }
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setDragTargetFolderId(null);
+      setDraggedItems(new Set());
+    }
+  };
+
+  const handleBreadcrumbDragOver = (e: React.DragEvent, index: number, targetFolderId: string | null) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const data = e.dataTransfer.types.includes('application/x-workspace-items');
+    if (!data) return;
+
+    if (isValidDropTarget(targetFolderId, draggedItems)) {
+      e.dataTransfer.dropEffect = 'move';
+      setDragOverBreadcrumbIndex(index);
+    } else {
+      e.dataTransfer.dropEffect = 'none';
+    }
+  };
+
+  const handleBreadcrumbDragLeave = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (dragOverBreadcrumbIndex === index) {
+      setDragOverBreadcrumbIndex(null);
+    }
+  };
+
+  const handleBreadcrumbDrop = async (e: React.DragEvent, targetFolderId: string | null) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const data = e.dataTransfer.getData('application/x-workspace-items');
+    if (!data) {
+      setDragOverBreadcrumbIndex(null);
+      return;
+    }
+
+    try {
+      const { itemIds } = JSON.parse(data);
+      const itemsToMove = new Set(itemIds);
+
+      if (!isValidDropTarget(targetFolderId, itemsToMove)) {
+        setDragOverBreadcrumbIndex(null);
+        return;
+      }
+
+      // Move all items
+      const errors: string[] = [];
+      await Promise.all(
+        Array.from(itemsToMove).map(async (itemId) => {
+          try {
+            const isDocument = documents.some(d => d.id === itemId);
+            if (isDocument) {
+              await updateDocument(itemId, { folderId: targetFolderId });
+            } else {
+              await moveFolder(itemId, { parentId: targetFolderId });
+            }
+          } catch (err) {
+            errors.push(itemId);
+            console.error(`Failed to move item ${itemId}:`, err);
+          }
+        })
+      );
+
+      const successCount = itemsToMove.size - errors.length;
+      if (successCount > 0) {
+        setSnackbarMessage(`${successCount} item(s) moved successfully`);
+        setSnackbarOpen(true);
+        fetchContents();
+        setSelectedItems(new Set());
+      }
+
+      if (errors.length > 0) {
+        setError(`Failed to move ${errors.length} item(s)`);
+      }
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setDragOverBreadcrumbIndex(null);
+      setDraggedItems(new Set());
+    }
+  };
+
   const truncateName = (name: string, maxLength: number = 17): string => {
     if (name.length <= maxLength) return name;
     const halfLength = Math.floor((maxLength - 3) / 2);
@@ -743,35 +971,20 @@ const WorkspacePage = () => {
                   key={itemId}
                   hover
                   selected={selectedItems.has(itemId)}
+                  draggable
                   onClick={(e) => handleRowClick(itemId, e)}
                   onDoubleClick={() => handleRowDoubleClick(itemId, item.type)}
+                  onDragStart={(e) => handleItemDragStart(e, itemId, item.type)}
+                  onDragEnd={handleItemDragEnd}
                   {...(isFolder ? {
-                    onDragOver: (e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      setDragTargetFolderId(itemId);
-                    },
-                    onDragLeave: (e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      if (dragTargetFolderId === itemId) {
-                        setDragTargetFolderId(null);
-                      }
-                    },
-                    onDrop: async (e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      setIsDragging(false);
-                      setDragTargetFolderId(null);
-                      const files = e.dataTransfer.files;
-                      if (files && files.length > 0 && workspaceId) {
-                        uploadFiles(Array.from(files), workspaceId, itemId);
-                      }
-                    }
+                    onDragOver: (e) => handleFolderDragOver(e, itemId),
+                    onDragLeave: (e) => handleFolderDragLeave(e, itemId),
+                    onDrop: (e) => handleFolderDrop(e, itemId)
                   } : {})}
                   sx={{
-                    cursor: 'pointer',
+                    cursor: draggedItems.has(itemId) ? 'grabbing' : 'pointer',
                     userSelect: 'none',
+                    opacity: draggedItems.has(itemId) ? 0.5 : 1,
                     ...(isFolder && dragTargetFolderId === itemId ? {
                       bgcolor: 'action.hover',
                       border: `2px dashed ${theme.palette.primary.main}`
@@ -916,13 +1129,56 @@ const WorkspacePage = () => {
               );
             }
 
+            // Extract folder ID from path for drop handling
+            const pathMatch = item.path.match(/folderId=([^&]+)/);
+            const breadcrumbFolderId = pathMatch ? pathMatch[1] : null;
+            const isDropTarget = dragOverBreadcrumbIndex === index;
+
             return isLast ? (
-              <Typography color="text.primary" fontWeight="600" key={item.name} sx={{ display: 'flex', alignItems: 'center' }} title={item.fullName}>
+              <Typography
+                color="text.primary"
+                fontWeight="600"
+                key={item.name}
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  padding: '4px 8px',
+                  borderRadius: 1,
+                  ...(isDropTarget ? {
+                    bgcolor: 'action.hover',
+                    border: `2px dashed ${theme.palette.primary.main}`
+                  } : {})
+                }}
+                title={item.fullName}
+                onDragOver={(e) => handleBreadcrumbDragOver(e, index, breadcrumbFolderId)}
+                onDragLeave={(e) => handleBreadcrumbDragLeave(e, index)}
+                onDrop={(e) => handleBreadcrumbDrop(e, breadcrumbFolderId)}
+              >
                 {item.icon}
                 {item.name}
               </Typography>
             ) : (
-              <Link component={RouterLink} underline="hover" color="inherit" to={item.path} key={item.name} sx={{ display: 'flex', alignItems: 'center' }} title={item.fullName}>
+              <Link
+                component={RouterLink}
+                underline="hover"
+                color="inherit"
+                to={item.path}
+                key={item.name}
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  padding: '4px 8px',
+                  borderRadius: 1,
+                  ...(isDropTarget ? {
+                    bgcolor: 'action.hover',
+                    border: `2px dashed ${theme.palette.primary.main}`
+                  } : {})
+                }}
+                title={item.fullName}
+                onDragOver={(e) => handleBreadcrumbDragOver(e, index, breadcrumbFolderId)}
+                onDragLeave={(e) => handleBreadcrumbDragLeave(e, index)}
+                onDrop={(e) => handleBreadcrumbDrop(e, breadcrumbFolderId)}
+              >
                 {item.icon}
                 {item.name}
               </Link>
