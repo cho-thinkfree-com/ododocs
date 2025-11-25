@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "server:dev": "tsx --tsconfig tsconfig.server.json server/src/app.ts"
+    "server:dev": "tsx --tsconfig tsconfig.server.json server/src/app.ts",
+    "server:cleanup-trash": "tsx --tsconfig tsconfig.server.json server/src/scripts/cleanupTrash.ts"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",
