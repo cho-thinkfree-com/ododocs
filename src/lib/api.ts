@@ -495,3 +495,25 @@ export const downloadDocument = async (documentId: string, token: string) => {
   document.body.removeChild(link)
   URL.revokeObjectURL(downloadUrl)
 }
+
+// Trash management
+export const listTrash = async (workspaceId: string, accessToken: string) => {
+  return requestJSON(`/api/workspaces/${workspaceId}/trash`, {
+    method: 'GET',
+    token: accessToken,
+  })
+}
+
+export const restoreDocument = async (documentId: string, accessToken: string) => {
+  return requestJSON(`/api/trash/restore/document/${documentId}`, {
+    method: 'POST',
+    token: accessToken,
+  })
+}
+
+export const permanentlyDeleteDocument = async (documentId: string, accessToken: string) => {
+  return requestJSON(`/api/trash/document/${documentId}`, {
+    method: 'DELETE',
+    token: accessToken,
+  })
+}

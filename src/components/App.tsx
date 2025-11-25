@@ -13,6 +13,7 @@ import GlobalSettingsPage from '../pages/settings/GlobalSettingsPage';
 import WorkspaceProfilePage from '../pages/settings/WorkspaceProfilePage';
 import EditorPage from '../pages/editor/EditorPage';
 import SharedDocumentPage from '../pages/editor/SharedDocumentPage';
+import TrashPage from '../pages/trash/TrashPage';
 
 const ProtectedRoute = () => {
   const { isAuthenticated } = useAuth();
@@ -74,6 +75,7 @@ const AppRoutes = () => {
           <Route path="/workspace/:workspaceId/settings" element={<WorkspaceSettingsPage />} />
           <Route path="/workspace/:workspaceId/profile" element={<WorkspaceProfilePage />} />
           <Route path="/workspace/:workspaceId/members" element={<WorkspaceMembersPage />} />
+          <Route path="/workspace/:workspaceId/trash" element={<TrashPage />} />
         </Route>
         {/* Editor route is outside DashboardLayout to have its own full-screen layout */}
         <Route path="/document/:documentId" element={<EditorPage />} />
