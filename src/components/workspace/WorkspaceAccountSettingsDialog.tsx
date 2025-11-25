@@ -41,6 +41,7 @@ const WorkspaceAccountSettingsDialog = ({ open, onClose, workspaceId }: Workspac
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [successMessage, setSuccessMessage] = useState<string | null>(null);
+    const [profileSaved, setProfileSaved] = useState(false);
 
     // Data
     const [workspace, setWorkspace] = useState<WorkspaceSummary | null>(null);
@@ -55,7 +56,7 @@ const WorkspaceAccountSettingsDialog = ({ open, onClose, workspaceId }: Workspac
     const languageOptions = strings.settings.languageOptions ?? {
         'en-US': 'English (English)',
         'ko-KR': '한국어 (한국어)',
-        'ja-JP': '日本語 (日本語)',
+        'ja-JP': '日本語 (日본語)',
     };
 
     const timezoneOptions = [
@@ -146,6 +147,14 @@ const WorkspaceAccountSettingsDialog = ({ open, onClose, workspaceId }: Workspac
         }
     }, [open, isAuthenticated, workspaceId]);
 
+    // Show success message after locale change
+    useEffect(() => {
+        if (profileSaved) {
+            setSuccessMessage(strings.settings.workspaceProfile?.updateSuccess || 'Profile updated successfully');
+            setProfileSaved(false);
+        }
+    }, [strings, profileSaved]);
+
     const handleSave = async () => {
         if (!isAuthenticated || !workspaceId) return;
         setLoading(true);
@@ -163,16 +172,11 @@ const WorkspaceAccountSettingsDialog = ({ open, onClose, workspaceId }: Workspac
                 preferredLocale: profileLocale
             });
 
-            // Set success message before changing locale so it shows in the new language
-            const successMsg = strings.settings.workspaceProfile?.updateSuccess || 'Profile updated successfully';
-
-            // Apply the new locale immediately after saving so the UI mirrors the selection
+            // Apply the new locale immediately after saving
             setLocale(profileLocale);
 
-            // Use setTimeout to ensure the success message appears after locale change
-            setTimeout(() => {
-                setSuccessMessage(successMsg);
-            }, 100);
+            // Set flag to show success message after locale changes
+            setProfileSaved(true);
         } catch (err) {
             setError((err as Error).message);
         } finally {
