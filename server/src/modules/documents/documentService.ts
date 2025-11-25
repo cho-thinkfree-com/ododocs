@@ -261,7 +261,7 @@ export class DocumentService {
     }
     await this.workspaceAccess.assertMember(accountId, document.workspaceId);
 
-    const originalFolderId = (document as any).originalFolderId;
+    const originalFolderId = document.originalFolderId;
     let targetFolderId: string | null = null;
 
     if (originalFolderId) {

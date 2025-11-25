@@ -21,6 +21,8 @@ export interface DocumentEntity {
   workspaceDefaultAccess: DocumentWorkspaceAccess
   workspaceEditorAdminsOnly: boolean
   deletedAt?: Date | null
+  deletedBy?: string | null
+  originalFolderId?: string | null
   createdAt: Date
   updatedAt: Date
   tags: string[]
@@ -406,6 +408,8 @@ const toEntity = (document: DocumentModel & { revisions?: ({ createdByMembership
     workspaceDefaultAccess: document.workspaceDefaultAccess,
     workspaceEditorAdminsOnly: document.workspaceEditorAdminsOnly,
     deletedAt: document.deletedAt,
+    deletedBy: document.deletedBy,
+    originalFolderId: document.originalFolderId,
     createdAt: document.createdAt,
     updatedAt: document.updatedAt,
     tags: document.tags?.map((tag) => tag.name) ?? [],
