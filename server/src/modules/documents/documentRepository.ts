@@ -165,7 +165,7 @@ export class DocumentRepository {
       where: {
         workspaceId,
         deletedAt: filters.includeDeleted ? undefined : null,
-        ...(filters.folderId !== undefined ? { folderId: filters.folderId } : {}),
+        folderId: filters.folderId ?? null,
         status: filters.status,
         visibility: filters.visibility,
         ...(filters.search
