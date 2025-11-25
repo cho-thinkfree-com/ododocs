@@ -291,30 +291,7 @@ const WorkspacePage = () => {
     }
   };
 
-  const handleDeleteConfirm = async () => {
-    if (!tokens || !selectedItem || !workspaceId) return;
-    try {
-      if (selectedItem.type === 'document') {
-        await deleteDocument(selectedItem.id, tokens.accessToken);
 
-        // Broadcast document deletion
-        broadcastSync({
-          type: 'document-deleted',
-          workspaceId,
-          folderId: folderId ?? null,
-          documentId: selectedItem.id
-        });
-      } else {
-        await deleteFolder(selectedItem.id, tokens.accessToken);
-      }
-      fetchContents();
-    } catch (err) {
-      setError((err as Error).message);
-    } finally {
-      setDeleteConfirmOpen(false);
-      setSelectedItem(null);
-    }
-  };
 
   const handleRename = async (newName: string) => {
     if (!tokens || !selectedItem || !workspaceId) return;
@@ -350,8 +327,8 @@ const WorkspacePage = () => {
   const { breadcrumbPaths, hiddenBreadcrumbItems } = useMemo(() => {
     const paths: { name: string; fullName: string; path: string; icon?: React.ReactNode }[] = [
       {
-        name: workspace?.name || 'Workspace',
-        fullName: workspace?.name || 'Workspace',
+        name: 'Files',
+        fullName: 'Files',
         path: `/workspace/${workspaceId}`,
         icon: <HomeIcon sx={{ mr: 0.5 }} fontSize="inherit" />
       }
