@@ -13,7 +13,7 @@ import AddIcon from '@mui/icons-material/Add';
 import UploadFileIcon from '@mui/icons-material/UploadFile';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
 import NavigateNextIcon from '@mui/icons-material/NavigateNext';
-import DeleteIcon from '@mui/icons-material/Delete';
+
 import CreateFolderDialog from '../../components/workspace/CreateFolderDialog';
 import RenameDialog from '../../components/workspace/RenameDialog';
 import ShareDialog from '../../components/editor/ShareDialog';
@@ -655,9 +655,6 @@ const WorkspacePage = () => {
         {/* <Box sx={{ display: 'none' }}>Ancestors: {JSON.stringify(ancestors)}</Box> */}
 
         <Box sx={{ display: 'flex', gap: 2 }}>
-          <Button variant="outlined" startIcon={<DeleteIcon />} onClick={() => navigate(`/workspace/${workspaceId}/trash`)}>
-            {strings.workspace.trash || 'Trash'}
-          </Button>
           <Button variant="outlined" startIcon={<AddIcon />} onClick={() => setCreateFolderDialogOpen(true)}>
             {strings.workspace.newFolder}
           </Button>

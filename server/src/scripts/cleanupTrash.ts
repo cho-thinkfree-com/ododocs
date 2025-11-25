@@ -1,5 +1,5 @@
 import { PrismaClient } from '@prisma/client'
-import { DocumentRepository } from './modules/documents/documentRepository.js'
+import { DocumentRepository } from '../modules/documents/documentRepository.js'
 
 const prisma = new PrismaClient()
 const documentRepository = new DocumentRepository(prisma)

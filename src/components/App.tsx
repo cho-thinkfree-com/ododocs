@@ -14,6 +14,7 @@ import WorkspaceProfilePage from '../pages/settings/WorkspaceProfilePage';
 import EditorPage from '../pages/editor/EditorPage';
 import SharedDocumentPage from '../pages/editor/SharedDocumentPage';
 import TrashPage from '../pages/trash/TrashPage';
+import WorkspaceLayout from './layout/WorkspaceLayout';
 
 const ProtectedRoute = () => {
   const { isAuthenticated } = useAuth();
@@ -71,11 +72,15 @@ const AppRoutes = () => {
         <Route element={<DashboardLayout />}>
           <Route path="/dashboard" element={<WorkspaceDashboardPage />} />
           <Route path="/settings" element={<GlobalSettingsPage />} />
-          <Route path="/workspace/:workspaceId" element={<WorkspacePage />} />
-          <Route path="/workspace/:workspaceId/settings" element={<WorkspaceSettingsPage />} />
-          <Route path="/workspace/:workspaceId/profile" element={<WorkspaceProfilePage />} />
-          <Route path="/workspace/:workspaceId/members" element={<WorkspaceMembersPage />} />
-          <Route path="/workspace/:workspaceId/trash" element={<TrashPage />} />
+
+          {/* Workspace Routes with Sidebar */}
+          <Route element={<WorkspaceLayout />}>
+            <Route path="/workspace/:workspaceId" element={<WorkspacePage />} />
+            <Route path="/workspace/:workspaceId/settings" element={<WorkspaceSettingsPage />} />
+            <Route path="/workspace/:workspaceId/profile" element={<WorkspaceProfilePage />} />
+            <Route path="/workspace/:workspaceId/members" element={<WorkspaceMembersPage />} />
+            <Route path="/workspace/:workspaceId/trash" element={<TrashPage />} />
+          </Route>
         </Route>
         {/* Editor route is outside DashboardLayout to have its own full-screen layout */}
         <Route path="/document/:documentId" element={<EditorPage />} />
