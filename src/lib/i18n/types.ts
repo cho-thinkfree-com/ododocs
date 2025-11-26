@@ -76,6 +76,12 @@ export type EditorStrings = {
   toc: {
     emptyPlaceholder: string
   }
+  viewerTemplate: {
+    label: string
+    original: string
+    large: string
+    article: string
+  }
   slashHelp: SlashHelpStrings
   shortcuts: ShortcutsStrings
 }

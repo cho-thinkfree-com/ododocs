@@ -17,6 +17,12 @@
       "toc": {
         "emptyPlaceholder": "Add a heading to build an outline."
       },
+      "viewerTemplate": {
+        "label": "Template",
+        "original": "Original",
+        "large": "Large Text",
+        "article": "Article"
+      },
       "content": {
         "placeholder": "Start writing your document..."
       },
@@ -597,6 +603,12 @@
       },
       "content": {
         "placeholder": "내용을 입력하세요."
+      },
+      "viewerTemplate": {
+        "label": "템플릿",
+        "original": "원본",
+        "large": "글자 크게 보기",
+        "article": "신문/아티클"
       },
       "toolbar": {
         "moreFormatting": "추가 서식",

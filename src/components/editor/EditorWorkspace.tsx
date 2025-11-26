@@ -3,14 +3,17 @@ import { LinkBubbleMenu, RichTextField, TableBubbleMenu, useRichTextEditorContex
 import BlockDragHandle from './BlockDragHandle'
 import TableFloatingToolbar from './TableFloatingToolbar'
 import { useEffect, useState } from 'react'
+import type { ViewerTemplate } from '../../lib/viewerTemplates'
+import { getTemplateStyles } from '../../lib/viewerTemplates'
 
 interface EditorWorkspaceProps {
   readOnly?: boolean
   initialWidth?: string
   overrideWidth?: string
+  viewerTemplate?: ViewerTemplate
 }
 
-const EditorWorkspace = ({ readOnly, initialWidth = '950px', overrideWidth }: EditorWorkspaceProps) => {
+const EditorWorkspace = ({ readOnly, initialWidth = '950px', overrideWidth, viewerTemplate }: EditorWorkspaceProps) => {
   const editor = useRichTextEditorContext()
   const [layoutWidth, setLayoutWidth] = useState(initialWidth)
 
@@ -91,6 +94,8 @@ const EditorWorkspace = ({ readOnly, initialWidth = '950px', overrideWidth }: Ed
               backgroundColor: 'white',
               border: '1px solid rgba(0, 0, 0, 0.05)', // Subtle border
               borderBottom: 'none', // Merge with spacer
+              // Apply template styles in viewer mode
+              ...(readOnly && viewerTemplate ? getTemplateStyles(viewerTemplate) : {}),
             },
             // Custom scrollbar styling for "floating" look
             '&::-webkit-scrollbar': {

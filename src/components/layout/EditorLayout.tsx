@@ -12,6 +12,8 @@ import { useEffect, useState } from 'react';
 import ShareDialog from '../editor/ShareDialog';
 import { useI18n } from '../../lib/i18n';
 import EditorWidthSelector from '../editor/EditorWidthSelector';
+import ViewerTemplateSelector from '../editor/ViewerTemplateSelector';
+import type { ViewerTemplate } from '../../lib/viewerTemplates';
 
 interface EditorLayoutProps {
     editor: Editor | null;
@@ -33,6 +35,7 @@ const EditorLayout = ({ editor, document, onContentChange, onTitleChange, onClos
     const [menuAnchorEl, setMenuAnchorEl] = useState<null | HTMLElement>(null);
     const [showSavedStatus, setShowSavedStatus] = useState(true);
     const [viewerWidth, setViewerWidth] = useState(initialWidth);
+    const [viewerTemplate, setViewerTemplate] = useState<ViewerTemplate>('original');
     const { isAuthenticated } = useAuth();
     const { strings } = useI18n();
 
@@ -229,13 +232,17 @@ const EditorLayout = ({ editor, document, onContentChange, onTitleChange, onClos
                                     </Typography>
 
                                     {/* Viewer Width Selector */}
-                                    <Box sx={{ pointerEvents: 'auto' }}>
+                                    <Box sx={{ pointerEvents: 'auto', display: 'flex', alignItems: 'center' }}>
                                         <EditorWidthSelector
                                             editor={null}
                                             readOnly={true}
                                             value={viewerWidth}
                                             onChange={setViewerWidth}
                                             initialWidth={initialWidth}
+                                        />
+                                        <ViewerTemplateSelector
+                                            value={viewerTemplate}
+                                            onChange={setViewerTemplate}
                                         />
                                     </Box>
                                 </Box>
@@ -357,6 +364,7 @@ const EditorLayout = ({ editor, document, onContentChange, onTitleChange, onClos
                         readOnly={readOnly}
                         initialWidth={initialWidth}
                         overrideWidth={readOnly ? viewerWidth : undefined}
+                        viewerTemplate={readOnly ? viewerTemplate : undefined}
                     />
                 </Box>
                 <Drawer
