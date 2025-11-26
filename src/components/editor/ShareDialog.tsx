@@ -15,6 +15,7 @@ import {
     createShareLink,
     getShareLinks,
     revokeShareLink,
+    updateDocument,
     type ShareLinkResponse,
 } from '../../lib/api'
 import { useAuth } from '../../context/AuthContext'
@@ -23,9 +24,10 @@ interface ShareDialogProps {
     open: boolean
     onClose: () => void
     documentId: string
+    onVisibilityChange?: (visibility: string) => void
 }
 
-export default function ShareDialog({ open, onClose, documentId }: ShareDialogProps) {
+export default function ShareDialog({ open, onClose, documentId, onVisibilityChange }: ShareDialogProps) {
     const { isAuthenticated } = useAuth()
     const [loading, setLoading] = useState(false)
     const [shareLink, setShareLink] = useState<ShareLinkResponse['shareLink'] | null>(null)
@@ -62,6 +64,9 @@ export default function ShareDialog({ open, onClose, documentId }: ShareDialogPr
         try {
             const result = await createShareLink(documentId)
             setShareLink(result.shareLink)
+            // Automatically make public when sharing
+            await updateDocument(documentId, { visibility: 'public' })
+            onVisibilityChange?.('public')
         } catch (err) {
             setError('Failed to create share link')
         } finally {
@@ -75,6 +80,9 @@ export default function ShareDialog({ open, onClose, documentId }: ShareDialogPr
         try {
             await revokeShareLink(shareLink.id)
             setShareLink(null)
+            // Revert to private when unpublishing
+            await updateDocument(documentId, { visibility: 'private' })
+            onVisibilityChange?.('private')
         } catch (err) {
             setError('Failed to revoke link')
         } finally {

@@ -10,6 +10,7 @@ export interface DocumentEntity {
   id: string
   workspaceId: string
   folderId?: string | null
+  folderName?: string | null
   ownerMembershipId: string
   title: string
   slug: string
@@ -279,6 +280,12 @@ export class DocumentRepository {
             },
           },
         },
+        folder: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
       },
     });
     return documents.map(toEntity);
@@ -453,6 +460,7 @@ const toEntity = (document: DocumentModel & { revisions?: ({ createdByMembership
     id: document.id,
     workspaceId: document.workspaceId,
     folderId: document.folderId,
+    folderName: document.folder?.name ?? null,
     ownerMembershipId: document.ownerMembershipId,
     title: document.title,
     slug: document.slug,

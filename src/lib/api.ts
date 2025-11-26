@@ -135,6 +135,7 @@ export interface FolderSummary {
   workspaceId: string
   name: string
   parentId?: string | null
+  parentFolderName?: string | null
   pathCache: string
   createdAt: string
   updatedAt: string
@@ -153,6 +154,7 @@ export interface DocumentSummary {
   status: string
   visibility: string
   folderId?: string | null
+  folderName?: string | null
   summary?: string | null
   contentSize?: number
   createdAt: string

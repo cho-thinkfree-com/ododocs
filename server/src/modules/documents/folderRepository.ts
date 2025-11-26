@@ -5,6 +5,7 @@ export interface FolderEntity {
   id: string
   workspaceId: string
   parentId?: string | null
+  parentFolderName?: string | null
   name: string
   pathCache: string
   sortOrder: number
@@ -146,6 +147,12 @@ export class FolderRepository {
       include: {
         tags: {
           select: { name: true },
+        },
+        parent: {
+          select: {
+            id: true,
+            name: true,
+          },
         },
       },
     })
@@ -299,6 +306,7 @@ const toEntity = (folder: FolderModel & { parent?: { id: string; name: string } 
   id: folder.id,
   workspaceId: folder.workspaceId,
   parentId: folder.parentId,
+  parentFolderName: folder.parent?.name ?? null,
   name: folder.name,
   pathCache: folder.pathCache,
   sortOrder: folder.sortOrder,

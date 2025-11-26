@@ -9,9 +9,11 @@ import ArticleIcon from '@mui/icons-material/Article';
 import FolderIcon from '@mui/icons-material/Folder';
 import NavigateNextIcon from '@mui/icons-material/NavigateNext';
 import StarIcon from '@mui/icons-material/Star';
+import PublicIcon from '@mui/icons-material/Public';
 import { usePageTitle } from '../../hooks/usePageTitle';
 import { useI18n } from '../../lib/i18n';
 import SelectionToolbar from '../../components/workspace/SelectionToolbar';
+import PublicDocumentIndicator from '../../components/workspace/PublicDocumentIndicator';
 
 const ImportantDocumentsPage = () => {
     const { workspaceId } = useParams<{ workspaceId: string }>();
@@ -266,7 +268,7 @@ const ImportantDocumentsPage = () => {
                 <Table>
                     <TableHead>
                         <TableRow>
-                            <TableCell width="40%">
+                            <TableCell width="35%">
                                 <TableSortLabel
                                     active={orderBy === 'name'}
                                     direction={orderBy === 'name' ? order : 'asc'}
@@ -275,7 +277,8 @@ const ImportantDocumentsPage = () => {
                                     {strings.workspace.nameColumn}
                                 </TableSortLabel>
                             </TableCell>
-                            <TableCell width="15%">
+                            <TableCell width="15%">{strings.workspace.folderColumn}</TableCell>
+                            <TableCell width="12%">
                                 <TableSortLabel
                                     active={orderBy === 'size'}
                                     direction={orderBy === 'size' ? order : 'asc'}
@@ -284,7 +287,7 @@ const ImportantDocumentsPage = () => {
                                     {strings.workspace.sizeColumn}
                                 </TableSortLabel>
                             </TableCell>
-                            <TableCell width="20%">
+                            <TableCell width="18%">
                                 <TableSortLabel
                                     active={orderBy === 'updatedAt'}
                                     direction={orderBy === 'updatedAt' ? order : 'asc'}
@@ -327,7 +330,26 @@ const ImportantDocumentsPage = () => {
                                                     opacity: 0.6
                                                 }}
                                             />
+                                            {!isFolder && (item as DocumentSummary).visibility === 'public' && (
+                                                <PublicDocumentIndicator
+                                                    documentId={itemId}
+                                                    title={(item as DocumentSummary).title}
+                                                />
+                                            )}
                                         </Box>
+                                    </TableCell>
+                                    <TableCell>
+                                        <Typography variant="body2" color="text.secondary">
+                                            <Link
+                                                component={RouterLink}
+                                                to={`/workspace/${workspaceId}${isFolder ? ((item as FolderSummary).parentId ? `?folderId=${(item as FolderSummary).parentId}` : '') : ((item as DocumentSummary).folderId ? `?folderId=${(item as DocumentSummary).folderId}` : '')}`}
+                                                underline="hover"
+                                                color="inherit"
+                                                onClick={(e) => e.stopPropagation()}
+                                            >
+                                                {isFolder ? ((item as FolderSummary).parentFolderName || strings.workspace.rootFolder) : ((item as DocumentSummary).folderName || strings.workspace.rootFolder)}
+                                            </Link>
+                                        </Typography>
                                     </TableCell>
                                     <TableCell>
                                         {isFolder ? (

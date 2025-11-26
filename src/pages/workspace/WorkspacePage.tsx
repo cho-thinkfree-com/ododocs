@@ -22,6 +22,7 @@ import CreateFolderDialog from '../../components/workspace/CreateFolderDialog';
 import RenameDialog from '../../components/workspace/RenameDialog';
 import ShareDialog from '../../components/editor/ShareDialog';
 import SelectionToolbar from '../../components/workspace/SelectionToolbar';
+import PublicDocumentIndicator from '../../components/workspace/PublicDocumentIndicator';
 
 import { usePageTitle } from '../../hooks/usePageTitle';
 import { broadcastSync } from '../../lib/syncEvents';
@@ -1064,6 +1065,12 @@ const WorkspacePage = () => {
                           }}
                         />
                       )}
+                      {!isFolder && (item as DocumentSummary).visibility === 'public' && (
+                        <PublicDocumentIndicator
+                          documentId={itemId}
+                          title={(item as DocumentSummary).title}
+                        />
+                      )}
                     </Box>
                   </TableCell>
                   <TableCell>
@@ -1353,6 +1360,9 @@ const WorkspacePage = () => {
             setSelectedItem(null);
           }}
           documentId={selectedItem.id}
+          onVisibilityChange={(newVisibility) => {
+            setDocuments(prev => prev.map(d => d.id === selectedItem.id ? { ...d, visibility: newVisibility } : d));
+          }}
         />
       )}
 

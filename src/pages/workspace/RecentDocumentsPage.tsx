@@ -7,10 +7,12 @@ import { formatRelativeDate } from '../../lib/formatDate';
 import HomeIcon from '@mui/icons-material/Home';
 import ArticleIcon from '@mui/icons-material/Article';
 import StarIcon from '@mui/icons-material/Star';
+import PublicIcon from '@mui/icons-material/Public';
 import NavigateNextIcon from '@mui/icons-material/NavigateNext';
 import { usePageTitle } from '../../hooks/usePageTitle';
 import { useI18n } from '../../lib/i18n';
 import SelectionToolbar from '../../components/workspace/SelectionToolbar';
+import PublicDocumentIndicator from '../../components/workspace/PublicDocumentIndicator';
 import { useNavigate } from 'react-router-dom';
 
 const RecentDocumentsPage = () => {
@@ -226,7 +228,7 @@ const RecentDocumentsPage = () => {
                 <Table>
                     <TableHead>
                         <TableRow>
-                            <TableCell width="40%">
+                            <TableCell width="35%">
                                 <TableSortLabel
                                     active={orderBy === 'title'}
                                     direction={orderBy === 'title' ? order : 'asc'}
@@ -235,7 +237,8 @@ const RecentDocumentsPage = () => {
                                     {strings.workspace.nameColumn}
                                 </TableSortLabel>
                             </TableCell>
-                            <TableCell width="15%">
+                            <TableCell width="15%">{strings.workspace.folderColumn}</TableCell>
+                            <TableCell width="12%">
                                 <TableSortLabel
                                     active={orderBy === 'size'}
                                     direction={orderBy === 'size' ? order : 'asc'}
@@ -244,7 +247,7 @@ const RecentDocumentsPage = () => {
                                     {strings.workspace.sizeColumn}
                                 </TableSortLabel>
                             </TableCell>
-                            <TableCell width="20%">
+                            <TableCell width="18%">
                                 <TableSortLabel
                                     active={orderBy === 'updatedAt'}
                                     direction={orderBy === 'updatedAt' ? order : 'asc'}
@@ -280,7 +283,26 @@ const RecentDocumentsPage = () => {
                                                 }}
                                             />
                                         )}
+                                        {doc.visibility === 'public' && (
+                                            <PublicDocumentIndicator
+                                                documentId={doc.id}
+                                                title={doc.title}
+                                            />
+                                        )}
                                     </Box>
+                                </TableCell>
+                                <TableCell>
+                                    <Typography variant="body2" color="text.secondary">
+                                        <Link
+                                            component={RouterLink}
+                                            to={`/workspace/${doc.workspaceId}${doc.folderId ? `?folderId=${doc.folderId}` : ''}`}
+                                            underline="hover"
+                                            color="inherit"
+                                            onClick={(e) => e.stopPropagation()}
+                                        >
+                                            {doc.folderName || strings.workspace.rootFolder}
+                                        </Link>
+                                    </Typography>
                                 </TableCell>
                                 <TableCell>
                                     <Typography variant="body2" color="text.secondary">{formatBytes(doc.contentSize)}</Typography>
