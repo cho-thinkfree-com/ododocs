@@ -160,6 +160,20 @@ const ConnectedEditor = ({ document, initialRevision }: ConnectedEditorProps) =>
         );
     }
 
+    // Extract initial width from content to prevent layout shift
+    const getInitialWidth = () => {
+        if (!initialRevision?.content) return '950px';
+        try {
+            // content is Tiptap JSON
+            const content = initialRevision.content as any;
+            return content.attrs?.['x-odocs-layoutWidth'] || '950px';
+        } catch (e) {
+            return '950px';
+        }
+    };
+
+    const initialWidth = getInitialWidth();
+
     return (
         <>
             <EditorLayout
@@ -169,6 +183,7 @@ const ConnectedEditor = ({ document, initialRevision }: ConnectedEditorProps) =>
                 onTitleChange={handleTitleChange}
                 onClose={handleClose}
                 saveStatus={saveStatus}
+                initialWidth={initialWidth}
             />
             <Snackbar
                 open={snackbarOpen}

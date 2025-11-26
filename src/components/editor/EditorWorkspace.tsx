@@ -6,11 +6,12 @@ import { useEffect, useState } from 'react'
 
 interface EditorWorkspaceProps {
   readOnly?: boolean
+  initialWidth?: string
 }
 
-const EditorWorkspace = ({ readOnly }: EditorWorkspaceProps) => {
+const EditorWorkspace = ({ readOnly, initialWidth = '950px' }: EditorWorkspaceProps) => {
   const editor = useRichTextEditorContext()
-  const [layoutWidth, setLayoutWidth] = useState('950px')
+  const [layoutWidth, setLayoutWidth] = useState(initialWidth)
 
   useEffect(() => {
     if (!editor) return
@@ -18,7 +19,8 @@ const EditorWorkspace = ({ readOnly }: EditorWorkspaceProps) => {
     const updateWidth = () => {
       const attrs = editor.state.doc.attrs;
       const width = attrs['x-odocs-layoutWidth'];
-      setLayoutWidth(width || '950px')
+      // Fallback to initialWidth if attribute is missing (e.g. during initialization)
+      setLayoutWidth(width || initialWidth)
     }
 
     updateWidth()
@@ -29,7 +31,7 @@ const EditorWorkspace = ({ readOnly }: EditorWorkspaceProps) => {
       editor.off('transaction', updateWidth)
       editor.off('update', updateWidth)
     }
-  }, [editor])
+  }, [editor, initialWidth])
 
   return (
     <Box

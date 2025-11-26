@@ -9,9 +9,10 @@ import CropFreeIcon from '@mui/icons-material/CropFree';
 type EditorWidthSelectorProps = {
     editor: Editor | null;
     onContentChange?: () => void;
+    initialWidth?: string;
 };
 
-const EditorWidthSelector = ({ editor, onContentChange }: EditorWidthSelectorProps) => {
+const EditorWidthSelector = ({ editor, onContentChange, initialWidth = '950px' }: EditorWidthSelectorProps) => {
     if (!editor) {
         return null;
     }
@@ -36,19 +37,21 @@ const EditorWidthSelector = ({ editor, onContentChange }: EditorWidthSelectorPro
         return `${closest}px`;
     };
 
-    const [width, setWidth] = React.useState(getClosestWidth(editor.state.doc.attrs['x-odocs-layoutWidth']));
+    const [width, setWidth] = React.useState(getClosestWidth(editor.state.doc.attrs['x-odocs-layoutWidth'] || initialWidth));
 
     React.useEffect(() => {
         const updateWidth = () => {
             const currentAttr = editor.state.doc.attrs['x-odocs-layoutWidth'];
-            setWidth(getClosestWidth(currentAttr));
+            // If attribute is missing (e.g. during init), fallback to initialWidth
+            setWidth(getClosestWidth(currentAttr || initialWidth));
         };
 
+        updateWidth(); // Call immediately to sync
         editor.on('transaction', updateWidth);
         return () => {
             editor.off('transaction', updateWidth);
         };
-    }, [editor]);
+    }, [editor, initialWidth]);
 
     const handleWidthChange = (_event: React.MouseEvent<HTMLElement>, newWidth: string | null) => {
         // Enforce radio button behavior: one option must always be selected.

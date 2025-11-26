@@ -79,6 +79,22 @@ const useEditorInstance = (options?: UseEditorInstanceOptions) => {
       }
 
       editor.commands.setContent(initialContent, { emitUpdate: false })
+
+      // Explicitly restore doc attributes if they were lost during setContent
+      // This fixes an issue where global attributes on the doc node might be stripped
+      if (
+        typeof initialContent === 'object' &&
+        initialContent !== null &&
+        'attrs' in initialContent &&
+        (initialContent as any).attrs
+      ) {
+        const attrs = (initialContent as any).attrs;
+        if (attrs['x-odocs-layoutWidth']) {
+          editor.commands.updateAttributes('doc', {
+            'x-odocs-layoutWidth': attrs['x-odocs-layoutWidth']
+          });
+        }
+      }
     } catch (error) {
       console.warn('Editor content validation failed:', error)
       if (onError) {

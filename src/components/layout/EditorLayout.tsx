@@ -21,9 +21,11 @@ interface EditorLayoutProps {
     onClose: () => void;
     saveStatus: 'saved' | 'unsaved' | 'saving';
     readOnly?: boolean;
+    initialWidth?: string;
 }
 
-const EditorLayout = ({ editor, document, onContentChange, onTitleChange, onClose, saveStatus, readOnly = false }: EditorLayoutProps) => {
+const EditorLayout = ({ editor, document, onContentChange, onTitleChange, onClose, saveStatus, readOnly = false, initialWidth = '950px' }: EditorLayoutProps) => {
+
     const [tocOpen, setTocOpen] = useState(false);
     const [localTitle, setLocalTitle] = useState(document.title);
     const [shareOpen, setShareOpen] = useState(false);
@@ -230,7 +232,7 @@ const EditorLayout = ({ editor, document, onContentChange, onTitleChange, onClos
                         </Box>
                         {!readOnly && (
                             <Box sx={{ mr: 2, display: { xs: 'none', md: 'block' } }}>
-                                <EditorWidthSelector editor={editor} onContentChange={onContentChange} />
+                                <EditorWidthSelector editor={editor} onContentChange={onContentChange} initialWidth={initialWidth} />
                             </Box>
                         )}
                         {!readOnly && (
@@ -285,7 +287,7 @@ const EditorLayout = ({ editor, document, onContentChange, onTitleChange, onClos
                     p: readOnly ? 0 : 3,
                     px: readOnly ? 0 : { xs: 2, sm: 4, lg: 6 },
                 }}>
-                    <EditorWorkspace readOnly={readOnly} />
+                    <EditorWorkspace readOnly={readOnly} initialWidth={initialWidth} />
                 </Box>
                 <Drawer
                     anchor="left"
