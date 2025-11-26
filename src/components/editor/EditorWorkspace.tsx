@@ -51,7 +51,7 @@ const EditorWorkspace = ({ readOnly, initialWidth = '950px', overrideWidth }: Ed
         gap: 0,
         overflow: 'hidden',
         position: 'relative',
-        backgroundColor: '#fafafa', // Very subtle gray
+        backgroundColor: '#fcfcfc', // Very subtle gray
       }}
     >
       <RichTextField
