@@ -266,7 +266,6 @@ const ImportantDocumentsPage = () => {
                 <Table>
                     <TableHead>
                         <TableRow>
-                            <TableCell width="48px" padding="checkbox"></TableCell>
                             <TableCell width="40%">
                                 <TableSortLabel
                                     active={orderBy === 'name'}
@@ -312,9 +311,6 @@ const ImportantDocumentsPage = () => {
                                     onDoubleClick={() => handleRowDoubleClick(itemId, item.type)}
                                     sx={{ cursor: 'pointer', userSelect: 'none' }}
                                 >
-                                    <TableCell padding="checkbox">
-                                        {/* Empty cell for alignment */}
-                                    </TableCell>
                                     <TableCell>
                                         <Box sx={{ display: 'flex', alignItems: 'center' }}>
                                             {isFolder ? (
