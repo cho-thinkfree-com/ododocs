@@ -1,10 +1,8 @@
-import { ToggleButton, ToggleButtonGroup, Tooltip } from '@mui/material';
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Editor } from '@tiptap/react';
-import ViewWeekIcon from '@mui/icons-material/ViewWeek';
-import AspectRatioIcon from '@mui/icons-material/AspectRatio';
-import CropLandscapeIcon from '@mui/icons-material/CropLandscape';
-import CropFreeIcon from '@mui/icons-material/CropFree';
+import { IconButton, Menu, MenuItem, ListItemIcon, ListItemText, Tooltip, Box } from '@mui/material';
+import SwapHorizIcon from '@mui/icons-material/SwapHoriz';
+import CheckIcon from '@mui/icons-material/Check';
 
 type EditorWidthSelectorProps = {
     editor: Editor | null;
@@ -13,6 +11,9 @@ type EditorWidthSelectorProps = {
 };
 
 const EditorWidthSelector = ({ editor, onContentChange, initialWidth = '950px' }: EditorWidthSelectorProps) => {
+    const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+    const open = Boolean(anchorEl);
+
     if (!editor) {
         return null;
     }
@@ -37,26 +38,23 @@ const EditorWidthSelector = ({ editor, onContentChange, initialWidth = '950px' }
         return `${closest}px`;
     };
 
-    const [width, setWidth] = React.useState(getClosestWidth(editor.state.doc.attrs['x-odocs-layoutWidth'] || initialWidth));
+    const [width, setWidth] = useState(getClosestWidth(editor.state.doc.attrs['x-odocs-layoutWidth'] || initialWidth));
 
-    React.useEffect(() => {
+    useEffect(() => {
         const updateWidth = () => {
             const currentAttr = editor.state.doc.attrs['x-odocs-layoutWidth'];
-            // If attribute is missing (e.g. during init), fallback to initialWidth
             setWidth(getClosestWidth(currentAttr || initialWidth));
         };
 
-        updateWidth(); // Call immediately to sync
+        updateWidth();
         editor.on('transaction', updateWidth);
         return () => {
             editor.off('transaction', updateWidth);
         };
     }, [editor, initialWidth]);
 
-    const handleWidthChange = (_event: React.MouseEvent<HTMLElement>, newWidth: string | null) => {
-        // Enforce radio button behavior: one option must always be selected.
-        // If newWidth is null (user clicked the currently selected button), do nothing.
-        if (newWidth !== null) {
+    const handleWidthChange = (newWidth: string) => {
+        if (newWidth !== width) {
             const json = editor.getJSON();
             if (!json.attrs) {
                 json.attrs = {};
@@ -64,58 +62,98 @@ const EditorWidthSelector = ({ editor, onContentChange, initialWidth = '950px' }
             json.attrs['x-odocs-layoutWidth'] = newWidth;
             editor.commands.setContent(json, { emitUpdate: true });
 
-            // Force a transaction to ensure 'update' event fires and listeners (like ConnectedEditor) pick it up
-            // This is necessary because setContent with emitUpdate might not trigger the exact event flow expected by the autosave logic
             editor.view.dispatch(editor.state.tr.setMeta('addToHistory', false));
 
-            // Explicitly notify parent about content change to trigger save
             if (onContentChange) {
                 onContentChange();
             }
         }
+        handleClose();
     };
 
+    const handleClick = (event: React.MouseEvent<HTMLElement>) => {
+        setAnchorEl(event.currentTarget);
+    };
+
+    const handleClose = () => {
+        setAnchorEl(null);
+    };
+
+    const options = [
+        { value: '780px', label: 'Narrow', icon: '/document-width-narrow.png' },
+        { value: '950px', label: 'Standard', icon: '/document-width-normal.png' },
+        { value: '1200px', label: 'Wide', icon: '/document-width-wide.png' },
+        { value: '100%', label: 'Full Width', icon: '/document-width-full.png' },
+    ];
+
     return (
-        <ToggleButtonGroup
-            value={width}
-            exclusive
-            onChange={handleWidthChange}
-            aria-label="editor width"
-            size="small"
-            sx={{
-                height: 32,
-                '& .MuiToggleButton-root': {
-                    padding: '4px 8px',
-                    border: 'none',
-                    borderRadius: '4px !important',
-                    margin: '0 2px',
-                    '&.Mui-selected': {
-                        backgroundColor: 'rgba(0, 0, 0, 0.08)',
-                    }
-                }
-            }}
-        >
-            <Tooltip title="Narrow (780px)">
-                <ToggleButton value="780px" aria-label="780px width">
-                    <CropFreeIcon fontSize="small" />
-                </ToggleButton>
+        <>
+            <Tooltip title="Page Width">
+                <IconButton
+                    onClick={handleClick}
+                    size="small"
+                    aria-controls={open ? 'width-menu' : undefined}
+                    aria-haspopup="true"
+                    aria-expanded={open ? 'true' : undefined}
+                    sx={{ ml: 1 }}
+                >
+                    <SwapHorizIcon />
+                </IconButton>
             </Tooltip>
-            <Tooltip title="Standard (950px)">
-                <ToggleButton value="950px" aria-label="950px width">
-                    <CropLandscapeIcon fontSize="small" />
-                </ToggleButton>
-            </Tooltip>
-            <Tooltip title="Wide (1200px)">
-                <ToggleButton value="1200px" aria-label="1200px width">
-                    <AspectRatioIcon fontSize="small" />
-                </ToggleButton>
-            </Tooltip>
-            <Tooltip title="Full Width">
-                <ToggleButton value="100%" aria-label="full width">
-                    <ViewWeekIcon fontSize="small" />
-                </ToggleButton>
-            </Tooltip>
-        </ToggleButtonGroup>
+            <Menu
+                anchorEl={anchorEl}
+                id="width-menu"
+                open={open}
+                onClose={handleClose}
+                onClick={handleClose}
+                transformOrigin={{ horizontal: 'right', vertical: 'top' }}
+                anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
+                PaperProps={{
+                    elevation: 0,
+                    sx: {
+                        overflow: 'visible',
+                        filter: 'drop-shadow(0px 2px 8px rgba(0,0,0,0.32))',
+                        mt: 1.5,
+                        '& .MuiAvatar-root': {
+                            width: 32,
+                            height: 32,
+                            ml: -0.5,
+                            mr: 1,
+                        },
+                        '&:before': {
+                            content: '""',
+                            display: 'block',
+                            position: 'absolute',
+                            top: 0,
+                            right: 14,
+                            width: 10,
+                            height: 10,
+                            bgcolor: 'background.paper',
+                            transform: 'translateY(-50%) rotate(45deg)',
+                            zIndex: 0,
+                        },
+                    },
+                }}
+            >
+                {options.map((option) => (
+                    <MenuItem
+                        key={option.value}
+                        onClick={() => handleWidthChange(option.value)}
+                        selected={width === option.value}
+                    >
+                        <ListItemIcon>
+                            <Box component="img" src={option.icon} alt={option.label} sx={{ width: 24, height: 24, objectFit: 'contain' }} />
+                        </ListItemIcon>
+                        <ListItemText primary={option.label} />
+                        {width === option.value && (
+                            <ListItemIcon sx={{ minWidth: 'auto !important', ml: 2 }}>
+                                <CheckIcon fontSize="small" />
+                            </ListItemIcon>
+                        )}
+                    </MenuItem>
+                ))}
+            </Menu>
+        </>
     );
 };
 
