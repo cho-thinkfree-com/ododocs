@@ -8,7 +8,7 @@ import { formatRelativeDate } from '../../lib/formatDate';
 import HomeIcon from '@mui/icons-material/Home';
 
 import FolderIcon from '@mui/icons-material/Folder';
-import ArticleIcon from '@mui/icons-material/Article';
+
 import AddIcon from '@mui/icons-material/Add';
 import UploadFileIcon from '@mui/icons-material/UploadFile';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
@@ -1052,7 +1052,12 @@ const WorkspacePage = () => {
                       {isFolder ? (
                         <FolderIcon color="action" sx={{ mr: 1.5 }} />
                       ) : (
-                        <ArticleIcon color="action" sx={{ mr: 1.5 }} />
+                        <Box
+                          component="img"
+                          src="/odocs-file-icon-small.png"
+                          alt="document"
+                          sx={{ width: 24, height: 24, mr: 1.5 }}
+                        />
                       )}
                       {itemName}
                       {item.isImportant && (

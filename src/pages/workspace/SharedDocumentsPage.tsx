@@ -5,7 +5,7 @@ import { useAuth } from '../../context/AuthContext';
 import { getPublicDocuments, type DocumentSummary, toggleDocumentStarred, getShareLinks } from '../../lib/api';
 import { formatRelativeDate } from '../../lib/formatDate';
 import HomeIcon from '@mui/icons-material/Home';
-import ArticleIcon from '@mui/icons-material/Article';
+
 import StarIcon from '@mui/icons-material/Star';
 import NavigateNextIcon from '@mui/icons-material/NavigateNext';
 import { usePageTitle } from '../../hooks/usePageTitle';
@@ -284,7 +284,12 @@ const SharedDocumentsPage = () => {
                             >
                                 <TableCell>
                                     <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                                        <ArticleIcon color="action" sx={{ mr: 1.5 }} />
+                                        <Box
+                                            component="img"
+                                            src="/odocs-file-icon-small.png"
+                                            alt="document"
+                                            sx={{ width: 24, height: 24, mr: 1.5 }}
+                                        />
                                         {doc.title}
                                         {doc.isImportant && (
                                             <StarIcon

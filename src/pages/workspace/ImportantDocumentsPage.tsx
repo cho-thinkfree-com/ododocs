@@ -5,7 +5,7 @@ import { useAuth } from '../../context/AuthContext';
 import { getStarredDocuments, type DocumentSummary, type FolderSummary, toggleDocumentStarred, toggleFolderStarred } from '../../lib/api';
 import { formatRelativeDate } from '../../lib/formatDate';
 import HomeIcon from '@mui/icons-material/Home';
-import ArticleIcon from '@mui/icons-material/Article';
+
 import FolderIcon from '@mui/icons-material/Folder';
 import NavigateNextIcon from '@mui/icons-material/NavigateNext';
 import StarIcon from '@mui/icons-material/Star';
@@ -319,7 +319,12 @@ const ImportantDocumentsPage = () => {
                                             {isFolder ? (
                                                 <FolderIcon color="action" sx={{ mr: 1.5 }} />
                                             ) : (
-                                                <ArticleIcon color="action" sx={{ mr: 1.5 }} />
+                                                <Box
+                                                    component="img"
+                                                    src="/odocs-file-icon-small.png"
+                                                    alt="document"
+                                                    sx={{ width: 24, height: 24, mr: 1.5 }}
+                                                />
                                             )}
                                             {itemName}
                                             <StarIcon
