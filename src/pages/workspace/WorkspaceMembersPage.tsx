@@ -1,4 +1,4 @@
-import { Alert, Box, Button, CircularProgress, Container, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, List, ListItem, ListItemText, MenuItem, Select, TextField, Typography } from '@mui/material';
+import { Alert, Box, Button, CircularProgress, Container, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, List, ListItem, ListItemText, MenuItem, Select, TextField, Typography, Tooltip } from '@mui/material';
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
@@ -67,10 +67,24 @@ const WorkspaceMembersPage = () => {
     }
   };
 
-  const handleRemoveMember = async (memberId: string) => {
+  const handleRemoveMember = async (memberId: string, memberRole: string) => {
     if (!isAuthenticated || !workspaceId) {
       return;
     }
+
+    // Check if trying to remove self
+    if (memberId === user?.id) {
+      setError('자기 자신은 삭제할 수 없습니다.');
+      return;
+    }
+
+    // Check if this is the last owner
+    const ownerCount = members.filter(m => m.role === 'owner').length;
+    if (memberRole === 'owner' && ownerCount <= 1) {
+      setError('최소 1명의 Owner가 필요합니다. 다른 멤버를 Owner로 지정한 후 삭제해주세요.');
+      return;
+    }
+
     try {
       await removeWorkspaceMember(workspaceId, memberId);
       fetchMembers();
@@ -125,9 +139,29 @@ const WorkspaceMembersPage = () => {
                   <MenuItem value="admin">Admin</MenuItem>
                   <MenuItem value="member">Member</MenuItem>
                 </Select>
-                <IconButton edge="end" aria-label="delete" onClick={() => handleRemoveMember(member.accountId)}>
-                  <DeleteIcon />
-                </IconButton>
+                <Tooltip
+                  title={
+                    member.accountId === user?.id
+                      ? "자기 자신은 삭제할 수 없습니다"
+                      : member.role === 'owner' && members.filter(m => m.role === 'owner').length <= 1
+                        ? "최소 1명의 Owner가 필요합니다"
+                        : "멤버 삭제"
+                  }
+                >
+                  <span>
+                    <IconButton
+                      edge="end"
+                      aria-label="delete"
+                      onClick={() => handleRemoveMember(member.accountId, member.role)}
+                      disabled={
+                        member.accountId === user?.id ||
+                        (member.role === 'owner' && members.filter(m => m.role === 'owner').length <= 1)
+                      }
+                    >
+                      <DeleteIcon />
+                    </IconButton>
+                  </span>
+                </Tooltip>
               </>
             }
           >
