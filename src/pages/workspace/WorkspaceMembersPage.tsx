@@ -2,12 +2,15 @@ import { Alert, Box, Button, CircularProgress, Container, Dialog, DialogActions,
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { useI18n } from '../../context/i18n';
 import { getWorkspaceMembers, inviteWorkspaceMember, changeWorkspaceMemberRole, removeWorkspaceMember, type MembershipSummary } from '../../lib/api';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
 
 const WorkspaceMembersPage = () => {
   const { workspaceId } = useParams<{ workspaceId: string }>();
+  const { strings } = useI18n();
+  const [comingSoonOpen, setComingSoonOpen] = useState(false);
   const { isAuthenticated, user } = useAuth();
   const [members, setMembers] = useState<MembershipSummary[]>([]);
   const [loading, setLoading] = useState(true);
@@ -99,7 +102,11 @@ const WorkspaceMembersPage = () => {
         <Typography variant="h4" component="h1">
           Workspace Members
         </Typography>
-        <Button variant="contained" startIcon={<AddIcon />} onClick={() => setInviteDialogOpen(true)}>
+        <Button
+          variant="contained"
+          startIcon={<PersonAddIcon />}
+          onClick={() => setComingSoonOpen(true)}
+        >
           Invite Member
         </Button>
       </Box>
