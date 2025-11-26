@@ -9,7 +9,6 @@ import { useAuth } from '../../context/AuthContext';
 import { getWorkspaceMemberProfile, updateAccount, getWorkspace, type MembershipSummary, type WorkspaceSummary } from '../../lib/api';
 import { useI18n, type Locale } from '../../lib/i18n';
 import WorkspaceLanguageSync from '../common/WorkspaceLanguageSync';
-import { ChangePasswordDialog } from '../../pages/settings/ChangePasswordDialog';
 import WorkspaceAccountSettingsDialog from '../workspace/WorkspaceAccountSettingsDialog';
 
 const DashboardLayout = () => {
@@ -21,14 +20,7 @@ const DashboardLayout = () => {
     const [workspaceDisplayName, setWorkspaceDisplayName] = useState<string | null>(null);
     const [workspaceMember, setWorkspaceMember] = useState<MembershipSummary | null>(null);
     const [workspace, setWorkspace] = useState<WorkspaceSummary | null>(null);
-    const [accountDialogOpen, setAccountDialogOpen] = useState(false);
     const [profileDialogOpen, setProfileDialogOpen] = useState(false);
-    const [accountName, setAccountName] = useState('');
-    const [accountLocale, setAccountLocale] = useState<Locale>('en-US');
-    const [accountTimezone, setAccountTimezone] = useState('UTC');
-    const [accountSaving, setAccountSaving] = useState(false);
-    const [accountError, setAccountError] = useState<string | null>(null);
-    const [isPasswordDialogOpen, setIsPasswordDialogOpen] = useState(false);
     const { strings, locale, setLocale } = useI18n();
 
 
@@ -182,42 +174,9 @@ const DashboardLayout = () => {
     const profileEmail = isWorkspaceContext ? null : user?.email;
     const profileAvatarChar = profileName?.charAt(0).toUpperCase() || user?.email?.charAt(0).toUpperCase();
 
-    const openAccountDialog = () => {
-        setAccountError(null);
-        setAccountName(userDisplayName);
-        setAccountLocale((user?.preferredLocale as Locale) || 'en-US');
-        setAccountTimezone(user?.preferredTimezone || 'UTC');
-        setAccountDialogOpen(true);
-    };
-
     const openWorkspaceDialog = () => {
         if (!workspaceId) return;
         setWorkspaceDialogOpen(true);
-    };
-
-    const handleSaveAccount = async () => {
-        if (!isAuthenticated) return;
-        setAccountSaving(true);
-        setAccountError(null);
-        try {
-            const trimmedName = accountName.trim();
-            if (!trimmedName) {
-                setAccountError(strings.settings.global.legalNameRequired);
-                setAccountSaving(false);
-                return;
-            }
-            await updateAccount({
-                legalName: trimmedName,
-                preferredLanguage: accountLocale,
-                preferredTimezone: accountTimezone,
-            });
-            await refreshProfile();
-            setAccountDialogOpen(false);
-        } catch (err) {
-            setAccountError((err as Error).message);
-        } finally {
-            setAccountSaving(false);
-        }
     };
 
 
@@ -348,7 +307,7 @@ const DashboardLayout = () => {
                                         // Open workspace account settings dialog
                                         setProfileDialogOpen(true);
                                     } else {
-                                        openAccountDialog();
+                                        navigate('/settings');
                                     }
                                 }}
                             >
@@ -392,83 +351,6 @@ const DashboardLayout = () => {
                 <Outlet />
             </Box>
 
-            <Dialog open={accountDialogOpen} onClose={() => setAccountDialogOpen(false)} fullWidth maxWidth="sm">
-                <DialogTitle>{strings.layout.dashboard.accountSettingsLabel}</DialogTitle>
-                <DialogContent sx={{ display: 'grid', gap: 2, pt: 2 }}>
-                    {accountError && <Alert severity="error">{accountError}</Alert>}
-                    <TextField
-                        label="Email"
-                        value={user?.email || ''}
-                        fullWidth
-                        variant="outlined"
-                        InputLabelProps={{ shrink: true }}
-                        margin="dense"
-                        InputProps={{
-                            readOnly: true,
-                            endAdornment: (
-                                <InputAdornment position="end">
-                                    <LockIcon fontSize="small" color="action" />
-                                </InputAdornment>
-                            ),
-                        }}
-                    />
-                    <TextField
-                        label={strings.settings.global.legalName}
-                        value={accountName}
-                        onChange={(e) => setAccountName(e.target.value)}
-                        fullWidth
-                        variant="outlined"
-                        InputLabelProps={{ shrink: true }}
-                        margin="dense"
-                    />
-                    <FormControl fullWidth margin="dense" variant="outlined" size="small">
-                        <InputLabel id={accountLanguageLabelId}>{strings.settings.global.preferredLanguage}</InputLabel>
-                        <Select
-                            native
-                            labelId={accountLanguageLabelId}
-                            label={strings.settings.global.preferredLanguage}
-                            value={accountLocale}
-                            onChange={(e) => setAccountLocale(e.target.value as Locale)}
-                        >
-                            <option value="en-US">{languageOptions['en-US']}</option>
-                            <option value="ko-KR">{languageOptions['ko-KR']}</option>
-                            <option value="ja-JP">{languageOptions['ja-JP']}</option>
-                        </Select>
-                    </FormControl>
-                    <FormControl fullWidth margin="dense" variant="outlined" size="small">
-                        <InputLabel id={accountTimezoneLabelId}>{strings.settings.global.timezone}</InputLabel>
-                        <Select
-                            native
-                            labelId={accountTimezoneLabelId}
-                            label={strings.settings.global.timezone}
-                            value={accountTimezone}
-                            onChange={(e) => setAccountTimezone(e.target.value)}
-                        >
-                            {timezoneOptionsWithLabel.map((tz) => (
-                                <option key={tz.value} value={tz.value}>
-                                    {tz.label}
-                                </option>
-                            ))}
-                        </Select>
-                    </FormControl>
-                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mt: 1 }}>
-                        <Typography variant="subtitle2" color="text.secondary">
-                            {strings.settings.global.security}
-                        </Typography>
-                        <Button onClick={() => setIsPasswordDialogOpen(true)} variant="outlined" size="small">
-                            {strings.settings.global.changePassword}
-                        </Button>
-                    </Box>
-                </DialogContent>
-                <DialogActions>
-                    <Button onClick={() => setAccountDialogOpen(false)} disabled={accountSaving}>
-                        {strings.dashboard.createWorkspaceDialogCancel}
-                    </Button>
-                    <Button onClick={handleSaveAccount} disabled={accountSaving} variant="contained">
-                        {accountSaving ? <CircularProgress size={18} /> : strings.settings.global.saveChanges}
-                    </Button>
-                </DialogActions>
-            </Dialog>
             {workspaceId && (
                 <WorkspaceAccountSettingsDialog
                     open={profileDialogOpen}
@@ -476,7 +358,6 @@ const DashboardLayout = () => {
                     workspaceId={workspaceId}
                 />
             )}
-            <ChangePasswordDialog open={isPasswordDialogOpen} onClose={() => setIsPasswordDialogOpen(false)} />
         </Box >
     );
 };
