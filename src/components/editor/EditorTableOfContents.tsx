@@ -1,4 +1,5 @@
-﻿import { Box, List, ListItemButton, ListItemText, Typography } from '@mui/material'
+﻿import { Box, IconButton, List, ListItemButton, ListItemText, Typography } from '@mui/material'
+import CloseIcon from '@mui/icons-material/Close'
 import type { Editor } from '@tiptap/react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { slugify, useRichTextEditorContext } from 'mui-tiptap'
@@ -18,6 +19,7 @@ type TocState = {
 
 type EditorTableOfContentsProps = {
   onNavigate?: () => void
+  onClose?: () => void
 }
 
 const createUniqueId = (baseId: string, index: number, existing: Set<string>) => {
@@ -64,7 +66,7 @@ const buildTableOfContents = (editor: Editor): TocState => {
   return { items, activeId }
 }
 
-const EditorTableOfContents = ({ onNavigate }: EditorTableOfContentsProps) => {
+const EditorTableOfContents = ({ onNavigate, onClose }: EditorTableOfContentsProps) => {
   const editor = useRichTextEditorContext()
   const { strings } = useI18n()
   const [toc, setToc] = useState<TocState>({ items: [], activeId: null })
@@ -149,7 +151,21 @@ const EditorTableOfContents = ({ onNavigate }: EditorTableOfContentsProps) => {
     )
   }, [handleNavigate, toc.items, toc.activeId])
 
-  return <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>{content}</Box>
+  return (
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <Typography variant='h6' sx={{ fontWeight: 600 }}>
+          {strings.editor.toc.title || 'Table of Contents'}
+        </Typography>
+        {onClose && (
+          <IconButton onClick={onClose} size='small' aria-label='Close table of contents'>
+            <CloseIcon />
+          </IconButton>
+        )}
+      </Box>
+      {content}
+    </Box>
+  )
 }
 
 export default EditorTableOfContents

@@ -157,7 +157,7 @@ const EditorLayout = ({ editor, document, onContentChange, onTitleChange, onClos
                             onClick={() => setTocOpen(!tocOpen)}
                             sx={{
                                 mr: 2,
-                                visibility: (readOnly && !hasHeadings) ? 'hidden' : 'visible'
+                                visibility: hasHeadings ? 'visible' : 'hidden'
                             }}
                         >
                             <MenuIcon />
@@ -373,7 +373,7 @@ const EditorLayout = ({ editor, document, onContentChange, onTitleChange, onClos
                         },
                     }}
                 >
-                    <EditorTableOfContents />
+                    <EditorTableOfContents onClose={() => setTocOpen(false)} />
                 </Drawer>
             </Box>
         </RichTextEditorProvider >
