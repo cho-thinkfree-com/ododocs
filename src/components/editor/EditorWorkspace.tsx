@@ -63,11 +63,12 @@ const EditorWorkspace = ({ readOnly, initialWidth = '950px' }: EditorWorkspacePr
             '& .ProseMirror': {
               width: '100%',
               maxWidth: layoutWidth === '100%' ? 'none' : layoutWidth,
-              minHeight: 'calc(100% - 64px)',
-              margin: '32px 0',
+              minHeight: 'calc(100% - 32px)',
+              margin: '32px auto 0',
               backgroundColor: 'white',
               boxShadow: '0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24)',
               padding: '48px',
+              paddingBottom: '80px', // Extra padding at bottom for better look
               boxSizing: 'border-box',
               outline: 'none',
               transition: 'max-width 0.3s ease-in-out',
@@ -85,12 +86,23 @@ const EditorWorkspace = ({ readOnly, initialWidth = '950px' }: EditorWorkspacePr
               width: '100%',
               maxWidth: layoutWidth === '100%' ? 'none' : layoutWidth, // Dynamic width
               minHeight: '100%',
-              paddingLeft: '48px',
-              paddingBottom: '24px',
-              paddingRight: '16px',
+              padding: '48px',
+              paddingBottom: '50vh', // Allow scrolling past the end
               boxSizing: 'border-box',
               margin: '0 auto', // Center horizontally
               transition: 'max-width 0.3s ease-in-out',
+            },
+            // Custom scrollbar styling for "floating" look
+            '&::-webkit-scrollbar': {
+              width: '8px',
+              backgroundColor: 'transparent', // Transparent track
+            },
+            '&::-webkit-scrollbar-thumb': {
+              backgroundColor: 'rgba(0, 0, 0, 0.1)', // Subtle thumb
+              borderRadius: '4px',
+            },
+            '&::-webkit-scrollbar-thumb:hover': {
+              backgroundColor: 'rgba(0, 0, 0, 0.2)',
             },
           },
         }}

@@ -158,31 +158,74 @@ const EditorLayout = ({ editor, document, onContentChange, onTitleChange, onClos
                             <MenuIcon />
                         </IconButton>
 
-                        <Box
-                            component="img"
-                            src="/odocs-logo-small.png"
-                            alt="odocs"
-                            sx={{
-                                height: 24,
-                                mr: 2,
-                                display: 'block'
-                            }}
-                        />
+                        {!readOnly && (
+                            <Box
+                                component="img"
+                                src="/odocs-logo-small.png"
+                                alt="odocs"
+                                sx={{
+                                    height: 24,
+                                    mr: 2,
+                                    display: 'block'
+                                }}
+                            />
+                        )}
 
-                        <Box sx={{ flexGrow: 1, display: 'flex', alignItems: 'center', overflow: 'hidden' }}>
-                            {readOnly ? (
-                                <Typography
+                        {/* Viewer Mode Title Overlay */}
+                        {readOnly && (
+                            <Box
+                                sx={{
+                                    position: 'absolute',
+                                    left: 0,
+                                    right: 0,
+                                    top: 0,
+                                    bottom: 0,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    pointerEvents: 'none', // Allow clicks to pass through to underlying buttons
+                                    zIndex: 0
+                                }}
+                            >
+                                <Box
                                     sx={{
-                                        fontSize: '1.5rem',
-                                        fontWeight: 700,
-                                        whiteSpace: 'nowrap',
-                                        overflow: 'hidden',
-                                        textOverflow: 'ellipsis',
+                                        width: '100%',
+                                        maxWidth: initialWidth,
+                                        px: '48px', // Match EditorWorkspace padding
+                                        boxSizing: 'border-box',
+                                        display: 'flex',
+                                        alignItems: 'center',
                                     }}
                                 >
-                                    {localTitle}
-                                </Typography>
-                            ) : (
+                                    <Box
+                                        component="img"
+                                        src="/odocs-logo-small.png"
+                                        alt="odocs"
+                                        sx={{
+                                            height: 24,
+                                            mr: 2,
+                                            display: 'block'
+                                        }}
+                                    />
+                                    <Typography
+                                        sx={{
+                                            fontSize: '1.5rem',
+                                            fontWeight: 700,
+                                            whiteSpace: 'nowrap',
+                                            overflow: 'hidden',
+                                            textOverflow: 'ellipsis',
+                                            color: 'text.primary',
+                                            pointerEvents: 'auto' // Allow text selection if needed
+                                        }}
+                                    >
+                                        {localTitle}
+                                    </Typography>
+                                </Box>
+                            </Box>
+                        )}
+
+                        <Box sx={{ flexGrow: 1, display: 'flex', alignItems: 'center', overflow: 'hidden', zIndex: 1 }}>
+                            {!readOnly && (
                                 <TextField
                                     value={localTitle}
                                     onChange={handleTitleChange}
@@ -284,8 +327,8 @@ const EditorLayout = ({ editor, document, onContentChange, onTitleChange, onClos
                     overflow: 'hidden',
                     display: 'flex',
                     flexDirection: 'column',
-                    p: readOnly ? 0 : 3,
-                    px: readOnly ? 0 : { xs: 2, sm: 4, lg: 6 },
+                    p: 0,
+                    px: 0,
                 }}>
                     <EditorWorkspace readOnly={readOnly} initialWidth={initialWidth} />
                 </Box>

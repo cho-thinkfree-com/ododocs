@@ -23,6 +23,21 @@ const SharedDocumentPage = () => {
     useEffect(() => {
         if (editor && revision?.content) {
             editor.commands.setContent(revision.content);
+
+            // Restore doc attributes if needed
+            if (
+                typeof revision.content === 'object' &&
+                revision.content !== null &&
+                'attrs' in revision.content &&
+                (revision.content as any).attrs
+            ) {
+                const attrs = (revision.content as any).attrs;
+                if (attrs['x-odocs-layoutWidth']) {
+                    editor.commands.updateAttributes('doc', {
+                        'x-odocs-layoutWidth': attrs['x-odocs-layoutWidth']
+                    });
+                }
+            }
         }
     }, [editor, revision]);
 
@@ -137,6 +152,19 @@ const SharedDocumentPage = () => {
         return fullPageBox(<Alert severity="error">{error || 'Document not found'}</Alert>);
     }
 
+    // Extract initial width from content
+    const getInitialWidth = () => {
+        if (!revision?.content) return '950px';
+        try {
+            const content = revision.content as any;
+            return content.attrs?.['x-odocs-layoutWidth'] || '950px';
+        } catch (e) {
+            return '950px';
+        }
+    };
+
+    const initialWidth = getInitialWidth();
+
     return (
         <Box sx={{ height: '100dvh', minHeight: '100dvh', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
             <EditorLayout
@@ -147,6 +175,7 @@ const SharedDocumentPage = () => {
                 onClose={() => { }} // No close action for public view? Or maybe redirect to home?
                 saveStatus="saved"
                 readOnly={true}
+                initialWidth={initialWidth}
             />
         </Box>
     );
