@@ -3,7 +3,7 @@ import { useCallback, useEffect, useState, useMemo, useRef } from 'react';
 import { useParams, useSearchParams, Link as RouterLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useUpload } from '../../context/UploadContext';
-import { getWorkspaceDocuments, getFolder, createFolder, createDocument, deleteDocument, deleteFolder, renameDocument, renameFolder, getWorkspace, ApiError, type DocumentSummary, type FolderSummary, type WorkspaceSummary, downloadDocument, moveFolder, updateDocument } from '../../lib/api';
+import { getWorkspaceDocuments, getFolder, createFolder, createDocument, deleteDocument, deleteFolder, renameDocument, renameFolder, getWorkspace, ApiError, type DocumentSummary, type FolderSummary, type WorkspaceSummary, downloadDocument, moveFolder, updateDocument, toggleDocumentStarred, toggleFolderStarred } from '../../lib/api';
 import { formatRelativeDate } from '../../lib/formatDate';
 import HomeIcon from '@mui/icons-material/Home';
 
@@ -13,7 +13,9 @@ import AddIcon from '@mui/icons-material/Add';
 import UploadFileIcon from '@mui/icons-material/UploadFile';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
 import NavigateNextIcon from '@mui/icons-material/NavigateNext';
+
 import StarBorderIcon from '@mui/icons-material/StarBorder';
+import StarIcon from '@mui/icons-material/Star';
 import PublicIcon from '@mui/icons-material/Public';
 
 import CreateFolderDialog from '../../components/workspace/CreateFolderDialog';
@@ -265,9 +267,57 @@ const WorkspacePage = () => {
     handleMenuClose();
   };
 
-  const handleStar = () => {
-    // Placeholder for future implementation
-    console.log('Star functionality to be implemented');
+  const handleStar = async () => {
+    if (!isAuthenticated || !workspaceId) return;
+
+    const itemsToStar = Array.from(selectedItems);
+    // Determine if we are starring or unstarring based on the first item's state
+    // If mixed, we star all. If all starred, we unstar all.
+
+    let allStarred = true;
+    for (const itemId of itemsToStar) {
+      const doc = documents.find(d => d.id === itemId);
+      const folder = folders.find(f => f.id === itemId);
+      if ((doc && !doc.isImportant) || (folder && !folder.isImportant)) {
+        allStarred = false;
+        break;
+      }
+    }
+
+    const newImportantStatus = !allStarred;
+
+    try {
+      await Promise.all(itemsToStar.map(async (itemId) => {
+        const isDocument = documents.some(d => d.id === itemId);
+        if (isDocument) {
+          await toggleDocumentStarred(itemId, newImportantStatus);
+        } else {
+          await toggleFolderStarred(itemId, newImportantStatus);
+        }
+      }));
+
+      fetchContents();
+      setSnackbarMessage(newImportantStatus ? 'Added to Starred' : 'Removed from Starred');
+      setSnackbarOpen(true);
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  };
+
+  const handleToggleImportant = async (itemId: string, isImportant: boolean, type: 'document' | 'folder', event: React.MouseEvent) => {
+    event.stopPropagation();
+    if (!isAuthenticated || !workspaceId) return;
+
+    try {
+      if (type === 'document') {
+        await toggleDocumentStarred(itemId, !isImportant);
+      } else {
+        await toggleFolderStarred(itemId, !isImportant);
+      }
+      fetchContents();
+    } catch (err) {
+      setError((err as Error).message);
+    }
   };
 
   const handlePublish = async () => {
@@ -929,6 +979,7 @@ const WorkspacePage = () => {
         <Table>
           <TableHead>
             <TableRow>
+              <TableCell width="48px" padding="checkbox"></TableCell>
               <TableCell width="40%">
                 <TableSortLabel
                   active={orderBy === 'name'}
@@ -985,12 +1036,16 @@ const WorkspacePage = () => {
                     cursor: draggedItems.has(itemId) ? 'grabbing' : 'pointer',
                     userSelect: 'none',
                     opacity: draggedItems.has(itemId) ? 0.5 : 1,
+                    outline: 'none',
                     ...(isFolder && dragTargetFolderId === itemId ? {
                       bgcolor: 'action.hover',
                       border: `2px dashed ${theme.palette.primary.main}`
                     } : {})
                   }}
                 >
+                  <TableCell padding="checkbox">
+                    {/* Empty cell for alignment */}
+                  </TableCell>
                   <TableCell>
                     <Box sx={{ display: 'flex', alignItems: 'center' }}>
                       {isFolder ? (
@@ -999,6 +1054,16 @@ const WorkspacePage = () => {
                         <ArticleIcon color="action" sx={{ mr: 1.5 }} />
                       )}
                       {itemName}
+                      {item.isImportant && (
+                        <StarIcon
+                          sx={{
+                            ml: 1,
+                            fontSize: '1rem',
+                            color: 'warning.main',
+                            opacity: 0.6
+                          }}
+                        />
+                      )}
                     </Box>
                   </TableCell>
                   <TableCell>
@@ -1059,6 +1124,7 @@ const WorkspacePage = () => {
       tabIndex={0}
       sx={{
         position: 'relative',
+        outline: 'none',
         '&::after': isDragging ? {
           content: '""',
           position: 'absolute',

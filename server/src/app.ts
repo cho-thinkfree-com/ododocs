@@ -603,6 +603,23 @@ export const buildServer = async ({ prisma, logger = true }: ServerOptions = {})
     reply.send({ folders })
   })
 
+  app.patch('/api/documents/:documentId/starred', { preHandler: authenticate }, async (request, reply) => {
+    const accountId = requireAccountId(request)
+    const documentId = (request.params as { documentId: string }).documentId
+    const { isStarred } = request.body as { isStarred: boolean }
+    const document = await documentService.toggleImportant(accountId, documentId, isStarred)
+    reply.send(document)
+  })
+
+  app.patch('/api/folders/:folderId/starred', { preHandler: authenticate }, async (request, reply) => {
+    const accountId = requireAccountId(request)
+    const folderId = (request.params as { folderId: string }).folderId
+    const workspaceId = await loadFolderWorkspaceId(folderId)
+    const { isStarred } = request.body as { isStarred: boolean }
+    const folder = await folderService.toggleImportant(accountId, workspaceId, folderId, isStarred)
+    reply.send(folder)
+  })
+
   app.post('/api/workspaces/:workspaceId/folders', { preHandler: authenticate }, async (request, reply) => {
     const accountId = requireAccountId(request)
     const workspaceId = (request.params as { workspaceId: string }).workspaceId
@@ -799,6 +816,60 @@ export const buildServer = async ({ prisma, logger = true }: ServerOptions = {})
     await loadDocumentWorkspace(documentId)
     const revision = await documentService.appendRevision(accountId, documentId, request.body as any)
     reply.status(201).send(revision)
+  })
+
+
+
+  app.post('/api/folders/:folderId/tags', { preHandler: authenticate }, async (request, reply) => {
+    const accountId = requireAccountId(request)
+    const folderId = (request.params as { folderId: string }).folderId
+    const workspaceId = await loadFolderWorkspaceId(folderId)
+    const { name } = request.body as { name: string }
+    const tag = await folderService.addTag(accountId, workspaceId, folderId, name)
+    reply.status(201).send(tag)
+  })
+
+  app.delete('/api/folders/:folderId/tags/:tagName', { preHandler: authenticate }, async (request, reply) => {
+    const accountId = requireAccountId(request)
+    const folderId = (request.params as { folderId: string }).folderId
+    const workspaceId = await loadFolderWorkspaceId(folderId)
+    const tagName = decodeURIComponent((request.params as { tagName: string }).tagName)
+    await folderService.removeTag(accountId, workspaceId, folderId, tagName)
+    reply.status(204).send()
+  })
+
+  app.get('/api/workspaces/:workspaceId/starred', { preHandler: authenticate }, async (request, reply) => {
+    const accountId = requireAccountId(request)
+    const workspaceId = (request.params as { workspaceId: string }).workspaceId
+
+    // We reuse listByWorkspace but filter by isImportant
+    // But listByWorkspace in DocumentRepository and FolderRepository needs to support isImportant filter
+    // I already added isImportant to filters in repositories.
+
+    const [documents, folders] = await Promise.all([
+      documentService.listWorkspaceDocuments(accountId, workspaceId, { isImportant: true }),
+      folderService.listFolders(accountId, workspaceId, false) // Need to filter folders by isImportant
+    ])
+
+    // Wait, folderService.listFolders calls folderRepository.listByWorkspace.
+    // I updated folderRepository.listByWorkspace to accept options including isImportant.
+    // But folderService.listFolders only accepts includeDeleted.
+    // I need to update folderService.listFolders to accept options.
+
+    // Let's fix folderService.listFolders first or just use repository directly here? 
+    // Better to update service.
+
+    // For now, I will filter in memory or update service in next step if I can't do it here.
+    // Actually, I can update folderService.listFolders signature in the previous step or now.
+    // I'll assume I'll update it.
+
+    // Re-reading my changes to folderService.ts:
+    // I did NOT update listFolders signature in folderService.ts.
+    // I only updated folderRepository.ts.
+
+    // So I need to update FolderService.listFolders as well.
+
+    reply.send({ documents: documents.documents, folders: folders.filter(f => f.isImportant) })
   })
 
   app.get('/api/documents/:documentId/revisions/latest', { preHandler: authenticate }, async (request, reply) => {

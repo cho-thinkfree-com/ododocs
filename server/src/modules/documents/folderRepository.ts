@@ -14,6 +14,8 @@ export interface FolderEntity {
   originalParentName?: string | null
   createdAt: Date
   updatedAt: Date
+  tags: string[]
+  isImportant: boolean
 }
 
 export interface FolderCreateInput {
@@ -22,6 +24,7 @@ export interface FolderCreateInput {
   name: string
   pathCache: string
   sortOrder?: number
+  isImportant?: boolean
 }
 
 export interface FolderUpdateInput {
@@ -30,6 +33,7 @@ export interface FolderUpdateInput {
   sortOrder?: number
   pathCache?: string
   deletedAt?: Date | null
+  isImportant?: boolean
 }
 
 export class FolderRepository {
@@ -43,6 +47,12 @@ export class FolderRepository {
         name: input.name,
         pathCache: input.pathCache,
         sortOrder: input.sortOrder ?? 0,
+        isImportant: input.isImportant ?? false,
+      },
+      include: {
+        tags: {
+          select: { name: true },
+        },
       },
     })
     return toEntity(folder)
@@ -57,6 +67,12 @@ export class FolderRepository {
         sortOrder: input.sortOrder,
         pathCache: input.pathCache,
         deletedAt: input.deletedAt,
+        isImportant: input.isImportant,
+      },
+      include: {
+        tags: {
+          select: { name: true },
+        },
       },
     })
     return toEntity(folder)
@@ -96,7 +112,7 @@ export class FolderRepository {
     return { folder, ancestors }
   }
 
-  async listByWorkspace(workspaceId: string, includeDeleted = false, options?: { sortBy?: string, sortOrder?: 'asc' | 'desc', parentId?: string | null }): Promise<FolderEntity[]> {
+  async listByWorkspace(workspaceId: string, includeDeleted = false, options?: { sortBy?: string, sortOrder?: 'asc' | 'desc', parentId?: string | null, isImportant?: boolean, tags?: string[] }): Promise<FolderEntity[]> {
     const orderBy: any[] = []
     if (options?.sortBy) {
       if (options.sortBy === 'name') {
@@ -113,8 +129,25 @@ export class FolderRepository {
         workspaceId,
         ...(includeDeleted ? {} : { deletedAt: null }),
         parentId: options?.parentId !== undefined ? options.parentId : undefined,
+        isImportant: options?.isImportant,
+        ...(options?.tags && options.tags.length > 0
+          ? {
+            tags: {
+              some: {
+                name: {
+                  in: options.tags,
+                },
+              },
+            },
+          }
+          : {}),
       },
       orderBy,
+      include: {
+        tags: {
+          select: { name: true },
+        },
+      },
     })
     return folders.map(toEntity)
   }
@@ -262,7 +295,7 @@ export class FolderRepository {
   }
 }
 
-const toEntity = (folder: FolderModel & { parent?: { id: string; name: string } | null }): FolderEntity => ({
+const toEntity = (folder: FolderModel & { parent?: { id: string; name: string } | null; tags?: { name: string }[] }): FolderEntity => ({
   id: folder.id,
   workspaceId: folder.workspaceId,
   parentId: folder.parentId,
@@ -275,4 +308,6 @@ const toEntity = (folder: FolderModel & { parent?: { id: string; name: string } 
   originalParentName: folder.parent?.name ?? null,
   createdAt: folder.createdAt,
   updatedAt: folder.updatedAt,
+  tags: folder.tags?.map((tag) => tag.name) ?? [],
+  isImportant: folder.isImportant,
 })

@@ -141,6 +141,8 @@ export interface FolderSummary {
   deletedAt?: string | null
   originalParentId?: string | null
   originalParentName?: string | null
+  tags: string[]
+  isImportant: boolean
 }
 
 export interface DocumentSummary {
@@ -160,6 +162,7 @@ export interface DocumentSummary {
   deletedAt?: string | null
   originalFolderId?: string | null
   originalFolderName?: string | null
+  isImportant: boolean
 }
 
 export interface DocumentCreateInput {
@@ -332,6 +335,29 @@ export const removeDocumentTag = (documentId: string, tag: string) =>
   requestJSON<void>(`/api/documents/${documentId}/tags/${encodeURIComponent(tag)}`, {
     method: 'DELETE',
   })
+
+export const addFolderTag = (folderId: string, tag: string) =>
+  requestJSON<{ name: string }>(`/api/folders/${folderId}/tags`, { method: 'POST', body: { name: tag } })
+
+export const removeFolderTag = (folderId: string, tag: string) =>
+  requestJSON<void>(`/api/folders/${folderId}/tags/${encodeURIComponent(tag)}`, {
+    method: 'DELETE',
+  })
+
+export const toggleDocumentStarred = (documentId: string, isStarred: boolean) =>
+  requestJSON<DocumentSummary>(`/api/documents/${documentId}/starred`, {
+    method: 'PATCH',
+    body: { isStarred },
+  })
+
+export const toggleFolderStarred = (folderId: string, isStarred: boolean) =>
+  requestJSON<FolderSummary>(`/api/folders/${folderId}/starred`, {
+    method: 'PATCH',
+    body: { isStarred },
+  })
+
+export const getStarredDocuments = (workspaceId: string) =>
+  requestJSON<{ documents: DocumentSummary[]; folders: FolderSummary[] }>(`/api/workspaces/${workspaceId}/starred`)
 
 export const createShareLink = (documentId: string) =>
   requestJSON<ShareLinkResponse>(`/api/documents/${documentId}/share-links`, {

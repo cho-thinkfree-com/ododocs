@@ -201,6 +201,12 @@ export class DocumentService {
     return this.documentRepository.update(documentId, input)
   }
 
+  async toggleImportant(accountId: string, documentId: string, isImportant: boolean): Promise<DocumentEntity> {
+    const document = await this.ensureDocument(documentId)
+    await this.workspaceAccess.assertMember(accountId, document.workspaceId)
+    return this.documentRepository.update(documentId, { isImportant })
+  }
+
   async appendRevision(
     accountId: string,
     documentId: string,

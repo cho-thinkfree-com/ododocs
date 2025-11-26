@@ -28,6 +28,7 @@ export interface DocumentEntity {
   updatedAt: Date
   tags: string[]
   lastModifiedBy?: string | null
+  isImportant: boolean
 }
 
 export interface DocumentCreateInput {
@@ -43,6 +44,7 @@ export interface DocumentCreateInput {
   sortOrder?: number
   workspaceDefaultAccess?: DocumentWorkspaceAccess
   workspaceEditorAdminsOnly?: boolean
+  isImportant?: boolean
 }
 
 export interface DocumentUpdateInput {
@@ -57,6 +59,7 @@ export interface DocumentUpdateInput {
   workspaceDefaultAccess?: DocumentWorkspaceAccess
   workspaceEditorAdminsOnly?: boolean
   deletedAt?: Date | null
+  isImportant?: boolean
 }
 
 export interface DocumentListFilters {
@@ -66,6 +69,7 @@ export interface DocumentListFilters {
   search?: string
   includeDeleted?: boolean
   tags?: string[]
+  isImportant?: boolean
   sortBy?: 'title' | 'name' | 'updatedAt' | 'contentSize' | 'type'
   sortOrder?: 'asc' | 'desc'
 }
@@ -87,6 +91,7 @@ export class DocumentRepository {
         contentSize: input.contentSize ?? 0,
         sortOrder: input.sortOrder ?? 0,
         workspaceEditorAdminsOnly: input.workspaceEditorAdminsOnly,
+        isImportant: input.isImportant ?? false,
       },
       include: {
         tags: {
@@ -114,6 +119,7 @@ export class DocumentRepository {
         workspaceDefaultAccess: input.workspaceDefaultAccess,
         workspaceEditorAdminsOnly: input.workspaceEditorAdminsOnly,
         deletedAt: input.deletedAt,
+        isImportant: input.isImportant,
       },
       include: {
         tags: {
@@ -187,6 +193,7 @@ export class DocumentRepository {
         folderId: filters.folderId ?? null,
         status: filters.status,
         visibility: filters.visibility,
+        isImportant: filters.isImportant,
         ...(filters.search
           ? {
             title: {
@@ -464,5 +471,6 @@ const toEntity = (document: DocumentModel & { revisions?: ({ createdByMembership
     updatedAt: document.updatedAt,
     tags: document.tags?.map((tag) => tag.name) ?? [],
     lastModifiedBy: document.revisions?.[0]?.createdByMembership?.account?.legalName,
+    isImportant: document.isImportant,
   }
 }

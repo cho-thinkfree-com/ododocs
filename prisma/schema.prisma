@@ -216,6 +216,8 @@ model Folder {
   createdAt   DateTime   @default(now()) @map("created_at")
   updatedAt   DateTime   @updatedAt @map("updated_at")
   documents   Document[]
+  tags        FolderTag[]
+  isImportant Boolean    @default(false) @map("is_important")
 
   @@index([workspaceId])
   @@index([workspaceId, parentId])
@@ -248,6 +250,7 @@ model Document {
   shareLinks         DocumentShareLink[]
   exportJobs         ExportJob[]
   tags               DocumentTag[]
+  isImportant        Boolean              @default(false) @map("is_important")
 
   @@unique([workspaceId, slug])
   @@index([workspaceId, folderId])
@@ -280,6 +283,17 @@ model DocumentTag {
 
   @@unique([documentId, name])
   @@index([documentId])
+}
+
+model FolderTag {
+  id          String   @id @default(uuid())
+  folder      Folder   @relation(fields: [folderId], references: [id], onDelete: Cascade)
+  folderId    String   @map("folder_id")
+  name        String
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@unique([folderId, name])
+  @@index([folderId])
 }
 
 model DocumentRevision {

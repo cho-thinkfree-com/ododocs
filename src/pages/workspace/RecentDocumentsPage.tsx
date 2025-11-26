@@ -1,11 +1,12 @@
 import { Alert, Box, Breadcrumbs, CircularProgress, Container, Link, Typography, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Chip, Snackbar, TableSortLabel, Checkbox } from '@mui/material';
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useParams, Link as RouterLink } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { getRecentDocuments, type DocumentSummary } from '../../lib/api';
+import { getRecentDocuments, type DocumentSummary, toggleDocumentStarred } from '../../lib/api';
 import { formatRelativeDate } from '../../lib/formatDate';
 import HomeIcon from '@mui/icons-material/Home';
 import ArticleIcon from '@mui/icons-material/Article';
+import StarIcon from '@mui/icons-material/Star';
 import NavigateNextIcon from '@mui/icons-material/NavigateNext';
 import { usePageTitle } from '../../hooks/usePageTitle';
 import { useI18n } from '../../lib/i18n';
@@ -98,8 +99,48 @@ const RecentDocumentsPage = () => {
         setSelectedItems(new Set());
     };
 
-    const handleStar = () => {
-        console.log('Star functionality to be implemented');
+    const fetchDocuments = useCallback(async () => {
+        if (!isAuthenticated || !workspaceId) return;
+        setLoading(true);
+        setError(null);
+        try {
+            const docs = await getRecentDocuments(workspaceId, { sortBy: orderBy, sortOrder: order });
+            setDocuments(docs);
+        } catch (err) {
+            setError((err as Error).message);
+        } finally {
+            setLoading(false);
+        }
+    }, [isAuthenticated, workspaceId, orderBy, order]);
+
+    const handleStar = async () => {
+        if (!isAuthenticated || !workspaceId) return;
+
+        const itemsToStar = Array.from(selectedItems);
+
+        // Check if all selected items are already starred
+        let allStarred = true;
+        for (const itemId of itemsToStar) {
+            const doc = documents.find(d => d.id === itemId);
+            if (doc && !doc.isImportant) {
+                allStarred = false;
+                break;
+            }
+        }
+
+        const newImportantStatus = !allStarred;
+
+        try {
+            await Promise.all(itemsToStar.map(async (itemId) => {
+                await toggleDocumentStarred(itemId, newImportantStatus);
+            }));
+
+            fetchDocuments();
+            setSnackbarMessage(newImportantStatus ? 'Added to Starred' : 'Removed from Starred');
+            setSnackbarOpen(true);
+        } catch (err) {
+            setError((err as Error).message);
+        }
     };
 
     const handlePublish = async () => {
@@ -230,6 +271,16 @@ const RecentDocumentsPage = () => {
                                     <Box sx={{ display: 'flex', alignItems: 'center' }}>
                                         <ArticleIcon color="action" sx={{ mr: 1.5 }} />
                                         {doc.title}
+                                        {doc.isImportant && (
+                                            <StarIcon
+                                                sx={{
+                                                    ml: 1,
+                                                    fontSize: '1rem',
+                                                    color: 'warning.main',
+                                                    opacity: 0.6
+                                                }}
+                                            />
+                                        )}
                                     </Box>
                                 </TableCell>
                                 <TableCell>

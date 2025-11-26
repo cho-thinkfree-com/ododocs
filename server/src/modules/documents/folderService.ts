@@ -1,5 +1,6 @@
 ﻿import { z } from 'zod'
 import { FolderRepository, type FolderEntity } from './folderRepository.js'
+import { FolderTagRepository } from './folderTagRepository.js'
 import { DocumentRepository } from './documentRepository.js'
 import { WorkspaceAccessService } from '../workspaces/workspaceAccess.js'
 import { MembershipRepository } from '../workspaces/membershipRepository.js'
@@ -31,6 +32,7 @@ export class FolderService {
     private readonly workspaceAccess: WorkspaceAccessService,
     private readonly documentRepository: DocumentRepository,
     private readonly membershipRepository: MembershipRepository,
+    private readonly folderTagRepository: FolderTagRepository,
   ) { }
 
   async listFolders(accountId: string, workspaceId: string, includeDeleted = false): Promise<FolderEntity[]> {
@@ -93,6 +95,31 @@ export class FolderService {
       await this.rebuildSubtreePaths(workspaceId, folder.id)
     }
     return updated
+  }
+
+  async toggleImportant(accountId: string, workspaceId: string, folderId: string, isImportant: boolean): Promise<FolderEntity> {
+    await this.workspaceAccess.assertMember(accountId, workspaceId)
+    const folder = await this.ensureFolder(workspaceId, folderId)
+    return this.folderRepository.update(folder.id, { isImportant })
+  }
+
+  async addTag(accountId: string, workspaceId: string, folderId: string, tagName: string) {
+    await this.workspaceAccess.assertMember(accountId, workspaceId)
+    const folder = await this.ensureFolder(workspaceId, folderId)
+
+    const existing = await this.folderTagRepository.findByFolderAndName(folder.id, tagName)
+    if (existing) return existing
+
+    return this.folderTagRepository.create({
+      folderId: folder.id,
+      name: tagName,
+    })
+  }
+
+  async removeTag(accountId: string, workspaceId: string, folderId: string, tagName: string) {
+    await this.workspaceAccess.assertMember(accountId, workspaceId)
+    const folder = await this.ensureFolder(workspaceId, folderId)
+    await this.folderTagRepository.delete(folder.id, tagName)
   }
 
   async moveFolder(
