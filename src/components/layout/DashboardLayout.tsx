@@ -1,12 +1,12 @@
 ﻿import { useState, useEffect, useCallback } from 'react';
-import { Box, AppBar, Toolbar, Typography, IconButton, Menu, MenuItem, Divider, useTheme, Button, Dialog, DialogTitle, DialogContent, DialogActions, TextField, FormControl, InputLabel, Select, CircularProgress, Alert, InputAdornment, Avatar, ListItemIcon } from '@mui/material';
+import { Box, AppBar, Toolbar, Typography, IconButton, Menu, MenuItem, Divider, useTheme, Avatar, ListItemIcon } from '@mui/material';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import LogoutIcon from '@mui/icons-material/Logout';
 import SettingsIcon from '@mui/icons-material/Settings';
-import LockIcon from '@mui/icons-material/Lock';
+
 import { useNavigate, Outlet, useParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { getWorkspaceMemberProfile, updateAccount, getWorkspace, type MembershipSummary, type WorkspaceSummary } from '../../lib/api';
+import { getWorkspaceMemberProfile, getWorkspace, type MembershipSummary, type WorkspaceSummary } from '../../lib/api';
 import { useI18n, type Locale } from '../../lib/i18n';
 import WorkspaceLanguageSync from '../common/WorkspaceLanguageSync';
 import WorkspaceAccountSettingsDialog from '../workspace/WorkspaceAccountSettingsDialog';
@@ -71,93 +71,7 @@ const DashboardLayout = () => {
     }, [fetchWorkspaceData]);
 
 
-    const languageOptions = strings.settings.languageOptions ?? {
-        'en-US': 'English (English)',
-        'ko-KR': '한국어(한국어)',
-        'ja-JP': '日本語(日本語)',
-    };
-    const accountLanguageLabelId = 'account-language-label';
-    const accountTimezoneLabelId = 'account-timezone-label';
-    const defaultTimezoneOptions = [
-        'UTC',
-        'Asia/Seoul',
-        'Asia/Tokyo',
-        'Asia/Shanghai',
-        'Asia/Hong_Kong',
-        'Asia/Taipei',
-        'Asia/Singapore',
-        'Asia/Bangkok',
-        'Asia/Kolkata',
-        'Asia/Dubai',
-        'Asia/Kuala_Lumpur',
-        'Asia/Jakarta',
-        'Asia/Manila',
-        'Europe/London',
-        'Europe/Paris',
-        'Europe/Berlin',
-        'Europe/Madrid',
-        'Europe/Rome',
-        'Europe/Amsterdam',
-        'Europe/Stockholm',
-        'Europe/Istanbul',
-        'Europe/Moscow',
-        'Europe/Warsaw',
-        'Europe/Zurich',
-        'America/New_York',
-        'America/Chicago',
-        'America/Denver',
-        'America/Los_Angeles',
-        'America/Toronto',
-        'America/Vancouver',
-        'America/Mexico_City',
-        'America/Bogota',
-        'America/Lima',
-        'America/Sao_Paulo',
-        'America/Argentina/Buenos_Aires',
-        'Australia/Sydney',
-        'Australia/Melbourne',
-        'Pacific/Auckland',
-    ];
-    const timezoneOptions =
-        typeof (Intl as any).supportedValuesOf === 'function'
-            ? ((Intl as any).supportedValuesOf('timeZone') as string[])
-            : defaultTimezoneOptions;
-    const formatTzLabel = (tz: string) => {
-        try {
-            const parts = new Intl.DateTimeFormat('en-US', {
-                timeZone: tz,
-                timeZoneName: 'shortOffset',
-            }).formatToParts(new Date());
-            const offset = parts.find((p) => p.type === 'timeZoneName')?.value ?? 'UTC';
-            return `${tz} (${offset})`;
-        } catch {
-            return tz;
-        }
-    };
-    const getOffsetMinutes = (tz: string) => {
-        try {
-            const parts = new Intl.DateTimeFormat('en-US', {
-                timeZone: tz,
-                timeZoneName: 'shortOffset',
-            }).formatToParts(new Date());
-            const offsetRaw = parts.find((p) => p.type === 'timeZoneName')?.value ?? 'GMT+0';
-            const match = offsetRaw.match(/GMT([+-])(\d{1,2})(?::?(\d{2}))?/);
-            if (!match) return 0;
-            const sign = match[1] === '-' ? -1 : 1;
-            const hours = parseInt(match[2], 10);
-            const minutes = match[3] ? parseInt(match[3], 10) : 0;
-            return sign * (hours * 60 + minutes);
-        } catch {
-            return 0;
-        }
-    };
-    const timezoneOptionsWithLabel = timezoneOptions
-        .map((tz) => ({
-            value: tz,
-            label: formatTzLabel(tz),
-            offsetMinutes: getOffsetMinutes(tz),
-        }))
-        .sort((a, b) => a.offsetMinutes - b.offsetMinutes || a.label.localeCompare(b.label));
+
 
     const userDisplayName =
         (user?.legalName && user.legalName.trim().length > 0 && user.legalName.trim()) ||
@@ -174,10 +88,7 @@ const DashboardLayout = () => {
     const profileEmail = isWorkspaceContext ? null : user?.email;
     const profileAvatarChar = profileName?.charAt(0).toUpperCase() || user?.email?.charAt(0).toUpperCase();
 
-    const openWorkspaceDialog = () => {
-        if (!workspaceId) return;
-        setWorkspaceDialogOpen(true);
-    };
+
 
 
 
