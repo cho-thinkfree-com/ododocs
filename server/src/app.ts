@@ -18,6 +18,7 @@ import { WorkspaceAuditService } from './modules/audit/workspaceAuditService.js'
 import { WorkspaceRepository } from './modules/workspaces/workspaceRepository.js'
 import { MembershipRepository } from './modules/workspaces/membershipRepository.js'
 import { MembershipAccessDeniedError, MembershipService } from './modules/workspaces/membershipService.js'
+import { isReservedHandle } from './lib/reservedHandles.js'
 import { WorkspaceNotFoundError } from './modules/workspaces/workspaceService.js'
 import { WorkspaceService } from './modules/workspaces/workspaceService.js'
 import { WorkspaceAccessService } from './modules/workspaces/workspaceAccess.js'
@@ -507,9 +508,45 @@ export const buildServer = async ({ prisma, logger = true }: ServerOptions = {})
   }>(
     '/api/workspaces/:workspaceId/members/me',
     { preHandler: [authenticate] },
-    async (request) => {
+    async (request, reply) => {
       const { workspaceId } = request.params
       const accountId = requireAccountId(request)
+
+      // Validate blog handle if provided
+      if (request.body.blogHandle !== undefined && request.body.blogHandle !== null) {
+        const handle = request.body.blogHandle.trim()
+
+        if (handle.length > 0) {
+          // Check length
+          if (handle.length < 4 || handle.length > 32) {
+            return reply.status(400).send({
+              error: 'Blog handle must be between 4 and 32 characters'
+            })
+          }
+
+          // Check format (only lowercase letters, numbers, and hyphens)
+          if (!/^[a-z0-9-]+$/.test(handle)) {
+            return reply.status(400).send({
+              error: 'Blog handle can only contain lowercase letters, numbers, and hyphens'
+            })
+          }
+
+          // Check if it starts or ends with hyphen
+          if (handle.startsWith('-') || handle.endsWith('-')) {
+            return reply.status(400).send({
+              error: 'Blog handle cannot start or end with a hyphen'
+            })
+          }
+
+          // Check reserved words
+          if (isReservedHandle(handle)) {
+            return reply.status(400).send({
+              error: 'This handle is reserved and cannot be used'
+            })
+          }
+        }
+      }
+
       const membership = await membershipService.updateMember(
         accountId,
         workspaceId,

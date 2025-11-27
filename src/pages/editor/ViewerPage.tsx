@@ -11,7 +11,7 @@ interface ViewerPageProps {
 }
 
 const ViewerPage = ({ isPublic = false }: ViewerPageProps) => {
-    const { token, handle, slug } = useParams<{ token?: string; handle?: string; slug?: string }>();
+    const { token, handle, documentNumber } = useParams<{ token?: string; handle?: string; documentNumber?: string }>();
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [passwordRequired, setPasswordRequired] = useState(false);
@@ -79,7 +79,7 @@ const ViewerPage = ({ isPublic = false }: ViewerPageProps) => {
 
 
     const fetchDocument = async (pwd?: string) => {
-        if (!token && (!handle || !slug)) return;
+        if (!token && (!handle || !documentNumber)) return;
 
         console.log('[ViewerPage] Fetching document...');
         setLoading(true);
@@ -89,11 +89,11 @@ const ViewerPage = ({ isPublic = false }: ViewerPageProps) => {
             if (token) {
                 console.log('[ViewerPage] Using token:', token);
                 result = await resolveShareLink(token, pwd);
-            } else if (handle && slug) {
-                console.log('[ViewerPage] Using handle/slug:', handle, slug);
+            } else if (handle && documentNumber) {
+                console.log('[ViewerPage] Using handle/documentNumber:', handle, documentNumber);
                 // Dynamically import to avoid circular dependency if any, though api.ts is safe
                 const { getBlogDocument } = await import('../../lib/api');
-                result = await getBlogDocument(handle, slug);
+                result = await getBlogDocument(handle, documentNumber);
             }
 
             if (result) {
@@ -120,7 +120,7 @@ const ViewerPage = ({ isPublic = false }: ViewerPageProps) => {
 
     useEffect(() => {
         fetchDocument();
-    }, [token, handle, slug]);
+    }, [token, handle, documentNumber]);
 
     const handlePasswordSubmit = (e: React.FormEvent) => {
         e.preventDefault();

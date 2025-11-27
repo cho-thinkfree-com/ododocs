@@ -8,6 +8,7 @@ import {
     Grid,
     Pagination,
 } from '@mui/material';
+import { slugify } from '../../lib/slug';
 import {
     getWorkspaceMemberPublicProfile,
     getWorkspaceMemberPublicDocuments,
@@ -75,12 +76,15 @@ const BlogLandingPage = () => {
     }, [workspaceId, profileId, handle, page]);
 
     const handleDocumentClick = (doc: DocumentSummary) => {
-        if (handle) {
-            navigate(`/blog/${handle}/documents/${doc.slug}`);
+        if (handle && doc.documentNumber) {
+            const titleSlug = slugify(doc.title);
+            navigate(`/blog/${handle}/documents/${doc.documentNumber}/${titleSlug}`);
         } else {
             // Fallback for legacy route or if no handle
             if ((doc as any).publicToken) {
                 navigate(`/public/${(doc as any).publicToken}`);
+            } else {
+                console.warn('Cannot navigate: no handle or public token available');
             }
         }
     };

@@ -236,6 +236,7 @@ model Document {
   ownerMembershipId  String               @map("owner_membership_id")
   title              String
   slug               String
+  documentNumber     Int?                 @map("document_number")
   status             DocumentStatus       @default(draft)
   visibility         DocumentVisibility   @default(private)
   summary            String?              @map("summary")
@@ -257,6 +258,7 @@ model Document {
   viewCount          Int                  @default(0) @map("view_count")
 
   @@unique([workspaceId, slug])
+  @@unique([workspaceId, documentNumber])
   @@index([workspaceId, folderId])
   @@index([ownerMembershipId])
 }

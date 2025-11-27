@@ -14,6 +14,7 @@ export interface DocumentEntity {
   ownerMembershipId: string
   title: string
   slug: string
+  documentNumber: number
   status: DocumentStatus
   visibility: DocumentVisibility
   summary?: string | null
@@ -39,6 +40,7 @@ export interface DocumentCreateInput {
   ownerMembershipId: string
   title: string
   slug: string
+  documentNumber: number
   status: DocumentStatus
   visibility: DocumentVisibility
   summary?: string | null
@@ -87,6 +89,7 @@ export class DocumentRepository {
         ownerMembershipId: input.ownerMembershipId,
         title: input.title,
         slug: input.slug,
+        documentNumber: input.documentNumber,
         status: input.status,
         visibility: input.visibility,
         summary: input.summary,
@@ -104,6 +107,32 @@ export class DocumentRepository {
       },
     })
     return toEntity(document)
+  }
+
+  async getNextDocumentNumber(workspaceId: string): Promise<number> {
+    const lastDoc = await this.prisma.document.findFirst({
+      where: { workspaceId },
+      orderBy: { documentNumber: 'desc' },
+      select: { documentNumber: true },
+    })
+    return (lastDoc?.documentNumber ?? 0) + 1
+  }
+
+  async findByWorkspaceAndNumber(workspaceId: string, documentNumber: number): Promise<DocumentEntity | null> {
+    const document = await this.prisma.document.findUnique({
+      where: {
+        workspaceId_documentNumber: {
+          workspaceId,
+          documentNumber,
+        },
+      },
+      include: {
+        tags: {
+          select: { name: true },
+        },
+      },
+    })
+    return document ? toEntity(document) : null
   }
 
   async update(id: string, input: DocumentUpdateInput): Promise<DocumentEntity> {
@@ -489,6 +518,7 @@ const toEntity = (document: DocumentModel & { revisions?: ({ createdByMembership
     ownerMembershipId: document.ownerMembershipId,
     title: document.title,
     slug: document.slug,
+    documentNumber: (document as any).documentNumber,
     status: document.status,
     visibility: document.visibility,
     summary: document.summary,

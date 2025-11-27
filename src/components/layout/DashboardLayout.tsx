@@ -9,7 +9,6 @@ import { useAuth } from '../../context/AuthContext';
 import { getWorkspaceMemberProfile, getWorkspace, type MembershipSummary, type WorkspaceSummary } from '../../lib/api';
 import { useI18n, type Locale } from '../../lib/i18n';
 import WorkspaceLanguageSync from '../common/WorkspaceLanguageSync';
-import WorkspaceAccountSettingsDialog from '../workspace/WorkspaceAccountSettingsDialog';
 
 const DashboardLayout = () => {
     const theme = useTheme();
@@ -20,7 +19,6 @@ const DashboardLayout = () => {
     const [workspaceDisplayName, setWorkspaceDisplayName] = useState<string | null>(null);
     const [workspaceMember, setWorkspaceMember] = useState<MembershipSummary | null>(null);
     const [workspace, setWorkspace] = useState<WorkspaceSummary | null>(null);
-    const [profileDialogOpen, setProfileDialogOpen] = useState(false);
     const { strings, locale, setLocale } = useI18n();
 
 
@@ -215,8 +213,8 @@ const DashboardLayout = () => {
                                     e.stopPropagation();
                                     handleMenuClose();
                                     if (isWorkspaceContext) {
-                                        // Open workspace account settings dialog
-                                        setProfileDialogOpen(true);
+                                        // Navigate to workspace profile page
+                                        navigate(`/workspace/${workspaceId}/profile`);
                                     } else {
                                         navigate('/settings');
                                     }
@@ -261,14 +259,6 @@ const DashboardLayout = () => {
             >
                 <Outlet />
             </Box>
-
-            {workspaceId && (
-                <WorkspaceAccountSettingsDialog
-                    open={profileDialogOpen}
-                    onClose={() => setProfileDialogOpen(false)}
-                    workspaceId={workspaceId}
-                />
-            )}
         </Box >
     );
 };

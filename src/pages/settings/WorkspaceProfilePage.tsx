@@ -14,11 +14,15 @@ import {
     Select,
     Paper,
     Grid,
-    Link
+    Link,
+    Chip
 } from '@mui/material';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import ErrorIcon from '@mui/icons-material/Error';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import { useAuth } from '../../context/AuthContext';
 import { useI18n, type Locale } from '../../lib/i18n';
+import { isReservedHandle } from '../../lib/reservedHandles';
 import { getWorkspaceMemberProfile, updateWorkspaceMemberProfile, getWorkspace, checkBlogHandleAvailability } from '../../lib/api';
 import { BLOG_THEMES } from '../../components/blog/themeRegistry';
 
@@ -37,20 +41,89 @@ const WorkspaceProfilePage = () => {
     const [blogTheme, setBlogTheme] = useState('modern');
     const [blogHandle, setBlogHandle] = useState('');
     const [blogDescription, setBlogDescription] = useState('');
+
+
+    // Initial State for Change Detection
+    const [initialDisplayName, setInitialDisplayName] = useState('');
+    const [initialTimezone, setInitialTimezone] = useState('UTC');
+    const [initialLocale, setInitialLocale] = useState('en-US');
+    const [initialBlogTheme, setInitialBlogTheme] = useState('modern');
     const [initialBlogHandle, setInitialBlogHandle] = useState('');
+    const [initialBlogDescription, setInitialBlogDescription] = useState('');
+
     const [handleError, setHandleError] = useState<string | null>(null);
     const [handleAvailable, setHandleAvailable] = useState<boolean | null>(null);
+    const [handleChecking, setHandleChecking] = useState(false);
     const [membershipId, setMembershipId] = useState<string>('');
 
+
     // UI State
-    const [loading, setLoading] = useState(false);
     const [profileLoading, setProfileLoading] = useState(false);
-    const [error, setError] = useState<string | null>(null);
-    const [success, setSuccess] = useState<string | null>(null);
+    const [profileError, setProfileError] = useState<string | null>(null);
+    const [profileSuccess, setProfileSuccess] = useState<string | null>(null);
+
+    const [blogLoading, setBlogLoading] = useState(false);
+    const [blogError, setBlogError] = useState<string | null>(null);
+    const [blogSuccess, setBlogSuccess] = useState<string | null>(null);
+
+    const [initialLoading, setInitialLoading] = useState(false);
+
+    // Debounced blog handle validation
+    useEffect(() => {
+        const checkHandle = async () => {
+            if (!blogHandle || blogHandle.length < 4) {
+                setHandleChecking(false);
+                setHandleAvailable(null);
+                setHandleError(null);
+                return;
+            }
+
+            if (blogHandle === initialBlogHandle) {
+                setHandleChecking(false);
+                setHandleAvailable(null);
+                setHandleError(null);
+                return;
+            }
+
+            // Check reserved words locally first
+            if (isReservedHandle(blogHandle)) {
+                setHandleAvailable(false);
+                setHandleError('This handle is reserved and cannot be used');
+                setHandleChecking(false);
+                return;
+            }
+
+            try {
+                const { available } = await checkBlogHandleAvailability(blogHandle);
+                if (available) {
+                    setHandleAvailable(true);
+                    setHandleError(null);
+                } else {
+                    setHandleAvailable(false);
+                    setHandleError('This handle is already taken or reserved.');
+                }
+            } catch (err) {
+                console.error('Failed to check handle availability', err);
+                setHandleError('Failed to check availability');
+            } finally {
+                setHandleChecking(false);
+            }
+        };
+
+        // Show checking state immediately when handle changes (and is different from initial)
+        if (blogHandle && blogHandle.length >= 4 && blogHandle !== initialBlogHandle) {
+            setHandleChecking(true);
+            setHandleAvailable(null);
+            setHandleError(null);
+        }
+
+        const timeoutId = setTimeout(checkHandle, 2000);
+        return () => clearTimeout(timeoutId);
+    }, [blogHandle, initialBlogHandle]);
 
     useEffect(() => {
         if (workspaceId && isAuthenticated) {
-            setProfileLoading(true);
+            setInitialLoading(true);
             Promise.all([
                 getWorkspaceMemberProfile(workspaceId),
                 getWorkspace(workspaceId)
@@ -64,46 +137,112 @@ const WorkspaceProfilePage = () => {
                     setBlogDescription(profile.blogDescription || '');
                     setInitialBlogHandle(profile.blogHandle || '');
                     setMembershipId(profile.id);
+
+                    // Set initial values for change detection
+                    setInitialDisplayName(profile.displayName || '');
+                    setInitialTimezone(profile.timezone || 'UTC');
+                    setInitialLocale(profile.preferredLocale || 'en-US');
+                    setInitialBlogTheme(profile.blogTheme || 'modern');
+                    setInitialBlogDescription(profile.blogDescription || '');
                     setWorkspaceName(workspace.name);
                 })
                 .catch(err => {
                     console.error('Failed to load workspace profile', err);
-                    setError(strings.settings.workspaceProfile.loadError);
+                    setProfileError(strings.settings.workspaceProfile.loadError);
                 })
-                .finally(() => setProfileLoading(false));
+                .finally(() => setInitialLoading(false));
         }
     }, [workspaceId, isAuthenticated, locale, strings.settings.workspaceProfile.loadError]);
 
-    const handleSave = async () => {
+    const handleSaveProfile = async () => {
         if (!isAuthenticated || !workspaceId) return;
-        setLoading(true);
-        setError(null);
-        setSuccess(null);
+        setProfileLoading(true);
+        setProfileError(null);
+        setProfileSuccess(null);
         setDisplayNameError(null);
 
         try {
             if (!displayName.trim()) {
                 setDisplayNameError(strings.settings.workspaceProfile.displayNameRequired);
-                setLoading(false);
+                setProfileLoading(false);
                 return;
             }
             await updateWorkspaceMemberProfile(workspaceId, {
                 displayName: displayName.trim(),
                 timezone: workspaceTimezone,
                 preferredLocale: workspaceLocale,
-                blogTheme,
-                blogHandle: blogHandle.trim() || undefined,
-                blogDescription: blogDescription.trim() || undefined
             });
 
             // Apply the new locale immediately after saving so the UI mirrors the selection
             setLocale(workspaceLocale as Locale);
 
-            setSuccess(strings.settings.workspaceProfile.updateSuccess);
+            setProfileSuccess('Profile settings saved successfully');
+
+            // Update initial values
+            setInitialDisplayName(displayName.trim());
+            setInitialTimezone(workspaceTimezone);
+            setInitialLocale(workspaceLocale);
         } catch (err) {
-            setError((err as Error).message);
+            setProfileError((err as Error).message);
         } finally {
-            setLoading(false);
+            setProfileLoading(false);
+        }
+    };
+
+    const handleSaveBlog = async () => {
+        if (!isAuthenticated || !workspaceId) return;
+        setBlogLoading(true);
+        setBlogError(null);
+        setBlogSuccess(null);
+
+        try {
+            // Validate blog handle if provided
+            if (blogHandle.trim()) {
+                const trimmedHandle = blogHandle.trim();
+
+                // Check length
+                if (trimmedHandle.length < 4 || trimmedHandle.length > 32) {
+                    setBlogError('Blog handle must be between 4 and 32 characters');
+                    setBlogLoading(false);
+                    return;
+                }
+
+                // Check format (only lowercase letters, numbers, and hyphens)
+                if (!/^[a-z0-9-]+$/.test(trimmedHandle)) {
+                    setBlogError('Blog handle can only contain lowercase letters, numbers, and hyphens');
+                    setBlogLoading(false);
+                    return;
+                }
+
+                // Check if it starts or ends with hyphen
+                if (trimmedHandle.startsWith('-') || trimmedHandle.endsWith('-')) {
+                    setBlogError('Blog handle cannot start or end with a hyphen');
+                    setBlogLoading(false);
+                    return;
+                }
+
+                // Check reserved words
+                if (isReservedHandle(trimmedHandle)) {
+                    setBlogError('This handle is reserved and cannot be used');
+                    setBlogLoading(false);
+                    return;
+                }
+            }
+
+            await updateWorkspaceMemberProfile(workspaceId, {
+                blogTheme,
+                blogHandle: blogHandle.trim() || undefined,
+                blogDescription: blogDescription.trim() || undefined
+            });
+
+            setBlogSuccess('Blog settings saved successfully');
+            setInitialBlogHandle(blogHandle.trim());
+            setInitialBlogTheme(blogTheme);
+            setInitialBlogDescription(blogDescription.trim());
+        } catch (err) {
+            setBlogError((err as Error).message);
+        } finally {
+            setBlogLoading(false);
         }
     };
 
@@ -115,7 +254,7 @@ const WorkspaceProfilePage = () => {
         );
     }
 
-    if (profileLoading) {
+    if (initialLoading) {
         return (
             <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
                 <CircularProgress />
@@ -212,8 +351,7 @@ const WorkspaceProfilePage = () => {
                 </Typography>
             )}
 
-            {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}
-            {success && <Alert severity="success" sx={{ mb: 3 }}>{success}</Alert>}
+
 
             <Alert severity="info" sx={{ mb: 3, display: 'flex', alignItems: 'center' }}>
                 <Typography variant="body2">
@@ -230,7 +368,48 @@ const WorkspaceProfilePage = () => {
             </Alert>
 
             <Paper sx={{ p: 3, mb: 3 }}>
-                <Typography variant="h6" gutterBottom>{strings.settings.workspaceProfile.profileInfo}</Typography>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, minHeight: 40 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Typography variant="h6">{strings.settings.workspaceProfile.profileInfo}</Typography>
+                        <Box sx={{ minWidth: 80, display: 'flex', justifyContent: 'center' }}>
+                            {profileSuccess && (
+                                <Chip
+                                    icon={<CheckCircleIcon />}
+                                    label="Saved"
+                                    color="success"
+                                    size="small"
+                                />
+                            )}
+                            {profileError && (
+                                <Chip
+                                    icon={<ErrorIcon />}
+                                    label="Error"
+                                    color="error"
+                                    size="small"
+                                />
+                            )}
+                        </Box>
+                    </Box>
+                    <Button
+                        variant="contained"
+                        onClick={handleSaveProfile}
+                        disabled={profileLoading || (
+                            displayName === initialDisplayName &&
+                            workspaceTimezone === initialTimezone &&
+                            workspaceLocale === initialLocale
+                        )}
+                        size="small"
+                        sx={{ minWidth: 120 }}
+                    >
+                        {profileLoading ? (
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                <CircularProgress size={16} />
+                                Saving...
+                            </Box>
+                        ) : 'Save Profile'}
+                    </Button>
+                </Box>
+
 
                 <Grid container spacing={3}>
                     <Grid size={12}>
@@ -291,7 +470,47 @@ const WorkspaceProfilePage = () => {
             </Paper>
 
             <Paper sx={{ p: 3, mb: 3 }}>
-                <Typography variant="h6" gutterBottom>Blog Settings</Typography>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, minHeight: 40 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Typography variant="h6">Blog Settings</Typography>
+                        <Box sx={{ minWidth: 80, display: 'flex', justifyContent: 'center' }}>
+                            {blogSuccess && (
+                                <Chip
+                                    icon={<CheckCircleIcon />}
+                                    label="Saved"
+                                    color="success"
+                                    size="small"
+                                />
+                            )}
+                            {blogError && (
+                                <Chip
+                                    icon={<ErrorIcon />}
+                                    label="Error"
+                                    color="error"
+                                    size="small"
+                                />
+                            )}
+                        </Box>
+                    </Box>
+                    <Button
+                        variant="contained"
+                        onClick={handleSaveBlog}
+                        disabled={blogLoading || !!handleError || (
+                            blogTheme === initialBlogTheme &&
+                            blogHandle === initialBlogHandle &&
+                            blogDescription === initialBlogDescription
+                        )}
+                        size="small"
+                        sx={{ minWidth: 160 }}
+                    >
+                        {blogLoading ? (
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                <CircularProgress size={16} />
+                                Saving...
+                            </Box>
+                        ) : 'Save Blog Settings'}
+                    </Button>
+                </Box>
                 <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
                     Customize your public blog appearance and URL.
                 </Typography>
@@ -300,15 +519,29 @@ const WorkspaceProfilePage = () => {
                     <Typography variant="body2" sx={{ mb: 1 }}>
                         <strong>Note:</strong> Only documents with "Public" visibility will appear on your blog.
                     </Typography>
-                    {blogHandle ? (
+                    {handleChecking && blogHandle && blogHandle !== initialBlogHandle ? (
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <CircularProgress size={16} />
+                            <Typography variant="body2" color="text.secondary">
+                                Checking handle availability...
+                            </Typography>
+                        </Box>
+                    ) : blogHandle && !handleError && !isReservedHandle(blogHandle) ? (
                         <Typography variant="body2">
                             Your blog URL: <Link href={`/blog/${blogHandle}`} target="_blank" rel="noopener" sx={{ fontWeight: 'bold' }}>
                                 {window.location.origin}/blog/{blogHandle}
                             </Link>
                         </Typography>
+                    ) : blogHandle ? (
+                        <Typography variant="body2" color="error">
+                            Your blog URL: <span style={{ textDecoration: 'line-through' }}>{window.location.origin}/blog/{blogHandle}</span> (Invalid)
+                        </Typography>
                     ) : (
                         <Typography variant="body2">
-                            Without a blog handle, your blog will be accessible at: <code>{window.location.origin}/blog/{workspaceId}/{membershipId}</code>
+                            Without a blog handle, your blog will be accessible at:{' '}
+                            <Link href={`/blog/${workspaceId}/${membershipId}`} target="_blank" rel="noopener" sx={{ fontWeight: 'bold' }}>
+                                {window.location.origin}/blog/{workspaceId}/{membershipId}
+                            </Link>
                         </Typography>
                     )}
                 </Alert>
@@ -322,33 +555,15 @@ const WorkspaceProfilePage = () => {
                             onChange={(e) => {
                                 const value = e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '');
                                 setBlogHandle(value);
-                                setHandleError(null);
-                                setHandleAvailable(null);
-                            }}
-                            onBlur={async () => {
-                                if (!blogHandle || blogHandle.length < 4) return;
-                                if (blogHandle === initialBlogHandle) {
-                                    setHandleAvailable(null);
-                                    setHandleError(null);
-                                    return;
-                                }
-                                try {
-                                    const { available } = await checkBlogHandleAvailability(blogHandle);
-                                    if (available) {
-                                        setHandleAvailable(true);
-                                        setHandleError(null);
-                                    } else {
-                                        setHandleAvailable(false);
-                                        setHandleError('This handle is already taken or reserved.');
-                                    }
-                                } catch (err) {
-                                    console.error('Failed to check handle availability', err);
-                                }
                             }}
                             error={Boolean(handleError)}
                             helperText={
                                 handleError ||
-                                (handleAvailable ? (
+                                (handleChecking ? (
+                                    <Typography component="span" variant="caption" color="text.secondary">
+                                        Checking availability...
+                                    </Typography>
+                                ) : handleAvailable ? (
                                     <Typography component="span" variant="caption" color="success.main">
                                         Handle is available! Don't forget to save changes.
                                     </Typography>
@@ -390,17 +605,6 @@ const WorkspaceProfilePage = () => {
                     </Grid>
                 </Grid>
             </Paper>
-
-            <Box sx={{ mt: 4, display: 'flex', justifyContent: 'flex-end' }}>
-                <Button
-                    variant="contained"
-                    size="large"
-                    onClick={handleSave}
-                    disabled={loading}
-                >
-                    {loading ? <CircularProgress size={24} /> : strings.settings.workspaceProfile.saveProfile}
-                </Button>
-            </Box>
         </Container>
     );
 };

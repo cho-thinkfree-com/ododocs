@@ -123,6 +123,9 @@ export class DocumentService {
       strict: Boolean(input.slug),
     })
 
+    // Get next document number for this workspace
+    const documentNumber = await this.documentRepository.getNextDocumentNumber(workspaceId)
+
     const initialContent = input.initialRevision?.content ?? { type: 'doc', content: [] }
     const initialContentSize = calculateContentSize(initialContent)
 
@@ -132,6 +135,7 @@ export class DocumentService {
       ownerMembershipId: membership.id,
       title,
       slug,
+      documentNumber,
       status: input.status,
       visibility: input.visibility,
       summary: input.summary,

@@ -131,6 +131,7 @@ export interface MembershipSummary {
   preferredLocale?: string | null
   blogTheme?: string | null
   blogHandle?: string | null
+  blogDescription?: string | null
 }
 
 export const getBlogByHandle = (handle: string, page = 1, limit = 10) =>
@@ -145,13 +146,13 @@ export const getBlogByHandle = (handle: string, page = 1, limit = 10) =>
     }
   }>(`/api/blog/${handle}?page=${page}&limit=${limit}`)
 
-export const getBlogDocument = (handle: string, slug: string) =>
+export const getBlogDocument = (handle: string, documentNumber: string) =>
   requestJSON<{
     document: DocumentSummary & { publicToken?: string }
     revision: DocumentRevision | null
     accessLevel: string
     createdByMembershipId: string
-  }>(`/api/blog/${handle}/documents/${slug}`)
+  }>(`/api/blog/${handle}/documents/${documentNumber}`)
 
 export const checkBlogHandleAvailability = (handle: string) =>
   requestJSON<{ available: boolean }>(`/api/blog/check-handle?handle=${handle}`)
@@ -179,6 +180,7 @@ export interface DocumentSummary {
   workspaceId: string
   title: string
   slug: string
+  documentNumber?: number
   status: string
   visibility: string
   folderId?: string | null
@@ -193,8 +195,9 @@ export interface DocumentSummary {
   originalFolderId?: string | null
   originalFolderName?: string | null
   isImportant: boolean
-  viewCount: number
+  viewCount?: number
 }
+
 
 export interface DocumentCreateInput {
   title?: string
