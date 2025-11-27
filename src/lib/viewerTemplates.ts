@@ -36,10 +36,17 @@ export const VIEWER_TEMPLATES: Record<ViewerTemplate, TemplateConfig> = {
     },
 };
 
+import { baseDocumentStyles } from './baseDocumentStyles';
+
 export const getTemplateStyles = (template: ViewerTemplate) => {
+    if (template === 'original') {
+        return baseDocumentStyles;
+    }
+
     const config = VIEWER_TEMPLATES[template];
 
     return {
+        ...baseDocumentStyles, // Inherit base styles
         fontFamily: config.fontFamily,
         fontSize: config.fontSize,
         lineHeight: config.lineHeight,

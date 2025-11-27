@@ -5,6 +5,7 @@ import TableFloatingToolbar from './TableFloatingToolbar'
 import { useEffect, useState } from 'react'
 import type { ViewerTemplate } from '../../lib/viewerTemplates'
 import { getTemplateStyles } from '../../lib/viewerTemplates'
+import { baseDocumentStyles } from '../../lib/baseDocumentStyles'
 
 interface EditorWorkspaceProps {
   readOnly?: boolean
@@ -79,7 +80,9 @@ const EditorWorkspace = ({ readOnly, initialWidth = '950px', overrideWidth, view
               // Ensure white background for the content area
               backgroundColor: 'white',
               border: '1px solid rgba(0, 0, 0, 0.05)', // Subtle border
-              // Apply template styles in viewer mode
+              // Apply base document styles
+              ...baseDocumentStyles,
+              // Apply template styles in viewer mode (overrides base styles)
               ...(readOnly && viewerTemplate ? getTemplateStyles(viewerTemplate) : {}),
             },
             // Custom scrollbar styling for "floating" look
