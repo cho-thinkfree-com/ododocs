@@ -61,7 +61,17 @@ const BlogLandingPage = () => {
                 setProfile(profileData);
                 setDocuments(docsData);
                 setTotalPages(totalPagesData);
-                if (profileData.blogTheme) {
+                setTotalPages(totalPagesData);
+
+                // Theme Logic:
+                // 1. Check localStorage for visitor preference
+                // 2. Fallback to profile default
+                // 3. Fallback to system default
+                const savedTheme = handle ? localStorage.getItem(`blog_theme_${handle}`) : null;
+
+                if (savedTheme) {
+                    setActiveThemeId(savedTheme);
+                } else if (profileData.blogTheme) {
                     setActiveThemeId(profileData.blogTheme);
                 }
             } catch (err) {
@@ -146,7 +156,13 @@ const BlogLandingPage = () => {
 
             <ThemeSelector
                 currentThemeId={activeThemeId}
-                onThemeChange={setActiveThemeId}
+                ownerDefaultThemeId={profile.blogTheme}
+                onThemeChange={(newThemeId) => {
+                    setActiveThemeId(newThemeId);
+                    if (handle) {
+                        localStorage.setItem(`blog_theme_${handle}`, newThemeId);
+                    }
+                }}
             />
         </>
     );

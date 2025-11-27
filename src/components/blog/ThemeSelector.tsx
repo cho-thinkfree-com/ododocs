@@ -12,10 +12,11 @@ import { BLOG_THEMES } from './themeRegistry';
 
 interface ThemeSelectorProps {
     currentThemeId: string;
+    ownerDefaultThemeId?: string;
     onThemeChange: (themeId: string) => void;
 }
 
-const ThemeSelector = ({ currentThemeId, onThemeChange }: ThemeSelectorProps) => {
+const ThemeSelector = ({ currentThemeId, ownerDefaultThemeId, onThemeChange }: ThemeSelectorProps) => {
     const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
     const open = Boolean(anchorEl);
 
@@ -32,11 +33,13 @@ const ThemeSelector = ({ currentThemeId, onThemeChange }: ThemeSelectorProps) =>
         handleClose();
     };
 
+    const isOwnerDefault = ownerDefaultThemeId ? currentThemeId === ownerDefaultThemeId : true;
+
     return (
         <>
-            <Tooltip title="Change Theme (Visitor Preview)">
+            <Tooltip title={isOwnerDefault ? "Change Theme" : "Theme Changed (Visitor Preview)"}>
                 <Fab
-                    color="primary"
+                    size="small"
                     aria-label="change theme"
                     onClick={handleClick}
                     sx={{
@@ -44,6 +47,11 @@ const ThemeSelector = ({ currentThemeId, onThemeChange }: ThemeSelectorProps) =>
                         bottom: 32,
                         right: 32,
                         zIndex: 1000,
+                        bgcolor: isOwnerDefault ? 'grey.500' : 'primary.light',
+                        color: 'white',
+                        '&:hover': {
+                            bgcolor: isOwnerDefault ? 'grey.700' : 'primary.main',
+                        }
                     }}
                 >
                     <PaletteIcon />
@@ -54,7 +62,7 @@ const ThemeSelector = ({ currentThemeId, onThemeChange }: ThemeSelectorProps) =>
                 open={open}
                 onClose={handleClose}
                 PaperProps={{
-                    sx: { width: 200, maxHeight: 300 },
+                    sx: { width: 240, maxHeight: 300 },
                 }}
                 transformOrigin={{ horizontal: 'right', vertical: 'bottom' }}
                 anchorOrigin={{ horizontal: 'right', vertical: 'top' }}
@@ -69,8 +77,14 @@ const ThemeSelector = ({ currentThemeId, onThemeChange }: ThemeSelectorProps) =>
                         key={theme.id}
                         selected={theme.id === currentThemeId}
                         onClick={() => handleThemeSelect(theme.id)}
+                        sx={{ display: 'flex', justifyContent: 'space-between' }}
                     >
-                        {theme.name}
+                        <Typography variant="body2">{theme.name}</Typography>
+                        {theme.id === ownerDefaultThemeId && (
+                            <Typography variant="caption" color="text.secondary" sx={{ ml: 1 }}>
+                                (Default)
+                            </Typography>
+                        )}
                     </MenuItem>
                 ))}
             </Menu>
