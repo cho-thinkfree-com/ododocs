@@ -29,7 +29,7 @@ const ClassicTheme = ({ profile, documents, onDocumentClick }: BlogThemeProps) =
                         {profile.displayName || 'Unknown User'}
                     </Typography>
                     <Typography variant="body1" color="text.secondary">
-                        My Personal Blog
+                        {profile.blogDescription || 'My Personal Blog'}
                     </Typography>
                 </Paper>
 

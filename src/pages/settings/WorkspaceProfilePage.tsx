@@ -36,6 +36,7 @@ const WorkspaceProfilePage = () => {
     const [workspaceLocale, setWorkspaceLocale] = useState('en-US');
     const [blogTheme, setBlogTheme] = useState('modern');
     const [blogHandle, setBlogHandle] = useState('');
+    const [blogDescription, setBlogDescription] = useState('');
     const [initialBlogHandle, setInitialBlogHandle] = useState('');
     const [handleError, setHandleError] = useState<string | null>(null);
     const [handleAvailable, setHandleAvailable] = useState<boolean | null>(null);
@@ -59,6 +60,7 @@ const WorkspaceProfilePage = () => {
                     setWorkspaceLocale(profile.preferredLocale || 'en-US');
                     setBlogTheme(profile.blogTheme || 'modern');
                     setBlogHandle(profile.blogHandle || '');
+                    setBlogDescription(profile.blogDescription || '');
                     setInitialBlogHandle(profile.blogHandle || '');
                     setWorkspaceName(workspace.name);
                 })
@@ -88,7 +90,8 @@ const WorkspaceProfilePage = () => {
                 timezone: workspaceTimezone,
                 preferredLocale: workspaceLocale,
                 blogTheme,
-                blogHandle: blogHandle.trim() || undefined
+                blogHandle: blogHandle.trim() || undefined,
+                blogDescription: blogDescription.trim() || undefined
             });
 
             // Apply the new locale immediately after saving so the UI mirrors the selection
@@ -207,24 +210,24 @@ const WorkspaceProfilePage = () => {
                 </Typography>
             )}
 
-            <Paper sx={{ p: 3 }}>
-                {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}
-                {success && <Alert severity="success" sx={{ mb: 3 }}>{success}</Alert>}
+            {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}
+            {success && <Alert severity="success" sx={{ mb: 3 }}>{success}</Alert>}
 
-                <Alert severity="info" sx={{ mb: 3, display: 'flex', alignItems: 'center' }}>
-                    <Typography variant="body2">
-                        {strings.settings.workspaceProfile.workspaceSpecific}{' '}
-                        <Link
-                            component="button"
-                            variant="body2"
-                            onClick={() => navigate('/settings')}
-                            sx={{ cursor: 'pointer', fontWeight: 'bold' }}
-                        >
-                            {strings.settings.workspaceProfile.globalAccountSettings}
-                        </Link>
-                    </Typography>
-                </Alert>
+            <Alert severity="info" sx={{ mb: 3, display: 'flex', alignItems: 'center' }}>
+                <Typography variant="body2">
+                    {strings.settings.workspaceProfile.workspaceSpecific}{' '}
+                    <Link
+                        component="button"
+                        variant="body2"
+                        onClick={() => navigate('/settings')}
+                        sx={{ cursor: 'pointer', fontWeight: 'bold' }}
+                    >
+                        {strings.settings.workspaceProfile.globalAccountSettings}
+                    </Link>
+                </Typography>
+            </Alert>
 
+            <Paper sx={{ p: 3, mb: 3 }}>
                 <Typography variant="h6" gutterBottom>{strings.settings.workspaceProfile.profileInfo}</Typography>
 
                 <Grid container spacing={3}>
@@ -282,23 +285,16 @@ const WorkspaceProfilePage = () => {
                             </Select>
                         </FormControl>
                     </Grid>
-                    <Grid size={{ xs: 12, sm: 6 }}>
-                        <FormControl fullWidth>
-                            <InputLabel shrink>Blog Theme</InputLabel>
-                            <Select
-                                native
-                                value={blogTheme}
-                                label="Blog Theme"
-                                onChange={(e) => setBlogTheme(e.target.value)}
-                            >
-                                {BLOG_THEMES.map((theme) => (
-                                    <option key={theme.id} value={theme.id}>
-                                        {theme.name}
-                                    </option>
-                                ))}
-                            </Select>
-                        </FormControl>
-                    </Grid>
+                </Grid>
+            </Paper>
+
+            <Paper sx={{ p: 3, mb: 3 }}>
+                <Typography variant="h6" gutterBottom>Blog Settings</Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                    Customize your public blog appearance and URL.
+                </Typography>
+
+                <Grid container spacing={3}>
                     <Grid size={{ xs: 12, sm: 6 }}>
                         <TextField
                             fullWidth
@@ -344,19 +340,48 @@ const WorkspaceProfilePage = () => {
                             inputProps={{ minLength: 4, maxLength: 32 }}
                         />
                     </Grid>
+                    <Grid size={{ xs: 12, sm: 6 }}>
+                        <FormControl fullWidth>
+                            <InputLabel shrink>Blog Theme</InputLabel>
+                            <Select
+                                native
+                                value={blogTheme}
+                                label="Blog Theme"
+                                onChange={(e) => setBlogTheme(e.target.value)}
+                            >
+                                {BLOG_THEMES.map((theme) => (
+                                    <option key={theme.id} value={theme.id}>
+                                        {theme.name}
+                                    </option>
+                                ))}
+                            </Select>
+                        </FormControl>
+                    </Grid>
+                    <Grid size={12}>
+                        <TextField
+                            fullWidth
+                            label="Blog Description"
+                            multiline
+                            rows={3}
+                            value={blogDescription}
+                            onChange={(e) => setBlogDescription(e.target.value)}
+                            inputProps={{ maxLength: 500 }}
+                            helperText={`${blogDescription.length}/500 characters`}
+                        />
+                    </Grid>
                 </Grid>
-
-                <Box sx={{ mt: 4, display: 'flex', justifyContent: 'flex-end' }}>
-                    <Button
-                        variant="contained"
-                        size="large"
-                        onClick={handleSave}
-                        disabled={loading}
-                    >
-                        {loading ? <CircularProgress size={24} /> : strings.settings.workspaceProfile.saveProfile}
-                    </Button>
-                </Box>
             </Paper>
+
+            <Box sx={{ mt: 4, display: 'flex', justifyContent: 'flex-end' }}>
+                <Button
+                    variant="contained"
+                    size="large"
+                    onClick={handleSave}
+                    disabled={loading}
+                >
+                    {loading ? <CircularProgress size={24} /> : strings.settings.workspaceProfile.saveProfile}
+                </Button>
+            </Box>
         </Container>
     );
 };

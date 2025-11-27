@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
 import {
     Box,
     Container,
     Typography,
     Skeleton,
     Grid,
+    Pagination,
 } from '@mui/material';
 import {
     getWorkspaceMemberPublicProfile,
@@ -19,11 +20,17 @@ import ThemeSelector from '../../components/blog/ThemeSelector';
 
 const BlogLandingPage = () => {
     const { workspaceId, profileId, handle } = useParams<{ workspaceId: string; profileId: string; handle: string }>();
+    const [searchParams, setSearchParams] = useSearchParams();
+    const navigate = useNavigate();
+
     const [profile, setProfile] = useState<MembershipSummary | null>(null);
     const [documents, setDocuments] = useState<DocumentSummary[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [activeThemeId, setActiveThemeId] = useState<string>(DEFAULT_THEME_ID);
+    const [totalPages, setTotalPages] = useState(1);
+
+    const page = parseInt(searchParams.get('page') || '1', 10);
 
     useEffect(() => {
         const fetchData = async () => {
@@ -31,13 +38,15 @@ const BlogLandingPage = () => {
                 setLoading(true);
                 let profileData: MembershipSummary;
                 let docsData: DocumentSummary[];
+                let totalPagesData = 1;
 
                 if (handle) {
-                    const data = await getBlogByHandle(handle);
+                    const data = await getBlogByHandle(handle, page);
                     profileData = data.profile;
                     docsData = data.documents;
+                    totalPagesData = data.pagination.totalPages;
                 } else if (workspaceId && profileId) {
-                    // Legacy route support
+                    // Legacy route support (no pagination implemented for legacy yet)
                     const [pData, dData] = await Promise.all([
                         getWorkspaceMemberPublicProfile(workspaceId, profileId),
                         getWorkspaceMemberPublicDocuments(workspaceId, profileId)
@@ -50,6 +59,7 @@ const BlogLandingPage = () => {
 
                 setProfile(profileData);
                 setDocuments(docsData);
+                setTotalPages(totalPagesData);
                 if (profileData.blogTheme) {
                     setActiveThemeId(profileData.blogTheme);
                 }
@@ -62,16 +72,22 @@ const BlogLandingPage = () => {
         };
 
         fetchData();
-    }, [workspaceId, profileId, handle]);
+    }, [workspaceId, profileId, handle, page]);
 
     const handleDocumentClick = (doc: DocumentSummary) => {
-        console.log('Navigate to document:', doc.id);
-        // TODO: Implement navigation to public viewer
-        // For now, we can redirect to the public viewer URL if we have a share token,
-        // but the document summary might not have it.
-        // If it's a public document, we might need a different route or way to access it.
-        // Assuming public documents are accessible via /public/:token, but we need the token.
-        // If the document is public, it should be accessible.
+        if (handle) {
+            navigate(`/blog/${handle}/documents/${doc.slug}`);
+        } else {
+            // Fallback for legacy route or if no handle
+            if ((doc as any).publicToken) {
+                navigate(`/public/${(doc as any).publicToken}`);
+            }
+        }
+    };
+
+    const handlePageChange = (event: React.ChangeEvent<unknown>, value: number) => {
+        setSearchParams({ page: value.toString() });
+        window.scrollTo({ top: 0, behavior: 'smooth' });
     };
 
     if (loading) {
@@ -112,6 +128,18 @@ const BlogLandingPage = () => {
                 documents={documents}
                 onDocumentClick={handleDocumentClick}
             />
+
+            {totalPages > 1 && (
+                <Box sx={{ display: 'flex', justifyContent: 'center', py: 4, bgcolor: 'background.default' }}>
+                    <Pagination
+                        count={totalPages}
+                        page={page}
+                        onChange={handlePageChange}
+                        color="primary"
+                    />
+                </Box>
+            )}
+
             <ThemeSelector
                 currentThemeId={activeThemeId}
                 onThemeChange={setActiveThemeId}

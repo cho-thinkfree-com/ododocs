@@ -11,7 +11,7 @@ interface ViewerPageProps {
 }
 
 const ViewerPage = ({ isPublic = false }: ViewerPageProps) => {
-    const { token } = useParams<{ token: string }>();
+    const { token, handle, slug } = useParams<{ token?: string; handle?: string; slug?: string }>();
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [passwordRequired, setPasswordRequired] = useState(false);
@@ -79,17 +79,30 @@ const ViewerPage = ({ isPublic = false }: ViewerPageProps) => {
 
 
     const fetchDocument = async (pwd?: string) => {
-        if (!token) return;
-        console.log('[ViewerPage] Fetching document with token:', token);
+        if (!token && (!handle || !slug)) return;
+
+        console.log('[ViewerPage] Fetching document...');
         setLoading(true);
         setError(null);
         try {
-            const result = await resolveShareLink(token, pwd);
-            console.log('[ViewerPage] API response:', result);
-            setDocument(result.document);
-            setRevision(result.revision);
-            setPasswordRequired(false);
-            console.log('[ViewerPage] Document and revision set successfully');
+            let result;
+            if (token) {
+                console.log('[ViewerPage] Using token:', token);
+                result = await resolveShareLink(token, pwd);
+            } else if (handle && slug) {
+                console.log('[ViewerPage] Using handle/slug:', handle, slug);
+                // Dynamically import to avoid circular dependency if any, though api.ts is safe
+                const { getBlogDocument } = await import('../../lib/api');
+                result = await getBlogDocument(handle, slug);
+            }
+
+            if (result) {
+                console.log('[ViewerPage] API response:', result);
+                setDocument(result.document);
+                setRevision(result.revision);
+                setPasswordRequired(false);
+                console.log('[ViewerPage] Document and revision set successfully');
+            }
         } catch (err: any) {
             console.error('[ViewerPage] Error fetching document:', err);
             console.error('[ViewerPage] Error message:', err.message);
@@ -107,7 +120,7 @@ const ViewerPage = ({ isPublic = false }: ViewerPageProps) => {
 
     useEffect(() => {
         fetchDocument();
-    }, [token]);
+    }, [token, handle, slug]);
 
     const handlePasswordSubmit = (e: React.FormEvent) => {
         e.preventDefault();

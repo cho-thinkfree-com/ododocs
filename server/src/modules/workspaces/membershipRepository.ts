@@ -17,7 +17,8 @@ export interface MembershipEntity {
   preferredLocale?: string | null
   blogTheme?: string | null
   blogHandle?: string | null
-  notifications?: Record<string, unknown> | null
+  blogDescription?: string | null
+  notifications?: Record<string, any> | null
   createdAt: Date
   updatedAt: Date
 }
@@ -27,25 +28,27 @@ export interface MembershipCreateInput {
   accountId: string
   role: WorkspaceMembershipRole
   status?: WorkspaceMembershipStatus
-  displayName?: string | null
-  avatarUrl?: string | null
-  timezone?: string | null
-  preferredLocale?: string | null
-  blogTheme?: string | null
-  blogHandle?: string | null
-  notifications?: Record<string, unknown> | null
+  displayName?: string
+  avatarUrl?: string
+  timezone?: string
+  preferredLocale?: string
+  blogTheme?: string
+  blogHandle?: string
+  blogDescription?: string
+  notifications?: Record<string, any>
 }
 
 export interface MembershipUpdateInput {
   role?: WorkspaceMembershipRole
   status?: WorkspaceMembershipStatus
-  displayName?: string | null
-  avatarUrl?: string | null
-  timezone?: string | null
-  preferredLocale?: string | null
-  blogTheme?: string | null
-  blogHandle?: string | null
-  notifications?: Record<string, unknown> | null
+  displayName?: string
+  avatarUrl?: string
+  timezone?: string
+  preferredLocale?: string
+  blogTheme?: string
+  blogHandle?: string
+  blogDescription?: string
+  notifications?: Record<string, any>
 }
 
 export class MembershipRepository {
@@ -77,6 +80,7 @@ export class MembershipRepository {
         preferredLocale: input.preferredLocale,
         blogTheme: input.blogTheme,
         blogHandle: input.blogHandle,
+        blogDescription: input.blogDescription,
         notifications: input.notifications as any,
       },
     })
@@ -109,6 +113,7 @@ export class MembershipRepository {
         preferredLocale: input.preferredLocale,
         blogTheme: input.blogTheme,
         blogHandle: input.blogHandle,
+        blogDescription: input.blogDescription,
         notifications: input.notifications as any,
       },
     })
@@ -140,7 +145,7 @@ export class MembershipRepository {
   }
 }
 
-const toEntity = (membership: WorkspaceMembership): MembershipEntity => ({
+const toEntity = (membership: any): MembershipEntity => ({
   id: membership.id,
   workspaceId: membership.workspaceId,
   accountId: membership.accountId,
@@ -152,6 +157,7 @@ const toEntity = (membership: WorkspaceMembership): MembershipEntity => ({
   preferredLocale: membership.preferredLocale,
   blogTheme: membership.blogTheme,
   blogHandle: membership.blogHandle,
+  blogDescription: membership.blogDescription,
   notifications: membership.notifications as Record<string, unknown> | null,
   createdAt: membership.createdAt,
   updatedAt: membership.updatedAt,

@@ -165,6 +165,7 @@ model WorkspaceMembership {
   preferredLocale String?              @map("preferred_locale")
   blogTheme   String?                  @map("blog_theme") @default("modern")
   blogHandle  String?                  @unique @map("blog_handle")
+  blogDescription String?              @map("blog_description")
   notifications Json?                  @map("notification_settings")
   createdAt   DateTime                 @default(now()) @map("created_at")
   updatedAt   DateTime                 @updatedAt @map("updated_at")

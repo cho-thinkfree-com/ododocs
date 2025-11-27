@@ -19,6 +19,7 @@ const createMembershipSchema = z.object({
   preferredLocale: z.string().trim().min(2).max(10).optional(),
   blogTheme: z.string().optional(),
   blogHandle: z.string().optional(),
+  blogDescription: z.string().max(500).optional(),
   notifications: z.record(z.string(), z.any()).optional(),
 })
 
@@ -31,6 +32,7 @@ const updateMembershipSchema = z.object({
   preferredLocale: z.string().trim().min(2).max(10).optional(),
   blogTheme: z.string().optional(),
   blogHandle: z.string().optional(),
+  blogDescription: z.string().max(500).optional(),
   notifications: z.record(z.string(), z.any()).optional(),
 })
 

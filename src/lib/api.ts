@@ -133,11 +133,25 @@ export interface MembershipSummary {
   blogHandle?: string | null
 }
 
-export const getBlogByHandle = (handle: string) =>
+export const getBlogByHandle = (handle: string, page = 1, limit = 10) =>
   requestJSON<{
     profile: MembershipSummary
-    documents: DocumentSummary[]
-  }>(`/api/blog/${handle}`)
+    documents: (DocumentSummary & { publicToken?: string })[]
+    pagination: {
+      page: number
+      limit: number
+      total: number
+      totalPages: number
+    }
+  }>(`/api/blog/${handle}?page=${page}&limit=${limit}`)
+
+export const getBlogDocument = (handle: string, slug: string) =>
+  requestJSON<{
+    document: DocumentSummary & { publicToken?: string }
+    revision: DocumentRevision | null
+    accessLevel: string
+    createdByMembershipId: string
+  }>(`/api/blog/${handle}/documents/${slug}`)
 
 export const checkBlogHandleAvailability = (handle: string) =>
   requestJSON<{ available: boolean }>(`/api/blog/check-handle?handle=${handle}`)
@@ -245,6 +259,7 @@ export const updateWorkspaceMemberProfile = (
     preferredLocale?: string
     blogTheme?: string
     blogHandle?: string
+    blogDescription?: string;
   },
 ) =>
   requestJSON<MembershipSummary>(`/api/workspaces/${workspaceId}/members/me`, {

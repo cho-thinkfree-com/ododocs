@@ -502,6 +502,7 @@ export const buildServer = async ({ prisma, logger = true }: ServerOptions = {})
       preferredLocale?: string
       blogTheme?: string
       blogHandle?: string
+      blogDescription?: string
     }
   }>(
     '/api/workspaces/:workspaceId/members/me',
@@ -974,7 +975,7 @@ export const buildServer = async ({ prisma, logger = true }: ServerOptions = {})
     const filename = encodeURIComponent(`${document.title}.odocs`)
 
     reply.header('Content-Type', 'application/vnd.odocs')
-    reply.header('Content-Disposition', `attachment; filename="${filename}"; filename*=UTF-8''${filename}`)
+    reply.header('Content-Disposition', `attachment; filename = "${filename}"; filename *= UTF - 8''${filename} `)
     reply.send(JSON.stringify(revision.content))
   })
 
@@ -1024,13 +1025,13 @@ export const buildServer = async ({ prisma, logger = true }: ServerOptions = {})
 
   app.post('/api/share-links/:token/access', async (request, reply) => {
     const token = (request.params as { token: string }).token
-    console.log(`[Debug] Resolving share token: ${token}`)
+    console.log(`[Debug] Resolving share token: ${token} `)
     try {
       const payload = await shareLinkService.resolveToken(token, request.body)
-      console.log(`[Debug] Token resolved successfully for document: ${payload.document.id}`)
+      console.log(`[Debug] Token resolved successfully for document: ${payload.document.id} `)
       reply.send(payload)
     } catch (err) {
-      console.error(`[Debug] Failed to resolve token: ${token}`, err)
+      console.error(`[Debug] Failed to resolve token: ${token} `, err)
       throw err
     }
   })
@@ -1041,7 +1042,7 @@ export const buildServer = async ({ prisma, logger = true }: ServerOptions = {})
       const documents = await shareLinkService.getAuthorPublicDocuments(token)
       reply.send({ documents })
     } catch (err) {
-      console.error(`[Debug] Failed to fetch author documents for token: ${token}`, err)
+      console.error(`[Debug] Failed to fetch author documents for token: ${token} `, err)
       throw err
     }
   })

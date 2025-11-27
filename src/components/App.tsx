@@ -76,6 +76,7 @@ const AppRoutes = () => {
 
       {/* Blog Landing Page */}
       <Route path="/blog/:handle" element={<BlogLandingPage />} />
+      <Route path="/blog/:handle/documents/:slug" element={<ViewerPage isPublic={true} />} />
       <Route path="/blog/:workspaceId/:profileId" element={<BlogLandingPage />} />
 
       {/* Authenticated Routes */}

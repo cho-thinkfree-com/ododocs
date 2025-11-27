@@ -65,7 +65,7 @@ const ModernSimpleTheme = ({ profile, documents, onDocumentClick }: BlogThemePro
                             {profile.displayName || 'Unknown User'}
                         </Typography>
                         <Typography variant="subtitle1" color="text.secondary" sx={{ maxWidth: 600, mb: 2 }}>
-                            Welcome to my digital garden. Here I share my thoughts, documents, and ideas.
+                            {profile.blogDescription || 'Welcome to my digital garden. Here I share my thoughts, documents, and ideas.'}
                         </Typography>
                     </Box>
                 </Container>

@@ -8,6 +8,9 @@ export interface ThemeDefinition {
     component: React.ComponentType<BlogThemeProps>;
 }
 
+import BoardTheme from './themes/BoardTheme';
+import WikiTheme from './themes/WikiTheme';
+
 export const BLOG_THEMES: ThemeDefinition[] = [
     {
         id: 'modern',
@@ -18,6 +21,16 @@ export const BLOG_THEMES: ThemeDefinition[] = [
         id: 'classic',
         name: 'Classic List',
         component: ClassicTheme,
+    },
+    {
+        id: 'board',
+        name: 'Community Board',
+        component: BoardTheme,
+    },
+    {
+        id: 'wiki',
+        name: 'Wiki Style',
+        component: WikiTheme,
     },
 ];
 
