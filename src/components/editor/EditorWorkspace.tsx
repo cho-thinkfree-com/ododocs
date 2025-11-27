@@ -66,34 +66,19 @@ const EditorWorkspace = ({ readOnly, initialWidth = '950px', overrideWidth, view
             height: '100%',
             overflowY: 'auto',
             typography: 'body1',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            // Add spacing via pseudo-element to guarantee scroll space
-            '&::after': {
-              content: '""',
-              display: 'block',
-              minHeight: '30vh',
-              width: '100%',
-              maxWidth: layoutWidth === '100%' ? 'none' : layoutWidth, // Match paper width
-              backgroundColor: 'white', // Match paper color
-              flexShrink: 0,
-              border: '1px solid rgba(0, 0, 0, 0.05)', // Subtle border
-              borderTop: 'none', // Merge with content
-              boxSizing: 'border-box',
-            },
+            display: 'block !important', // Enforce block layout to allow natural height growth
             '& .ProseMirror': {
               width: '100%',
               maxWidth: layoutWidth === '100%' ? 'none' : layoutWidth,
               minHeight: '100%',
-              padding: '48px',
+              height: 'auto !important', // Force height to grow with content
+              padding: '48px 48px 50vh 48px', // Large bottom padding for overscroll
               boxSizing: 'border-box',
               margin: '32px auto 0',
               transition: 'max-width 0.3s ease-in-out',
               // Ensure white background for the content area
               backgroundColor: 'white',
               border: '1px solid rgba(0, 0, 0, 0.05)', // Subtle border
-              borderBottom: 'none', // Merge with spacer
               // Apply template styles in viewer mode
               ...(readOnly && viewerTemplate ? getTemplateStyles(viewerTemplate) : {}),
             },
