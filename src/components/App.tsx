@@ -13,6 +13,7 @@ import GlobalSettingsPage from '../pages/settings/GlobalSettingsPage';
 import WorkspaceProfilePage from '../pages/settings/WorkspaceProfilePage';
 import EditorPage from '../pages/editor/EditorPage';
 import ViewerPage from '../pages/editor/ViewerPage';
+import BlogLandingPage from '../pages/blog/BlogLandingPage';
 import TrashPage from '../pages/trash/TrashPage';
 import RecentDocumentsPage from '../pages/workspace/RecentDocumentsPage';
 import SharedDocumentsPage from '../pages/workspace/SharedDocumentsPage';
@@ -72,6 +73,10 @@ const AppRoutes = () => {
 
       {/* Link-only shared documents - not searchable */}
       <Route path="/share/:token/*" element={<ViewerPage isPublic={false} />} />
+
+      {/* Blog Landing Page */}
+      <Route path="/blog/:handle" element={<BlogLandingPage />} />
+      <Route path="/blog/:workspaceId/:profileId" element={<BlogLandingPage />} />
 
       {/* Authenticated Routes */}
       <Route element={<ProtectedRoute />}>

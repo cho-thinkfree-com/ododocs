@@ -126,9 +126,23 @@ export interface MembershipSummary {
   role: 'owner' | 'admin' | 'member'
   status: 'active' | 'invited' | 'pending' | 'removed'
   displayName?: string | null
+  avatarUrl?: string | null
   timezone?: string | null
   preferredLocale?: string | null
+  blogTheme?: string | null
+  blogHandle?: string | null
 }
+
+export const getBlogByHandle = (handle: string) =>
+  requestJSON<{
+    profile: MembershipSummary
+    documents: DocumentSummary[]
+  }>(`/api/blog/${handle}`)
+
+export const checkBlogHandleAvailability = (handle: string) =>
+  requestJSON<{ available: boolean }>(`/api/blog/check-handle?handle=${handle}`)
+
+
 
 export interface FolderSummary {
   id: string
@@ -229,6 +243,8 @@ export const updateWorkspaceMemberProfile = (
     avatarUrl?: string
     timezone?: string
     preferredLocale?: string
+    blogTheme?: string
+    blogHandle?: string
   },
 ) =>
   requestJSON<MembershipSummary>(`/api/workspaces/${workspaceId}/members/me`, {
@@ -417,6 +433,12 @@ export interface AuthorDocument {
 
 export const getAuthorPublicDocuments = (token: string) =>
   requestJSON<{ documents: AuthorDocument[] }>(`/api/share-links/${token}/author/documents`)
+
+export const getWorkspaceMemberPublicProfile = (workspaceId: string, profileId: string) =>
+  requestJSON<MembershipSummary>(`/api/workspaces/${workspaceId}/public-profiles/${profileId}`)
+
+export const getWorkspaceMemberPublicDocuments = (workspaceId: string, profileId: string) =>
+  requestJSON<{ items: DocumentSummary[] }>(`/api/workspaces/${workspaceId}/public-profiles/${profileId}/documents`)
 
 export const updateWorkspace = (workspaceId: string, body: { name?: string; description?: string }) =>
   requestJSON<WorkspaceSummary>(`/api/workspaces/${workspaceId}`, { method: 'PATCH', body })

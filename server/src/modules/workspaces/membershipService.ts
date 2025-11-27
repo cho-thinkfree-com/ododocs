@@ -17,6 +17,8 @@ const createMembershipSchema = z.object({
   avatarUrl: z.string().url().optional(),
   timezone: z.string().max(50).optional(),
   preferredLocale: z.string().trim().min(2).max(10).optional(),
+  blogTheme: z.string().optional(),
+  blogHandle: z.string().optional(),
   notifications: z.record(z.string(), z.any()).optional(),
 })
 
@@ -27,6 +29,8 @@ const updateMembershipSchema = z.object({
   avatarUrl: z.string().url().optional(),
   timezone: z.string().max(50).optional(),
   preferredLocale: z.string().trim().min(2).max(10).optional(),
+  blogTheme: z.string().optional(),
+  blogHandle: z.string().optional(),
   notifications: z.record(z.string(), z.any()).optional(),
 })
 
@@ -61,6 +65,8 @@ export class MembershipService {
         avatarUrl: input.avatarUrl,
         timezone: input.timezone,
         preferredLocale: input.preferredLocale,
+        blogTheme: input.blogTheme,
+        blogHandle: input.blogHandle,
         notifications: input.notifications,
       })
       await this.auditLogService.record({
@@ -86,6 +92,8 @@ export class MembershipService {
       avatarUrl: input.avatarUrl,
       timezone: input.timezone,
       preferredLocale: input.preferredLocale,
+      blogTheme: input.blogTheme,
+      blogHandle: input.blogHandle,
       notifications: input.notifications,
     })
     await this.auditLogService.record({

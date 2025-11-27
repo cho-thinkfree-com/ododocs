@@ -19,7 +19,8 @@ import {
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import { useAuth } from '../../context/AuthContext';
 import { useI18n, type Locale } from '../../lib/i18n';
-import { getWorkspaceMemberProfile, updateWorkspaceMemberProfile, getWorkspace } from '../../lib/api';
+import { getWorkspaceMemberProfile, updateWorkspaceMemberProfile, getWorkspace, checkBlogHandleAvailability } from '../../lib/api';
+import { BLOG_THEMES } from '../../components/blog/themeRegistry';
 
 const WorkspaceProfilePage = () => {
     const { user, isAuthenticated } = useAuth();
@@ -33,6 +34,11 @@ const WorkspaceProfilePage = () => {
     const [displayNameError, setDisplayNameError] = useState<string | null>(null);
     const [workspaceTimezone, setWorkspaceTimezone] = useState('UTC');
     const [workspaceLocale, setWorkspaceLocale] = useState('en-US');
+    const [blogTheme, setBlogTheme] = useState('modern');
+    const [blogHandle, setBlogHandle] = useState('');
+    const [initialBlogHandle, setInitialBlogHandle] = useState('');
+    const [handleError, setHandleError] = useState<string | null>(null);
+    const [handleAvailable, setHandleAvailable] = useState<boolean | null>(null);
 
     // UI State
     const [loading, setLoading] = useState(false);
@@ -51,6 +57,9 @@ const WorkspaceProfilePage = () => {
                     setDisplayName(profile.displayName || '');
                     setWorkspaceTimezone(profile.timezone || 'UTC');
                     setWorkspaceLocale(profile.preferredLocale || 'en-US');
+                    setBlogTheme(profile.blogTheme || 'modern');
+                    setBlogHandle(profile.blogHandle || '');
+                    setInitialBlogHandle(profile.blogHandle || '');
                     setWorkspaceName(workspace.name);
                 })
                 .catch(err => {
@@ -77,7 +86,9 @@ const WorkspaceProfilePage = () => {
             await updateWorkspaceMemberProfile(workspaceId, {
                 displayName: displayName.trim(),
                 timezone: workspaceTimezone,
-                preferredLocale: workspaceLocale
+                preferredLocale: workspaceLocale,
+                blogTheme,
+                blogHandle: blogHandle.trim() || undefined
             });
 
             // Apply the new locale immediately after saving so the UI mirrors the selection
@@ -270,6 +281,68 @@ const WorkspaceProfilePage = () => {
                                 ))}
                             </Select>
                         </FormControl>
+                    </Grid>
+                    <Grid size={{ xs: 12, sm: 6 }}>
+                        <FormControl fullWidth>
+                            <InputLabel shrink>Blog Theme</InputLabel>
+                            <Select
+                                native
+                                value={blogTheme}
+                                label="Blog Theme"
+                                onChange={(e) => setBlogTheme(e.target.value)}
+                            >
+                                {BLOG_THEMES.map((theme) => (
+                                    <option key={theme.id} value={theme.id}>
+                                        {theme.name}
+                                    </option>
+                                ))}
+                            </Select>
+                        </FormControl>
+                    </Grid>
+                    <Grid size={{ xs: 12, sm: 6 }}>
+                        <TextField
+                            fullWidth
+                            label="Blog Handle"
+                            value={blogHandle}
+                            onChange={(e) => {
+                                const value = e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '');
+                                setBlogHandle(value);
+                                setHandleError(null);
+                                setHandleAvailable(null);
+                            }}
+                            onBlur={async () => {
+                                if (!blogHandle || blogHandle.length < 4) return;
+                                if (blogHandle === initialBlogHandle) {
+                                    setHandleAvailable(null);
+                                    setHandleError(null);
+                                    return;
+                                }
+                                try {
+                                    const { available } = await checkBlogHandleAvailability(blogHandle);
+                                    if (available) {
+                                        setHandleAvailable(true);
+                                        setHandleError(null);
+                                    } else {
+                                        setHandleAvailable(false);
+                                        setHandleError('This handle is already taken or reserved.');
+                                    }
+                                } catch (err) {
+                                    console.error('Failed to check handle availability', err);
+                                }
+                            }}
+                            error={Boolean(handleError)}
+                            helperText={
+                                handleError ||
+                                (handleAvailable ? (
+                                    <Typography component="span" variant="caption" color="success.main">
+                                        Handle is available! Don't forget to save changes.
+                                    </Typography>
+                                ) : (
+                                    "Unique URL for your blog (e.g., my-blog). 4-32 characters, alphanumeric and hyphens only."
+                                ))
+                            }
+                            inputProps={{ minLength: 4, maxLength: 32 }}
+                        />
                     </Grid>
                 </Grid>
 

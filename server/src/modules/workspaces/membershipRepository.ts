@@ -15,6 +15,8 @@ export interface MembershipEntity {
   avatarUrl?: string | null
   timezone?: string | null
   preferredLocale?: string | null
+  blogTheme?: string | null
+  blogHandle?: string | null
   notifications?: Record<string, unknown> | null
   createdAt: Date
   updatedAt: Date
@@ -29,6 +31,8 @@ export interface MembershipCreateInput {
   avatarUrl?: string | null
   timezone?: string | null
   preferredLocale?: string | null
+  blogTheme?: string | null
+  blogHandle?: string | null
   notifications?: Record<string, unknown> | null
 }
 
@@ -39,6 +43,8 @@ export interface MembershipUpdateInput {
   avatarUrl?: string | null
   timezone?: string | null
   preferredLocale?: string | null
+  blogTheme?: string | null
+  blogHandle?: string | null
   notifications?: Record<string, unknown> | null
 }
 
@@ -69,6 +75,8 @@ export class MembershipRepository {
         avatarUrl: input.avatarUrl,
         timezone: input.timezone,
         preferredLocale: input.preferredLocale,
+        blogTheme: input.blogTheme,
+        blogHandle: input.blogHandle,
         notifications: input.notifications as any,
       },
     })
@@ -99,6 +107,8 @@ export class MembershipRepository {
         avatarUrl: input.avatarUrl,
         timezone: input.timezone,
         preferredLocale: input.preferredLocale,
+        blogTheme: input.blogTheme,
+        blogHandle: input.blogHandle,
         notifications: input.notifications as any,
       },
     })
@@ -140,6 +150,8 @@ const toEntity = (membership: WorkspaceMembership): MembershipEntity => ({
   avatarUrl: membership.avatarUrl,
   timezone: membership.timezone,
   preferredLocale: membership.preferredLocale,
+  blogTheme: membership.blogTheme,
+  blogHandle: membership.blogHandle,
   notifications: membership.notifications as Record<string, unknown> | null,
   createdAt: membership.createdAt,
   updatedAt: membership.updatedAt,

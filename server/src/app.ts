@@ -2,6 +2,7 @@ import Fastify, { type FastifyInstance, type FastifyRequest } from 'fastify'
 import fastifyStatic from '@fastify/static'
 import fastifyCors from '@fastify/cors'
 import fastifyCookie from '@fastify/cookie'
+import blogRoutes from './routes/blog.routes'
 import path from 'node:path'
 import { z } from 'zod'
 import { DocumentStatus, DocumentVisibility } from '@prisma/client'
@@ -164,6 +165,10 @@ export const buildServer = async ({ prisma, logger = true }: ServerOptions = {})
     membershipRepository,
     auditLogService,
   )
+
+  // app.register(shareLinkRoutes, { prefix: '/api/share-links' })
+  // app.register(trashRoutes, { prefix: '/api/trash' })
+  app.register(blogRoutes, { prefix: '/api/blog' })
 
   app.addHook('onRequest', async (request) => {
     request.db = db
@@ -495,6 +500,8 @@ export const buildServer = async ({ prisma, logger = true }: ServerOptions = {})
       avatarUrl?: string
       timezone?: string
       preferredLocale?: string
+      blogTheme?: string
+      blogHandle?: string
     }
   }>(
     '/api/workspaces/:workspaceId/members/me',
