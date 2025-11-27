@@ -40,6 +40,7 @@ const WorkspaceProfilePage = () => {
     const [initialBlogHandle, setInitialBlogHandle] = useState('');
     const [handleError, setHandleError] = useState<string | null>(null);
     const [handleAvailable, setHandleAvailable] = useState<boolean | null>(null);
+    const [membershipId, setMembershipId] = useState<string>('');
 
     // UI State
     const [loading, setLoading] = useState(false);
@@ -62,6 +63,7 @@ const WorkspaceProfilePage = () => {
                     setBlogHandle(profile.blogHandle || '');
                     setBlogDescription(profile.blogDescription || '');
                     setInitialBlogHandle(profile.blogHandle || '');
+                    setMembershipId(profile.id);
                     setWorkspaceName(workspace.name);
                 })
                 .catch(err => {
@@ -290,9 +292,26 @@ const WorkspaceProfilePage = () => {
 
             <Paper sx={{ p: 3, mb: 3 }}>
                 <Typography variant="h6" gutterBottom>Blog Settings</Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
                     Customize your public blog appearance and URL.
                 </Typography>
+
+                <Alert severity="info" sx={{ mb: 3 }}>
+                    <Typography variant="body2" sx={{ mb: 1 }}>
+                        <strong>Note:</strong> Only documents with "Public" visibility will appear on your blog.
+                    </Typography>
+                    {blogHandle ? (
+                        <Typography variant="body2">
+                            Your blog URL: <Link href={`/blog/${blogHandle}`} target="_blank" rel="noopener" sx={{ fontWeight: 'bold' }}>
+                                {window.location.origin}/blog/{blogHandle}
+                            </Link>
+                        </Typography>
+                    ) : (
+                        <Typography variant="body2">
+                            Without a blog handle, your blog will be accessible at: <code>{window.location.origin}/blog/{workspaceId}/{membershipId}</code>
+                        </Typography>
+                    )}
+                </Alert>
 
                 <Grid container spacing={3}>
                     <Grid size={{ xs: 12, sm: 6 }}>
