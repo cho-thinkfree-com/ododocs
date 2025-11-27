@@ -1,4 +1,4 @@
-import { AppBar, Box, Button, Drawer, IconButton, Menu, MenuItem, TextField, Toolbar, Typography } from '@mui/material';
+import { AppBar, Box, Button, Drawer, IconButton, Menu, MenuItem, TextField, Toolbar, Tooltip, Typography } from '@mui/material';
 import { RichTextEditorProvider } from 'mui-tiptap';
 import MenuIcon from '@mui/icons-material/Menu';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
@@ -8,7 +8,7 @@ import EditorTableOfContents from '../editor/EditorTableOfContents';
 import { type DocumentSummary, downloadDocument } from '../../lib/api';
 import { useAuth } from '../../context/AuthContext';
 import type { Editor } from '@tiptap/react';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import ShareDialog from '../editor/ShareDialog';
 import { useI18n } from '../../lib/i18n';
 import EditorWidthSelector from '../editor/EditorWidthSelector';
@@ -27,6 +27,89 @@ interface EditorLayoutProps {
     initialWidth?: string;
     shareToken?: string;
 }
+
+// Adaptive title component that reduces font size when overflowing
+const AdaptiveTitle = ({ title }: { title: string }) => {
+    const [fontSize, setFontSize] = useState('1.5rem');
+    const [isOverflowed, setIsOverflowed] = useState(false);
+    const titleRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const checkOverflow = () => {
+            const element = titleRef.current;
+            if (!element) return;
+
+            // Reset to original size first
+            setFontSize('1.5rem');
+            setIsOverflowed(false);
+
+            // Check after a brief delay to allow DOM update
+            setTimeout(() => {
+                if (!element) return;
+                const isOverflowing = element.scrollWidth > element.clientWidth;
+
+                if (isOverflowing) {
+                    // Reduce font size to 1.2rem
+                    setFontSize('1.2rem');
+
+                    // Check again after font size change
+                    setTimeout(() => {
+                        if (!element) return;
+                        const stillOverflowing = element.scrollWidth > element.clientWidth;
+                        setIsOverflowed(stillOverflowing);
+                    }, 50);
+                }
+            }, 50);
+        };
+
+        checkOverflow();
+
+        // Listen to window resize
+        window.addEventListener('resize', checkOverflow);
+
+        // Use ResizeObserver to detect container width changes
+        const resizeObserver = new ResizeObserver(() => {
+            checkOverflow();
+        });
+
+        if (titleRef.current) {
+            resizeObserver.observe(titleRef.current);
+        }
+
+        return () => {
+            window.removeEventListener('resize', checkOverflow);
+            resizeObserver.disconnect();
+        };
+    }, [title]);
+
+    return (
+        <Tooltip title={title} placement="bottom" disableHoverListener={!isOverflowed}>
+            <Typography
+                ref={titleRef}
+                sx={{
+                    fontSize,
+                    fontWeight: 700,
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    color: 'text.primary',
+                    pointerEvents: 'auto',
+                    flexGrow: 1,
+                    mr: 2,
+                    transition: 'font-size 0.2s ease',
+                    position: 'relative',
+                    // Gradient fade effect when overflowed
+                    ...(isOverflowed && {
+                        maskImage: 'linear-gradient(to right, black 85%, transparent 100%)',
+                        WebkitMaskImage: 'linear-gradient(to right, black 85%, transparent 100%)',
+                    }),
+                }}
+            >
+                {title}
+            </Typography>
+        </Tooltip>
+    );
+};
 
 const EditorLayout = ({ editor, document, onContentChange, onTitleChange, onClose, saveStatus, readOnly = false, initialWidth = '950px', shareToken }: EditorLayoutProps) => {
 
@@ -161,7 +244,8 @@ const EditorLayout = ({ editor, document, onContentChange, onTitleChange, onClos
                             aria-label="목차 열기"
                             onClick={() => setTocOpen(!tocOpen)}
                             sx={{
-                                mr: 2,
+                                mr: readOnly ? 3 : 2, // More spacing in viewer mode
+                                zIndex: 1, // Ensure it stays above the overlay
                             }}
                         >
                             <MenuIcon />
@@ -201,6 +285,7 @@ const EditorLayout = ({ editor, document, onContentChange, onTitleChange, onClos
                                         width: '100%',
                                         maxWidth: viewerWidth, // Use viewerWidth
                                         px: '48px', // Match EditorWorkspace padding
+                                        pl: '72px', // Extra left padding to avoid TOC button overlap
                                         boxSizing: 'border-box',
                                         display: 'flex',
                                         alignItems: 'center',
@@ -217,21 +302,7 @@ const EditorLayout = ({ editor, document, onContentChange, onTitleChange, onClos
                                             display: 'block'
                                         }}
                                     />
-                                    <Typography
-                                        sx={{
-                                            fontSize: '1.5rem',
-                                            fontWeight: 700,
-                                            whiteSpace: 'nowrap',
-                                            overflow: 'hidden',
-                                            textOverflow: 'ellipsis',
-                                            color: 'text.primary',
-                                            pointerEvents: 'auto', // Allow text selection if needed
-                                            flexGrow: 1, // Allow title to take available space
-                                            mr: 2, // Add spacing before the selector
-                                        }}
-                                    >
-                                        {localTitle}
-                                    </Typography>
+                                    <AdaptiveTitle title={localTitle} />
 
                                     {/* Viewer Width Selector */}
                                     <Box sx={{ pointerEvents: 'auto', display: 'flex', alignItems: 'center' }}>
