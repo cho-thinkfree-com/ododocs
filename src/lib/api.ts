@@ -165,6 +165,7 @@ export interface DocumentSummary {
   originalFolderId?: string | null
   originalFolderName?: string | null
   isImportant: boolean
+  viewCount: number
 }
 
 export interface DocumentCreateInput {
@@ -193,6 +194,8 @@ export interface ShareLinkResponse {
     revokedAt?: string | null
     expiresAt?: string | null
     allowExternalEdit?: boolean
+    passwordHash?: string | null
+    isPublic?: boolean
   }
   token: string
 }
@@ -369,7 +372,7 @@ export const toggleFolderStarred = (folderId: string, isStarred: boolean) =>
 export const getStarredDocuments = (workspaceId: string) =>
   requestJSON<{ documents: DocumentSummary[]; folders: FolderSummary[] }>(`/api/workspaces/${workspaceId}/starred`)
 
-export const createShareLink = (documentId: string, payload?: { isPublic?: boolean }) =>
+export const createShareLink = (documentId: string, payload?: { isPublic?: boolean; password?: string }) =>
   requestJSON<ShareLinkResponse>(`/api/documents/${documentId}/share-links`, {
     method: 'POST',
     body: { accessLevel: 'viewer', ...payload },
@@ -409,6 +412,7 @@ export interface AuthorDocument {
   }
   revision: DocumentRevision | null
   isCurrentDocument: boolean
+  authorName?: string
 }
 
 export const getAuthorPublicDocuments = (token: string) =>

@@ -4,13 +4,14 @@ import { Link as RouterLink } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { createWorkspace, getWorkspaces, getRecentDocuments, createDocument, type WorkspaceSummary, type DocumentSummary } from '../../lib/api';
 import { readJsonFile } from '../../lib/fileUtils';
-import { formatBytes } from '../../lib/formatUtils';
 import { ODOCS_EXTENSION, ODOCS_MIME_TYPE } from '../../lib/constants';
 import FileUploadIcon from '@mui/icons-material/FileUpload';
 import AddIcon from '@mui/icons-material/Add';
 import SearchIcon from '@mui/icons-material/Search';
 import WorkspacesIcon from '@mui/icons-material/Workspaces';
+import StarIcon from '@mui/icons-material/Star';
 import CreateWorkspaceDialog from '../../components/workspace/CreateWorkspaceDialog';
+import PublicDocumentIndicator from '../../components/workspace/PublicDocumentIndicator';
 import { formatRelativeDate } from '../../lib/formatDate';
 import { useI18n } from '../../lib/i18n';
 
@@ -28,6 +29,7 @@ const WorkspaceDashboardPage = () => {
   const [recentDocuments, setRecentDocuments] = useState<DocumentSummary[]>([]);
   const [recentDocumentsLoading, setRecentDocumentsLoading] = useState(true);
   const [recentDocumentsError, setRecentDocumentsError] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const fetchWorkspaces = useCallback(() => {
     if (isAuthenticated) {
@@ -224,7 +226,7 @@ const WorkspaceDashboardPage = () => {
             <TableRow>
               <TableCell width="35%">{strings.workspace.nameColumn}</TableCell>
               <TableCell width="15%">{strings.dashboard.workspace}</TableCell>
-              <TableCell width="12%">{strings.workspace.sizeColumn}</TableCell>
+              <TableCell width="15%">{strings.workspace.folderColumn}</TableCell>
               <TableCell width="18%">{strings.workspace.lastModifiedColumn}</TableCell>
               <TableCell width="15%">{strings.workspace.modifiedByColumn}</TableCell>
             </TableRow>
@@ -236,8 +238,10 @@ const WorkspaceDashboardPage = () => {
                 <TableRow
                   key={doc.id}
                   hover
+                  selected={selectedId === doc.id}
+                  onClick={() => setSelectedId(doc.id)}
                   onDoubleClick={() => window.open(`/document/${doc.id}`, '_blank')}
-                  sx={{ textDecoration: 'none', cursor: 'pointer', userSelect: 'none' }}
+                  sx={{ cursor: 'pointer', userSelect: 'none' }}
                 >
                   <TableCell>
                     <Box sx={{ display: 'flex', alignItems: 'center', color: 'text.primary' }}>
@@ -248,6 +252,22 @@ const WorkspaceDashboardPage = () => {
                         sx={{ width: 24, height: 24, mr: 1.5 }}
                       />
                       {doc.title}
+                      {doc.isImportant && (
+                        <StarIcon
+                          sx={{
+                            ml: 1,
+                            fontSize: '1rem',
+                            color: 'warning.main',
+                            opacity: 0.6
+                          }}
+                        />
+                      )}
+                      {doc.visibility === 'public' && (
+                        <PublicDocumentIndicator
+                          documentId={doc.id}
+                          title={doc.title}
+                        />
+                      )}
                     </Box>
                   </TableCell>
                   <TableCell>
@@ -264,7 +284,30 @@ const WorkspaceDashboardPage = () => {
                     </Typography>
                   </TableCell>
                   <TableCell>
-                    <Typography variant="body2" color="text.secondary">{formatBytes(doc.contentSize)}</Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      {doc.folderId ? (
+                        <Link
+                          component={RouterLink}
+                          to={`/workspace/${doc.workspaceId}?folderId=${doc.folderId}`}
+                          underline="hover"
+                          color="inherit"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          {doc.folderName || 'Folder'}
+                        </Link>
+                      ) : (
+                        <Link
+                          component={RouterLink}
+                          to={`/workspace/${doc.workspaceId}`}
+                          underline="hover"
+                          color="inherit"
+                          onClick={(e) => e.stopPropagation()}
+                          sx={{ opacity: 0.7 }}
+                        >
+                          {strings.workspace.rootFolder}
+                        </Link>
+                      )}
+                    </Typography>
                   </TableCell>
                   <TableCell>
                     <Typography variant="body2" color="text.secondary">{formatRelativeDate(doc.updatedAt)}</Typography>

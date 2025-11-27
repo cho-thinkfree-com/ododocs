@@ -88,6 +88,7 @@ export type EditorStrings = {
     publicDocuments: string
     currentDocument: string
     linkShared: string
+    fullyPublic: string
     viewAll: string
     noPublicDocuments: string
   }
@@ -310,6 +311,8 @@ export type WorkspaceStrings = {
   settingsAccessRestrictedDetail: string
   filesTitle: string
   nameColumn: string
+  folderColumn: string
+  rootFolder: string
   sizeColumn: string
   lastModifiedColumn: string
   modifiedByColumn: string

@@ -192,11 +192,11 @@ const SharedDocumentsPage = () => {
 
     // Sort documents by size on client side when sorting by size
     const sortedDocuments = useMemo(() => {
-        if (orderBy === 'size') {
+        if (orderBy === 'viewCount') {
             return [...documents].sort((a, b) => {
-                const aSize = a.contentSize || 0;
-                const bSize = b.contentSize || 0;
-                return order === 'asc' ? aSize - bSize : bSize - aSize;
+                const aViews = a.viewCount || 0;
+                const bViews = b.viewCount || 0;
+                return order === 'asc' ? aViews - bViews : bViews - aViews;
             });
         }
         return documents;
@@ -233,7 +233,7 @@ const SharedDocumentsPage = () => {
                 <Table>
                     <TableHead>
                         <TableRow>
-                            <TableCell width="30%">
+                            <TableCell width="40%">
                                 <TableSortLabel
                                     active={orderBy === 'title'}
                                     direction={orderBy === 'title' ? order : 'asc'}
@@ -242,14 +242,14 @@ const SharedDocumentsPage = () => {
                                     {strings.workspace.nameColumn}
                                 </TableSortLabel>
                             </TableCell>
-                            <TableCell width="15%">{strings.workspace.folderColumn}</TableCell>
-                            <TableCell width="10%">
+                            <TableCell width="20%">{strings.workspace.folderColumn}</TableCell>
+                            <TableCell width="15%">
                                 <TableSortLabel
-                                    active={orderBy === 'size'}
-                                    direction={orderBy === 'size' ? order : 'asc'}
-                                    onClick={() => handleRequestSort('size')}
+                                    active={orderBy === 'viewCount'}
+                                    direction={orderBy === 'viewCount' ? order : 'asc'}
+                                    onClick={() => handleRequestSort('viewCount')}
                                 >
-                                    {strings.workspace.sizeColumn}
+                                    조회수
                                 </TableSortLabel>
                             </TableCell>
                             <TableCell width="15%">
@@ -261,16 +261,7 @@ const SharedDocumentsPage = () => {
                                     공개 일시
                                 </TableSortLabel>
                             </TableCell>
-                            <TableCell width="15%">
-                                <TableSortLabel
-                                    active={orderBy === 'updatedAt'}
-                                    direction={orderBy === 'updatedAt' ? order : 'asc'}
-                                    onClick={() => handleRequestSort('updatedAt')}
-                                >
-                                    {strings.workspace.lastModifiedColumn}
-                                </TableSortLabel>
-                            </TableCell>
-                            <TableCell width="15%">{strings.workspace.modifiedByColumn}</TableCell>
+
                         </TableRow>
                     </TableHead>
                     <TableBody>
@@ -322,17 +313,12 @@ const SharedDocumentsPage = () => {
                                     </Typography>
                                 </TableCell>
                                 <TableCell>
-                                    <Typography variant="body2" color="text.secondary">{formatBytes(doc.contentSize)}</Typography>
+                                    <Typography variant="body2" color="text.secondary">{doc.viewCount || 0}</Typography>
                                 </TableCell>
                                 <TableCell>
                                     <Typography variant="body2" color="text.secondary">{formatRelativeDate(doc.createdAt)}</Typography>
                                 </TableCell>
-                                <TableCell>
-                                    <Typography variant="body2" color="text.secondary">{formatRelativeDate(doc.updatedAt)}</Typography>
-                                </TableCell>
-                                <TableCell>
-                                    <Chip label={doc.lastModifiedBy || strings.workspace.ownerLabel} size="small" variant="outlined" sx={{ borderRadius: 1 }} />
-                                </TableCell>
+
                             </TableRow>
                         ))}
                     </TableBody>

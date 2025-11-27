@@ -251,6 +251,7 @@ model Document {
   exportJobs         ExportJob[]
   tags               DocumentTag[]
   isImportant        Boolean              @default(false) @map("is_important")
+  viewCount          Int                  @default(0) @map("view_count")
 
   @@unique([workspaceId, slug])
   @@index([workspaceId, folderId])

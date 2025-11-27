@@ -18,7 +18,7 @@ import { ShareLinkPasswordRequiredError, ShareLinkEditNotAllowedError } from './
 const createSchema = z.object({
   accessLevel: z.enum(['viewer', 'commenter']),
   expiresAt: z.string().datetime().optional(),
-  password: z.string().min(6).max(128).optional(),
+  password: z.string().min(4).max(32).optional(),
   isPublic: z.boolean().optional(),
 })
 
@@ -65,6 +65,38 @@ export class ShareLinkService {
     if (input.expiresAt && new Date(input.expiresAt) <= new Date()) {
       throw new Error('expiresAt must be in the future')
     }
+
+    // Check for existing share link (persistent token)
+    const existingShareLink = await this.shareLinkRepository.findLatestByDocumentId(documentId)
+
+    if (existingShareLink) {
+      const passwordHash = input.password ? await this.passwordHasher.hash(input.password) : existingShareLink.passwordHash
+      const shareLink = await this.shareLinkRepository.reactivate(existingShareLink.id, {
+        documentId,
+        token: existingShareLink.token,
+        accessLevel: input.accessLevel as DocumentShareLinkAccess,
+        passwordHash,
+        expiresAt: input.expiresAt ? new Date(input.expiresAt) : null,
+        createdByMembershipId: membership.id,
+        allowExternalEdit: existingShareLink.allowExternalEdit, // Preserve existing setting or take from input if we supported it here
+        isPublic: input.isPublic ?? false,
+      })
+
+      await this.auditLogService.record({
+        workspaceId,
+        actor: { type: 'membership', membershipId: membership.id },
+        action: 'share_link.updated', // Log as updated since we're reactivating/updating
+        entityType: 'share_link',
+        entityId: shareLink.id,
+        metadata: {
+          accessLevel: shareLink.accessLevel,
+          expiresAt: shareLink.expiresAt?.toISOString() ?? null,
+          reactivated: true,
+        },
+      })
+      return { shareLink, token: shareLink.token }
+    }
+
     const token = randomBytes(24).toString('base64url')
     const passwordHash = input.password ? await this.passwordHasher.hash(input.password) : null
     const shareLink = await this.shareLinkRepository.create({
@@ -127,10 +159,20 @@ export class ShareLinkService {
 
   async resolveToken(token: string, payload: unknown) {
     const result = await this.verifyShareLinkToken(token, resolveSchema.parse(payload))
+
+    // Increment view count
+    await this.documentRepository.incrementViewCount(result.document.id)
+
+    // Return document with incremented view count so the viewer sees the update immediately
+    const documentWithUpdatedViewCount = {
+      ...result.document,
+      viewCount: (result.document.viewCount || 0) + 1
+    }
+
     const revision = await this.revisionRepository.findLatest(result.document.id)
     return {
       token: result.shareLink.token,
-      document: result.document,
+      document: documentWithUpdatedViewCount,
       revision,
       accessLevel: result.shareLink.accessLevel,
       createdByMembershipId: result.shareLink.createdByMembershipId,
@@ -143,12 +185,20 @@ export class ShareLinkService {
       throw new DocumentNotFoundError()
     }
 
+    // Get author's membership profile
+    const membership = await this.membershipRepository.findById(shareLink.createdByMembershipId)
+    const authorName = membership?.displayName || undefined
+
     // Get all public share links created by the same membership
     const publicShareLinks = await this.shareLinkRepository.findPublicByMembership(shareLink.createdByMembershipId)
 
+    // Always include the current document, even if it's not fully public
+    const currentDocumentIncluded = publicShareLinks.some(link => link.documentId === shareLink.documentId)
+    const allShareLinks = currentDocumentIncluded ? publicShareLinks : [shareLink, ...publicShareLinks]
+
     // Fetch document details for each share link
     const documents = await Promise.all(
-      publicShareLinks.map(async (link) => {
+      allShareLinks.map(async (link) => {
         const doc = await this.documentRepository.findById(link.documentId)
         if (!doc || doc.deletedAt) return null
         const revision = await this.revisionRepository.findLatest(doc.id)
@@ -157,6 +207,7 @@ export class ShareLinkService {
           shareLink: link,
           revision,
           isCurrentDocument: link.documentId === shareLink.documentId,
+          authorName,
         }
       })
     )

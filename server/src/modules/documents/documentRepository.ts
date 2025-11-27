@@ -30,6 +30,7 @@ export interface DocumentEntity {
   tags: string[]
   lastModifiedBy?: string | null
   isImportant: boolean
+  viewCount: number
 }
 
 export interface DocumentCreateInput {
@@ -446,6 +447,30 @@ export class DocumentRepository {
     });
     return result.count;
   }
+
+  async incrementViewCount(id: string): Promise<void> {
+    await this.prisma.document.update({
+      where: { id },
+      data: { viewCount: { increment: 1 } },
+    })
+  }
+
+  async listPublicWithViewCount(workspaceId: string, options: { sortBy?: string; sortOrder?: 'asc' | 'desc' } = {}): Promise<DocumentEntity[]> {
+    const { sortBy = 'createdAt', sortOrder = 'desc' } = options
+
+    const documents = await this.prisma.document.findMany({
+      where: {
+        workspaceId,
+        deletedAt: null,
+        visibility: 'public',
+      },
+      orderBy: {
+        [sortBy]: sortOrder,
+      },
+    })
+
+    return documents.map(toEntity)
+  }
 }
 
 const toEntity = (document: DocumentModel & { revisions?: ({ createdByMembership: { account: { legalName: string | null } | null } | null } | null)[]; tags: { name: string }[]; folder?: { id: string; name: string } | null }): DocumentEntity => {
@@ -480,5 +505,6 @@ const toEntity = (document: DocumentModel & { revisions?: ({ createdByMembership
     tags: document.tags?.map((tag) => tag.name) ?? [],
     lastModifiedBy: document.revisions?.[0]?.createdByMembership?.account?.legalName,
     isImportant: document.isImportant,
+    viewCount: (document as any).viewCount,
   }
 }

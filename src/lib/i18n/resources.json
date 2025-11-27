@@ -29,6 +29,7 @@
         "publicDocuments": "Public Documents",
         "currentDocument": "Current Document",
         "linkShared": "Shared via link",
+        "fullyPublic": "Publicly available",
         "viewAll": "View all public documents",
         "noPublicDocuments": "No public documents available"
       },
@@ -623,7 +624,8 @@
         "title": "작성자",
         "publicDocuments": "공개 문서",
         "currentDocument": "현재 문서",
-        "linkShared": "링크를 통해 공유됨",
+        "linkShared": "링크 공유",
+        "fullyPublic": "완전 공개",
         "viewAll": "모든 공개 문서 보기",
         "noPublicDocuments": "공개 문서가 없습니다"
       },

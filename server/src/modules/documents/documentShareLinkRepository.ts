@@ -54,6 +54,14 @@ export class DocumentShareLinkRepository {
     return shareLinks.map(toEntity)
   }
 
+  async findLatestByDocumentId(documentId: string): Promise<ShareLinkEntity | null> {
+    const shareLink = await this.prisma.documentShareLink.findFirst({
+      where: { documentId },
+      orderBy: { createdAt: 'desc' },
+    })
+    return shareLink ? toEntity(shareLink) : null
+  }
+
   async findById(id: string): Promise<ShareLinkEntity | null> {
     const shareLink = await this.prisma.documentShareLink.findUnique({ where: { id } })
     return shareLink ? toEntity(shareLink) : null
@@ -87,10 +95,26 @@ export class DocumentShareLinkRepository {
     return toEntity(shareLink)
   }
 
+  async reactivate(id: string, input: ShareLinkCreateInput): Promise<ShareLinkEntity> {
+    const shareLink = await this.prisma.documentShareLink.update({
+      where: { id },
+      data: {
+        revokedAt: null,
+        accessLevel: input.accessLevel,
+        passwordHash: input.passwordHash,
+        expiresAt: input.expiresAt,
+        allowExternalEdit: input.allowExternalEdit ?? false,
+        isPublic: input.isPublic ?? false,
+      },
+    })
+    return toEntity(shareLink)
+  }
+
   async findPublicByMembership(membershipId: string): Promise<ShareLinkEntity[]> {
     const shareLinks = await this.prisma.documentShareLink.findMany({
       where: {
         createdByMembershipId: membershipId,
+        isPublic: true,
         passwordHash: null,
         revokedAt: null,
         OR: [
