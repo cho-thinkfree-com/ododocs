@@ -35,34 +35,40 @@ const AdaptiveTitle = ({ title }: { title: string }) => {
     const titleRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
+        // Reset font size only when title changes
+        setFontSize('1.5rem');
+        setIsOverflowed(false);
+    }, [title]);
+
+    useEffect(() => {
         const checkOverflow = () => {
             const element = titleRef.current;
             if (!element) return;
 
-            // Reset to original size first
-            setFontSize('1.5rem');
-            setIsOverflowed(false);
+            // Check current overflow state WITHOUT resetting font size
+            const isOverflowing = element.scrollWidth > element.clientWidth;
 
-            // Check after a brief delay to allow DOM update
-            setTimeout(() => {
-                if (!element) return;
-                const isOverflowing = element.scrollWidth > element.clientWidth;
+            if (isOverflowing && fontSize === '1.5rem') {
+                // Only reduce if currently at full size
+                setFontSize('1.2rem');
 
-                if (isOverflowing) {
-                    // Reduce font size to 1.2rem
-                    setFontSize('1.2rem');
-
-                    // Check again after font size change
-                    setTimeout(() => {
-                        if (!element) return;
-                        const stillOverflowing = element.scrollWidth > element.clientWidth;
-                        setIsOverflowed(stillOverflowing);
-                    }, 50);
-                }
-            }, 50);
+                // Check again after font size change
+                setTimeout(() => {
+                    if (!element) return;
+                    const stillOverflowing = element.scrollWidth > element.clientWidth;
+                    setIsOverflowed(stillOverflowing);
+                }, 50);
+            } else if (isOverflowing && fontSize === '1.2rem') {
+                // Already reduced, just update overflow state
+                setIsOverflowed(true);
+            } else {
+                // Not overflowing
+                setIsOverflowed(false);
+            }
         };
 
-        checkOverflow();
+        // Initial check after a brief delay
+        const initialTimer = setTimeout(checkOverflow, 50);
 
         // Listen to window resize
         window.addEventListener('resize', checkOverflow);
@@ -77,10 +83,11 @@ const AdaptiveTitle = ({ title }: { title: string }) => {
         }
 
         return () => {
+            clearTimeout(initialTimer);
             window.removeEventListener('resize', checkOverflow);
             resizeObserver.disconnect();
         };
-    }, [title]);
+    }, [fontSize, title]);
 
     return (
         <Tooltip title={title} placement="bottom" disableHoverListener={!isOverflowed}>
