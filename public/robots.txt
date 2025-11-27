@@ -1,0 +1,11 @@
+User-agent: *
+Allow: /
+Allow: /public/
+
+# Block crawling of link-only shared documents
+Disallow: /share/
+
+# Allow all other paths
+Allow: /login
+Allow: /signup
+Allow: /dashboard

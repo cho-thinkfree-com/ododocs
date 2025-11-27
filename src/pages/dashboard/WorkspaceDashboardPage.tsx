@@ -1,14 +1,14 @@
-import { Alert, Box, Button, Card, CardActionArea, CardContent, CircularProgress, Container, TextField, Typography, InputAdornment, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Link } from '@mui/material';
+import { Alert, Box, Button, Card, CardActionArea, CardContent, CircularProgress, Container, TextField, Typography, InputAdornment, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Link, Chip } from '@mui/material';
 import { useCallback, useEffect, useState } from 'react';
 import { Link as RouterLink } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { createWorkspace, getWorkspaces, getRecentDocuments, createDocument, type WorkspaceSummary, type DocumentSummary } from '../../lib/api';
 import { readJsonFile } from '../../lib/fileUtils';
+import { formatBytes } from '../../lib/formatUtils';
 import { ODOCS_EXTENSION, ODOCS_MIME_TYPE } from '../../lib/constants';
 import FileUploadIcon from '@mui/icons-material/FileUpload';
 import AddIcon from '@mui/icons-material/Add';
 import SearchIcon from '@mui/icons-material/Search';
-import ArticleIcon from '@mui/icons-material/Article';
 import WorkspacesIcon from '@mui/icons-material/Workspaces';
 import CreateWorkspaceDialog from '../../components/workspace/CreateWorkspaceDialog';
 import { formatRelativeDate } from '../../lib/formatDate';
@@ -222,35 +222,55 @@ const WorkspaceDashboardPage = () => {
         <Table>
           <TableHead>
             <TableRow>
-              <TableCell width="40%">{strings.dashboard.name}</TableCell>
-              <TableCell width="20%">{strings.dashboard.workspace}</TableCell>
-              <TableCell width="25%">{strings.dashboard.lastModified}</TableCell>
-              <TableCell align="right" width="15%">{strings.dashboard.actions}</TableCell>
+              <TableCell width="35%">{strings.workspace.nameColumn}</TableCell>
+              <TableCell width="15%">{strings.dashboard.workspace}</TableCell>
+              <TableCell width="12%">{strings.workspace.sizeColumn}</TableCell>
+              <TableCell width="18%">{strings.workspace.lastModifiedColumn}</TableCell>
+              <TableCell width="15%">{strings.workspace.modifiedByColumn}</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {recentDocuments.map((doc) => {
               const workspace = workspaces.find(w => w.id === doc.workspaceId);
               return (
-                <TableRow key={doc.id} hover>
+                <TableRow
+                  key={doc.id}
+                  hover
+                  onDoubleClick={() => window.open(`/document/${doc.id}`, '_blank')}
+                  sx={{ textDecoration: 'none', cursor: 'pointer', userSelect: 'none' }}
+                >
                   <TableCell>
-                    <Link component={RouterLink} to={`/document/${doc.id}`} target="_blank" sx={{ display: 'flex', alignItems: 'center', textDecoration: 'none', color: 'inherit' }}>
-                      <ArticleIcon color="action" sx={{ mr: 1.5 }} />
+                    <Box sx={{ display: 'flex', alignItems: 'center', color: 'text.primary' }}>
+                      <Box
+                        component="img"
+                        src="/odocs-file-icon-small.png"
+                        alt="document"
+                        sx={{ width: 24, height: 24, mr: 1.5 }}
+                      />
                       {doc.title}
-                    </Link>
+                    </Box>
                   </TableCell>
                   <TableCell>
                     <Typography variant="body2" color="text.secondary">
-                      {workspace?.name || 'Unknown'}
+                      <Link
+                        component={RouterLink}
+                        to={`/workspace/${doc.workspaceId}`}
+                        underline="hover"
+                        color="inherit"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {workspace?.name || 'Unknown'}
+                      </Link>
                     </Typography>
+                  </TableCell>
+                  <TableCell>
+                    <Typography variant="body2" color="text.secondary">{formatBytes(doc.contentSize)}</Typography>
                   </TableCell>
                   <TableCell>
                     <Typography variant="body2" color="text.secondary">{formatRelativeDate(doc.updatedAt)}</Typography>
                   </TableCell>
-                  <TableCell align="right">
-                    <Button size="small" component={RouterLink} to={`/document/${doc.id}`} target="_blank">
-                      {strings.dashboard.open}
-                    </Button>
+                  <TableCell>
+                    <Chip label={doc.lastModifiedBy || strings.workspace.ownerLabel} size="small" variant="outlined" sx={{ borderRadius: 1 }} />
                   </TableCell>
                 </TableRow>
               );

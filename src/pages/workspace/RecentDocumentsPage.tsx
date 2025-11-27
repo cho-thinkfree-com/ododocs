@@ -4,6 +4,7 @@ import { useParams, Link as RouterLink } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { getRecentDocuments, type DocumentSummary, toggleDocumentStarred, getShareLinks } from '../../lib/api';
 import { formatRelativeDate } from '../../lib/formatDate';
+import { generateShareUrl } from '../../lib/shareUtils';
 import HomeIcon from '@mui/icons-material/Home';
 
 import StarIcon from '@mui/icons-material/Star';
@@ -157,7 +158,7 @@ const RecentDocumentsPage = () => {
                     const shareLinks = await getShareLinks(doc.id);
                     const activeLink = shareLinks.find(l => !l.revokedAt);
                     if (activeLink) {
-                        const url = `${window.location.origin}/share/${activeLink.token}`;
+                        const url = generateShareUrl(activeLink.token, doc.title);
                         return `${doc.title}\n${url}`;
                     }
                     return null;

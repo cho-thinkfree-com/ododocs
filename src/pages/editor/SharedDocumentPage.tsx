@@ -6,7 +6,11 @@ import EditorLayout from '../../components/layout/EditorLayout';
 import useEditorInstance from '../../editor/useEditorInstance';
 import { useSEO } from '../../hooks/useSEO';
 
-const SharedDocumentPage = () => {
+interface SharedDocumentPageProps {
+    isPublic?: boolean;
+}
+
+const SharedDocumentPage = ({ isPublic = false }: SharedDocumentPageProps) => {
     const { token } = useParams<{ token: string }>();
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -70,6 +74,7 @@ const SharedDocumentPage = () => {
         modifiedTime: revision?.createdAt,
         url: typeof window !== 'undefined' ? window.location.href : undefined,
         type: 'article',
+        robots: isPublic ? 'index, follow' : 'noindex, nofollow',
     });
 
 
@@ -176,6 +181,7 @@ const SharedDocumentPage = () => {
                 saveStatus="saved"
                 readOnly={true}
                 initialWidth={initialWidth}
+                shareToken={token}
             />
         </Box>
     );

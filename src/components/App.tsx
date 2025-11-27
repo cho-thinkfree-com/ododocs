@@ -67,8 +67,11 @@ const AppRoutes = () => {
         }
       />
 
-      {/* Public Share Route */}
-      <Route path="/share/:token" element={<SharedDocumentPage />} />
+      {/* Public documents - searchable by search engines */}
+      <Route path="/public/:token/*" element={<SharedDocumentPage isPublic={true} />} />
+
+      {/* Link-only shared documents - not searchable */}
+      <Route path="/share/:token/*" element={<SharedDocumentPage isPublic={false} />} />
 
       {/* Authenticated Routes */}
       <Route element={<ProtectedRoute />}>

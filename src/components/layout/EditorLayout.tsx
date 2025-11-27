@@ -14,6 +14,7 @@ import { useI18n } from '../../lib/i18n';
 import EditorWidthSelector from '../editor/EditorWidthSelector';
 import ViewerTemplateSelector from '../editor/ViewerTemplateSelector';
 import type { ViewerTemplate } from '../../lib/viewerTemplates';
+import AuthorInfoButton from '../viewer/AuthorInfoButton';
 
 interface EditorLayoutProps {
     editor: Editor | null;
@@ -24,9 +25,10 @@ interface EditorLayoutProps {
     saveStatus: 'saved' | 'unsaved' | 'saving';
     readOnly?: boolean;
     initialWidth?: string;
+    shareToken?: string;
 }
 
-const EditorLayout = ({ editor, document, onContentChange, onTitleChange, onClose, saveStatus, readOnly = false, initialWidth = '950px' }: EditorLayoutProps) => {
+const EditorLayout = ({ editor, document, onContentChange, onTitleChange, onClose, saveStatus, readOnly = false, initialWidth = '950px', shareToken }: EditorLayoutProps) => {
 
     const [tocOpen, setTocOpen] = useState(false);
     const [localTitle, setLocalTitle] = useState(document.title);
@@ -244,6 +246,13 @@ const EditorLayout = ({ editor, document, onContentChange, onTitleChange, onClos
                                             value={viewerTemplate}
                                             onChange={setViewerTemplate}
                                         />
+                                        {shareToken && (
+                                            <AuthorInfoButton
+                                                token={shareToken}
+                                                authorName={document.lastModifiedBy || undefined}
+                                                documentUpdatedAt={document.updatedAt}
+                                            />
+                                        )}
                                     </Box>
                                 </Box>
                             </Box>
@@ -335,6 +344,7 @@ const EditorLayout = ({ editor, document, onContentChange, onTitleChange, onClos
                     open={shareOpen}
                     onClose={() => setShareOpen(false)}
                     documentId={document.id}
+                    document={document}
                 />
                 {!readOnly && (
                     <Box sx={{

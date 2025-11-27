@@ -83,6 +83,14 @@ export type EditorStrings = {
     large: string
     article: string
   }
+  author: {
+    title: string
+    publicDocuments: string
+    currentDocument: string
+    linkShared: string
+    viewAll: string
+    noPublicDocuments: string
+  }
   slashHelp: SlashHelpStrings
   shortcuts: ShortcutsStrings
 }

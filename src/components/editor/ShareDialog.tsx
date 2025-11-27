@@ -9,6 +9,11 @@ import {
     Typography,
     Alert,
     CircularProgress,
+    Radio,
+    RadioGroup,
+    FormControlLabel,
+    FormControl,
+    FormLabel,
 } from '@mui/material'
 import { useEffect, useState } from 'react'
 import {
@@ -16,23 +21,27 @@ import {
     getShareLinks,
     revokeShareLink,
     updateDocument,
+    updateShareLink,
     type ShareLinkResponse,
 } from '../../lib/api'
 import { useAuth } from '../../context/AuthContext'
+import { generateShareUrl } from '../../lib/shareUtils'
 
 interface ShareDialogProps {
     open: boolean
     onClose: () => void
     documentId: string
+    document?: { title: string } // Add document prop for title
     onVisibilityChange?: (visibility: string) => void
 }
 
-export default function ShareDialog({ open, onClose, documentId, onVisibilityChange }: ShareDialogProps) {
+export default function ShareDialog({ open, onClose, documentId, document, onVisibilityChange }: ShareDialogProps) {
     const { isAuthenticated } = useAuth()
     const [loading, setLoading] = useState(false)
     const [shareLink, setShareLink] = useState<ShareLinkResponse['shareLink'] | null>(null)
     const [error, setError] = useState<string | null>(null)
     const [copied, setCopied] = useState(false)
+    const [updating, setUpdating] = useState(false)
 
     const fetchLink = async () => {
         if (!isAuthenticated) return
@@ -62,7 +71,8 @@ export default function ShareDialog({ open, onClose, documentId, onVisibilityCha
         if (!isAuthenticated) return
         setLoading(true)
         try {
-            const result = await createShareLink(documentId)
+            // Create with default link-only access (isPublic=false)
+            const result = await createShareLink(documentId, { isPublic: false })
             setShareLink(result.shareLink)
             // Automatically make public when sharing
             await updateDocument(documentId, { visibility: 'public' })
@@ -90,15 +100,28 @@ export default function ShareDialog({ open, onClose, documentId, onVisibilityCha
         }
     }
 
+    const handlePublicLevelChange = async (newIsPublic: boolean) => {
+        if (!shareLink || updating) return
+        setUpdating(true)
+        try {
+            const updated = await updateShareLink(shareLink.id, { isPublic: newIsPublic })
+            setShareLink(updated)
+        } catch (err) {
+            setError('Failed to update public level')
+        } finally {
+            setUpdating(false)
+        }
+    }
+
     const handleCopy = () => {
-        if (!shareLink) return
-        const url = `${window.location.origin}/share/${shareLink.token}`
+        if (!shareLink || !document) return
+        const url = generateShareUrl(shareLink.token, document.title, shareLink.isPublic)
         navigator.clipboard.writeText(url)
         setCopied(true)
         setTimeout(() => setCopied(false), 2000)
     }
 
-    const shareUrl = shareLink ? `${window.location.origin}/share/${shareLink.token}` : ''
+    const shareUrl = shareLink && document ? generateShareUrl(shareLink.token, document.title, shareLink.isPublic) : ''
 
     return (
         <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
@@ -121,8 +144,53 @@ export default function ShareDialog({ open, onClose, documentId, onVisibilityCha
                     </Box>
                 ) : (
                     <Box sx={{ pt: 1 }}>
+                        {/* Public Level Selector */}
+                        <FormControl component="fieldset" sx={{ mb: 3, width: '100%' }}>
+                            <FormLabel component="legend" sx={{ mb: 1.5 }}>
+                                공개 수준
+                            </FormLabel>
+                            <RadioGroup
+                                value={shareLink.isPublic ? 'public' : 'link-only'}
+                                onChange={(e) => handlePublicLevelChange(e.target.value === 'public')}
+                            >
+                                <FormControlLabel
+                                    value="link-only"
+                                    control={<Radio />}
+                                    disabled={updating}
+                                    label={
+                                        <Box>
+                                            <Typography variant="body2" fontWeight={600}>
+                                                링크만 공유
+                                            </Typography>
+                                            <Typography variant="caption" color="text.secondary">
+                                                링크를 아는 사람만 접근할 수 있으며 검색엔진에 노출되지 않습니다
+                                            </Typography>
+                                        </Box>
+                                    }
+                                />
+                                <FormControlLabel
+                                    value="public"
+                                    control={<Radio />}
+                                    disabled={updating}
+                                    label={
+                                        <Box>
+                                            <Typography variant="body2" fontWeight={600}>
+                                                완전 공개
+                                            </Typography>
+                                            <Typography variant="caption" color="text.secondary">
+                                                검색엔진에 노출되며 누구나 찾을 수 있습니다
+                                            </Typography>
+                                        </Box>
+                                    }
+                                />
+                            </RadioGroup>
+                        </FormControl>
+
+                        {/* Share URL */}
                         <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                            Anyone with this link can view this document.
+                            {shareLink.isPublic
+                                ? '이 링크는 검색엔진에 노출되며 누구나 접근할 수 있습니다.'
+                                : '이 링크를 아는 사람만 문서를 볼 수 있습니다.'}
                         </Typography>
 
                         <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
@@ -133,6 +201,16 @@ export default function ShareDialog({ open, onClose, documentId, onVisibilityCha
                                     readOnly: true,
                                 }}
                                 size="small"
+                                onClick={(e) => {
+                                    const input = e.currentTarget.querySelector('input');
+                                    if (input) {
+                                        input.select();
+                                        navigator.clipboard.writeText(shareUrl);
+                                        setCopied(true);
+                                        setTimeout(() => setCopied(false), 2000);
+                                    }
+                                }}
+                                sx={{ cursor: 'pointer' }}
                             />
                             <Button variant="outlined" onClick={handleCopy}>
                                 {copied ? 'Copied!' : 'Copy'}

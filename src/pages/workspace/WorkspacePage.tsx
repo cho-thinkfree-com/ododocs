@@ -1365,6 +1365,7 @@ const WorkspacePage = () => {
             setSelectedItem(null);
           }}
           documentId={selectedItem.id}
+          document={{ title: selectedItem.title || selectedItem.name }}
           onVisibilityChange={(newVisibility) => {
             setDocuments(prev => prev.map(d => d.id === selectedItem.id ? { ...d, visibility: newVisibility } : d));
           }}

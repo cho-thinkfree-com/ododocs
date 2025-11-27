@@ -339,6 +339,7 @@ model DocumentShareLink {
   createdByMembership WorkspaceMembership    @relation(fields: [createdByMembershipId], references: [id], onDelete: Cascade)
   createdByMembershipId String               @map("created_by_membership_id")
   allowExternalEdit   Boolean                @map("allow_external_edit") @default(false)
+  isPublic            Boolean                @map("is_public") @default(false)
   sessions            DocumentShareLinkSession[]
   createdAt           DateTime               @default(now()) @map("created_at")
 

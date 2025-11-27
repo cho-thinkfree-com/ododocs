@@ -19,6 +19,7 @@ const createSchema = z.object({
   accessLevel: z.enum(['viewer', 'commenter']),
   expiresAt: z.string().datetime().optional(),
   password: z.string().min(6).max(128).optional(),
+  isPublic: z.boolean().optional(),
 })
 
 const resolveSchema = z.object({
@@ -26,7 +27,8 @@ const resolveSchema = z.object({
 })
 
 const updateOptionsSchema = z.object({
-  allowExternalEdit: z.boolean(),
+  allowExternalEdit: z.boolean().optional(),
+  isPublic: z.boolean().optional(),
 })
 
 const acceptSchema = z.object({
@@ -72,6 +74,7 @@ export class ShareLinkService {
       passwordHash,
       expiresAt: input.expiresAt ? new Date(input.expiresAt) : null,
       createdByMembershipId: membership.id,
+      isPublic: input.isPublic ?? false,
     })
     await this.auditLogService.record({
       workspaceId,
@@ -109,6 +112,7 @@ export class ShareLinkService {
     const input = updateOptionsSchema.parse(payload)
     const updated = await this.shareLinkRepository.updateOptions(shareLinkId, {
       allowExternalEdit: input.allowExternalEdit,
+      isPublic: input.isPublic,
     })
     await this.auditLogService.record({
       workspaceId,
@@ -116,7 +120,7 @@ export class ShareLinkService {
       action: 'share_link.updated',
       entityType: 'share_link',
       entityId: shareLinkId,
-      metadata: { allowExternalEdit: updated.allowExternalEdit },
+      metadata: { allowExternalEdit: updated.allowExternalEdit, isPublic: updated.isPublic },
     })
     return updated
   }
@@ -129,7 +133,35 @@ export class ShareLinkService {
       document: result.document,
       revision,
       accessLevel: result.shareLink.accessLevel,
+      createdByMembershipId: result.shareLink.createdByMembershipId,
     }
+  }
+
+  async getAuthorPublicDocuments(token: string) {
+    const shareLink = await this.shareLinkRepository.findActiveByToken(token)
+    if (!shareLink || !this.isActive(shareLink)) {
+      throw new DocumentNotFoundError()
+    }
+
+    // Get all public share links created by the same membership
+    const publicShareLinks = await this.shareLinkRepository.findPublicByMembership(shareLink.createdByMembershipId)
+
+    // Fetch document details for each share link
+    const documents = await Promise.all(
+      publicShareLinks.map(async (link) => {
+        const doc = await this.documentRepository.findById(link.documentId)
+        if (!doc || doc.deletedAt) return null
+        const revision = await this.revisionRepository.findLatest(doc.id)
+        return {
+          document: doc,
+          shareLink: link,
+          revision,
+          isCurrentDocument: link.documentId === shareLink.documentId,
+        }
+      })
+    )
+
+    return documents.filter((doc): doc is NonNullable<typeof doc> => doc !== null)
   }
 
   async acceptGuest(token: string, payload: unknown) {

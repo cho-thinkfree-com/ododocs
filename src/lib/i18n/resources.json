@@ -24,6 +24,14 @@
         "large": "Large Text",
         "article": "Article"
       },
+      "author": {
+        "title": "Author",
+        "publicDocuments": "Public Documents",
+        "currentDocument": "Current Document",
+        "linkShared": "Shared via link",
+        "viewAll": "View all public documents",
+        "noPublicDocuments": "No public documents available"
+      },
       "content": {
         "placeholder": "Start writing your document..."
       },
@@ -610,6 +618,14 @@
         "original": "원본",
         "large": "글자 크게 보기",
         "article": "신문/아티클"
+      },
+      "author": {
+        "title": "작성자",
+        "publicDocuments": "공개 문서",
+        "currentDocument": "현재 문서",
+        "linkShared": "링크를 통해 공유됨",
+        "viewAll": "모든 공개 문서 보기",
+        "noPublicDocuments": "공개 문서가 없습니다"
       },
       "toolbar": {
         "moreFormatting": "추가 서식",

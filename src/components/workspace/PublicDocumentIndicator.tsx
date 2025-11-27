@@ -3,6 +3,7 @@ import { Box, Tooltip } from '@mui/material';
 import PublicIcon from '@mui/icons-material/Public';
 import LinkIcon from '@mui/icons-material/Link';
 import { getShareLinks } from '../../lib/api';
+import { generateShareUrl } from '../../lib/shareUtils';
 
 interface PublicDocumentIndicatorProps {
     documentId: string;
@@ -27,7 +28,7 @@ export default function PublicDocumentIndicator({ documentId, title }: PublicDoc
             const activeLink = links.find(l => !l.revokedAt);
 
             if (activeLink) {
-                const url = `${window.location.origin}/share/${activeLink.token}`;
+                const url = generateShareUrl(activeLink.token, title);
                 await navigator.clipboard.writeText(url);
                 setTooltipMessage('Copied!');
                 setTooltipOpen(true);

@@ -1028,6 +1028,17 @@ export const buildServer = async ({ prisma, logger = true }: ServerOptions = {})
     }
   })
 
+  app.get('/api/share-links/:token/author/documents', async (request, reply) => {
+    const token = (request.params as { token: string }).token
+    try {
+      const documents = await shareLinkService.getAuthorPublicDocuments(token)
+      reply.send({ documents })
+    } catch (err) {
+      console.error(`[Debug] Failed to fetch author documents for token: ${token}`, err)
+      throw err
+    }
+  })
+
   app.post('/api/share-links/:token/accept', async (request, reply) => {
     const token = (request.params as { token: string }).token
     const result = await shareLinkService.acceptGuest(token, request.body)

@@ -1,4 +1,3 @@
-
 import { ODOCS_MIME_TYPE } from './constants';
 
 export const downloadFile = (filename: string, content: string, mimeType: string = ODOCS_MIME_TYPE) => {

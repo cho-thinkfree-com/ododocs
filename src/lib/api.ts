@@ -1,4 +1,4 @@
-const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:4000').replace(/\/+$/, '')
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/+$/, '')
 
 const buildQuery = (params?: Record<string, string | number | boolean | undefined>) => {
   if (!params) return ''
@@ -369,10 +369,10 @@ export const toggleFolderStarred = (folderId: string, isStarred: boolean) =>
 export const getStarredDocuments = (workspaceId: string) =>
   requestJSON<{ documents: DocumentSummary[]; folders: FolderSummary[] }>(`/api/workspaces/${workspaceId}/starred`)
 
-export const createShareLink = (documentId: string) =>
+export const createShareLink = (documentId: string, payload?: { isPublic?: boolean }) =>
   requestJSON<ShareLinkResponse>(`/api/documents/${documentId}/share-links`, {
     method: 'POST',
-    body: { accessLevel: 'viewer' },
+    body: { accessLevel: 'viewer', ...payload },
   })
 
 export const getShareLinks = (documentId: string) =>
@@ -381,7 +381,7 @@ export const getShareLinks = (documentId: string) =>
 export const revokeShareLink = (shareLinkId: string) =>
   requestJSON<void>(`/api/share-links/${shareLinkId}`, { method: 'DELETE' })
 
-export const updateShareLink = (shareLinkId: string, body: { allowExternalEdit: boolean }) =>
+export const updateShareLink = (shareLinkId: string, body: { allowExternalEdit?: boolean; isPublic?: boolean }) =>
   requestJSON<ShareLinkResponse['shareLink']>(`/api/share-links/${shareLinkId}`, {
     method: 'PATCH',
     body,
@@ -393,10 +393,26 @@ export const resolveShareLink = (token: string, password?: string) =>
     document: DocumentSummary
     revision: DocumentRevision | null
     accessLevel: string
+    createdByMembershipId: string
   }>(`/api/share-links/${token}/access`, {
     method: 'POST',
     body: { password },
   })
+
+export interface AuthorDocument {
+  document: DocumentSummary
+  shareLink: {
+    id: string
+    token: string
+    accessLevel: string
+    isPublic: boolean
+  }
+  revision: DocumentRevision | null
+  isCurrentDocument: boolean
+}
+
+export const getAuthorPublicDocuments = (token: string) =>
+  requestJSON<{ documents: AuthorDocument[] }>(`/api/share-links/${token}/author/documents`)
 
 export const updateWorkspace = (workspaceId: string, body: { name?: string; description?: string }) =>
   requestJSON<WorkspaceSummary>(`/api/workspaces/${workspaceId}`, { method: 'PATCH', body })
