@@ -4,6 +4,7 @@ import fastifyCors from '@fastify/cors'
 import fastifyCookie from '@fastify/cookie'
 import blogRoutes from './routes/blog.routes'
 import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { z } from 'zod'
 import { DocumentStatus, DocumentVisibility } from '@prisma/client'
 import { createPrismaClient, type DatabaseClient } from './lib/prismaClient.js'
@@ -1209,7 +1210,7 @@ export const buildServer = async ({ prisma, logger = true }: ServerOptions = {})
   return app
 }
 
-if (import.meta.main) {
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const server = await buildServer()
   const PORT = Number(process.env.PORT ?? 4000)
   await server.listen({ port: PORT, host: '0.0.0.0' })
