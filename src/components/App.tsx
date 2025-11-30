@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate, Outlet, useLocation, useSearchParams } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, Outlet, useLocation, useSearchParams, useParams } from 'react-router-dom';
 import { AuthProvider, useAuth } from '../context/AuthContext';
 import { UploadProvider } from '../context/UploadContext';
 import UploadManager from './upload/UploadManager';
@@ -6,7 +6,7 @@ import LoginPage from '../pages/auth/LoginPage';
 import SignupPage from '../pages/auth/SignupPage';
 import DashboardLayout from './layout/DashboardLayout';
 import WorkspaceDashboardPage from '../pages/dashboard/WorkspaceDashboardPage';
-import WorkspacePage from '../pages/workspace/WorkspacePage';
+import WorkspaceFilesPage from '../pages/workspace/WorkspaceFilesPage';
 import WorkspaceSettingsPage from '../pages/workspace/WorkspaceSettingsPage';
 import WorkspaceMembersPage from '../pages/workspace/WorkspaceMembersPage';
 import GlobalSettingsPage from '../pages/settings/GlobalSettingsPage';
@@ -15,10 +15,26 @@ import EditorPage from '../pages/editor/EditorPage';
 import ViewerPage from '../pages/editor/ViewerPage';
 import BlogLandingPage from '../pages/blog/BlogLandingPage';
 import TrashPage from '../pages/trash/TrashPage';
-import RecentDocumentsPage from '../pages/workspace/RecentDocumentsPage';
-import SharedDocumentsPage from '../pages/workspace/SharedDocumentsPage';
-import ImportantDocumentsPage from '../pages/workspace/ImportantDocumentsPage';
+import RecentFilesPage from '../pages/workspace/RecentFilesPage';
+import SharedFilesPage from '../pages/workspace/SharedFilesPage';
+import ImportantFilesPage from '../pages/workspace/ImportantFilesPage';
 import WorkspaceLayout from './layout/WorkspaceLayout';
+import SharePage from '../pages/share/SharePage';
+
+// Dispatcher for blog document routes to handle both legacy (documentNumber) and new (token) URLs
+const BlogDocumentDispatcher = () => {
+  const { tokenOrId } = useParams<{ tokenOrId: string }>();
+
+  // Simple heuristic: if it's all digits, assume it's a document number (legacy)
+  // Otherwise, assume it's a share token (new)
+  const isNumeric = /^\d+$/.test(tokenOrId || '');
+
+  if (isNumeric) {
+    return <ViewerPage isPublic={true} documentNumber={tokenOrId} />;
+  } else {
+    return <SharePage token={tokenOrId} />;
+  }
+};
 
 const ProtectedRoute = () => {
   const { isAuthenticated } = useAuth();
@@ -68,15 +84,19 @@ const AppRoutes = () => {
         }
       />
 
-      {/* Public documents - searchable by search engines */}
-      <Route path="/public/:token/*" element={<ViewerPage isPublic={true} />} />
-
-      {/* Link-only shared documents - not searchable */}
-      <Route path="/share/:token/*" element={<ViewerPage isPublic={false} />} />
+      {/* Unified share route - handles both public and link-only shares */}
+      {/* Token determines if it's searchable (isPublic=true) or link-only (isPublic=false) */}
+      <Route path="/share/:token/:title?" element={<SharePage />} />
+      <Route path="/public/:token/:title?" element={<SharePage />} />
 
       {/* Blog Landing Page */}
       <Route path="/blog/:handle" element={<BlogLandingPage />} />
-      <Route path="/blog/:handle/documents/:documentNumber/:titleSlug?" element={<ViewerPage isPublic={true} />} />
+
+      {/* Blog Document Routes - Handles both Token (new) and DocumentNumber (legacy) */}
+      <Route path="/blog/:handle/documents/:tokenOrId/:titleSlug?" element={<BlogDocumentDispatcher />} />
+
+      {/* Legacy Blog Route (Workspace/Profile ID) - Document View */}
+      <Route path="/blog/:workspaceId/:profileId/documents/:token/:title?" element={<SharePage />} />
       <Route path="/blog/:workspaceId/:profileId" element={<BlogLandingPage />} />
 
       {/* Authenticated Routes */}
@@ -87,10 +107,12 @@ const AppRoutes = () => {
 
           {/* Workspace Routes with Sidebar */}
           <Route element={<WorkspaceLayout />}>
-            <Route path="/workspace/:workspaceId" element={<WorkspacePage />} />
-            <Route path="/workspace/:workspaceId/shared" element={<SharedDocumentsPage />} />
-            <Route path="/workspace/:workspaceId/recent" element={<RecentDocumentsPage />} />
-            <Route path="/workspace/:workspaceId/important" element={<ImportantDocumentsPage />} />
+            <Route path="/workspace/:workspaceId" element={<Navigate to="files" replace />} />
+            <Route path="/workspace/:workspaceId/files" element={<WorkspaceFilesPage />} />
+            <Route path="/workspace/:workspaceId/folder/:folderId" element={<WorkspaceFilesPage />} />
+            <Route path="/workspace/:workspaceId/shared" element={<SharedFilesPage />} />
+            <Route path="/workspace/:workspaceId/recent" element={<RecentFilesPage />} />
+            <Route path="/workspace/:workspaceId/important" element={<ImportantFilesPage />} />
             <Route path="/workspace/:workspaceId/settings" element={<WorkspaceSettingsPage />} />
             <Route path="/workspace/:workspaceId/profile" element={<WorkspaceProfilePage />} />
             <Route path="/workspace/:workspaceId/members" element={<WorkspaceMembersPage />} />

@@ -1,0 +1,163 @@
+import { PrismaClient } from '@prisma/client';
+
+export interface BlogProfile {
+    handle: string;
+    name: string;
+    bio?: string;
+    theme?: string;
+    membershipId: string;
+}
+
+export interface BlogDocument {
+    id: string;
+    title: string;
+    slug: string;
+    excerpt?: string;
+    createdAt: Date;
+    updatedAt: Date;
+}
+
+export class BlogRepository {
+    constructor(private db: PrismaClient) { }
+
+    async findProfileByHandle(handle: string): Promise<BlogProfile | null> {
+        const membership = await this.db.workspaceMembership.findFirst({
+            where: {
+                blogHandle: handle,
+                status: 'active',
+            },
+            include: {
+                workspace: true,
+            },
+        });
+
+        if (!membership) {
+            return null;
+        }
+
+        return {
+            handle: membership.blogHandle!,
+            name: membership.displayName || handle,
+            bio: membership.blogDescription || undefined,
+            theme: membership.blogTheme || undefined,
+            membershipId: membership.id,
+        };
+    }
+
+    async findProfileByMembershipId(membershipId: string): Promise<BlogProfile | null> {
+        const membership = await this.db.workspaceMembership.findUnique({
+            where: {
+                id: membershipId,
+            },
+            include: {
+                workspace: true,
+            },
+        });
+
+        if (!membership) {
+            return null;
+        }
+
+        return {
+            handle: membership.blogHandle || '',
+            name: membership.displayName || 'Unknown',
+            bio: membership.blogDescription || undefined,
+            theme: membership.blogTheme || undefined,
+            membershipId: membership.id,
+        };
+    }
+
+    async findPublicDocuments(
+        membershipId: string,
+        page: number = 1,
+        limit: number = 10
+    ): Promise<{ documents: BlogDocument[]; total: number }> {
+        const skip = (page - 1) * limit;
+
+        // Get membership to find workspace
+        const membership = await this.db.workspaceMembership.findUnique({
+            where: { id: membershipId },
+            include: { workspace: true },
+        });
+
+        if (!membership) {
+            return { documents: [], total: 0 };
+        }
+
+        // Only show documents if workspace is public
+        // OR if you want personal blogs to work regardless of workspace visibility,
+        // you can remove this check
+        const workspaceIsPublic = membership.workspace.visibility === 'public';
+
+        // Find public documents created by this member
+        const [documents, total] = await Promise.all([
+            this.db.fileSystemEntry.findMany({
+                where: {
+                    createdBy: membershipId,
+                    type: 'file',
+                    mimeType: 'application/x-odocs',
+                    deletedAt: null,
+                    isPublic: true,
+                },
+                select: {
+                    id: true,
+                    name: true,
+                    description: true,
+                    createdAt: true,
+                    updatedAt: true,
+                    viewCount: true,
+                    shareLinks: {
+                        where: { revokedAt: null },
+                        take: 1,
+                        select: {
+                            token: true,
+                            isPublic: true,
+                        },
+                    },
+                },
+                orderBy: {
+                    createdAt: 'desc',
+                },
+                skip,
+                take: limit,
+            }),
+            this.db.fileSystemEntry.count({
+                where: {
+                    createdBy: membershipId,
+                    type: 'file',
+                    mimeType: 'application/x-odocs',
+                    deletedAt: null,
+                    isPublic: true,
+                },
+            }),
+        ]);
+
+        return {
+            documents: documents.map((doc) => ({
+                id: doc.id,
+                title: doc.name,
+                slug: doc.name.toLowerCase().replace(/\s+/g, '-'),
+                excerpt: doc.description || undefined,
+                createdAt: doc.createdAt,
+                updatedAt: doc.updatedAt,
+                viewCount: doc.viewCount,
+                publicToken: doc.shareLinks[0]?.token,
+                shareLink: doc.shareLinks[0] ? {
+                    isPublic: doc.shareLinks[0].isPublic,
+                    token: doc.shareLinks[0].token,
+                } : undefined,
+            })),
+            total,
+        };
+    }
+
+    async checkHandleAvailability(handle: string): Promise<boolean> {
+        const existing = await this.db.workspaceMembership.findFirst({
+            where: {
+                blogHandle: handle,
+            },
+        });
+
+        return !existing;
+    }
+}

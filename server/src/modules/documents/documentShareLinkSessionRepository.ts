@@ -1,4 +1,4 @@
-﻿import type { DocumentShareLinkSession as SessionModel } from '@prisma/client'
+﻿import type { ShareLinkSession as SessionModel } from '@prisma/client'
 import type { DatabaseClient } from '../../lib/prismaClient.js'
 
 export interface ShareLinkSessionEntity {
@@ -22,7 +22,7 @@ export class DocumentShareLinkSessionRepository {
   constructor(private readonly prisma: DatabaseClient) { }
 
   async create(input: ShareLinkSessionCreateInput): Promise<ShareLinkSessionEntity> {
-    const session = await this.prisma.documentShareLinkSession.create({
+    const session = await this.prisma.shareLinkSession.create({
       data: {
         shareLinkId: input.shareLinkId,
         collaboratorId: input.collaboratorId,
@@ -34,7 +34,7 @@ export class DocumentShareLinkSessionRepository {
   }
 
   async revokeByShareLinkId(shareLinkId: string): Promise<void> {
-    await this.prisma.documentShareLinkSession.updateMany({
+    await this.prisma.shareLinkSession.updateMany({
       where: { shareLinkId, revokedAt: null },
       data: { revokedAt: new Date() },
     })

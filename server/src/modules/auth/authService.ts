@@ -72,7 +72,7 @@ export class AuthService {
     private readonly loginThrottle: LoginThrottle = new InMemoryLoginThrottle(),
   ) { }
 
-  signup(input: z.infer<typeof signupSchema>) {
+  async signup(input: z.infer<typeof signupSchema>) {
     const parsed = signupSchema.parse(input)
     let legalName = parsed.legalName
 
@@ -81,13 +81,16 @@ export class AuthService {
       legalName = parsed.email.split('@')[0]
     }
 
-    return this.accountService.registerAccount({
+    const account = await this.accountService.registerAccount({
       ...parsed,
       legalName,
     })
+
+    const session = await this.issueSession(account.id)
+    return { account, session }
   }
 
-  async login(rawInput: z.infer<typeof loginSchema>): Promise<LoginResult> {
+  async login(rawInput: z.infer<typeof loginSchema>): Promise<{ account: any; session: LoginResult }> {
     const input = loginSchema.parse(rawInput)
     const email = normalizeEmail(input.email)
     if (this.loginThrottle.isBlocked(email)) throw new TooManyAttemptsError()
@@ -107,7 +110,11 @@ export class AuthService {
     }
 
     this.loginThrottle.reset(email)
-    return this.issueSession(account.id)
+    const session = await this.issueSession(account.id)
+
+    // Return account without password hash
+    const { passwordHash, ...accountWithoutPassword } = account
+    return { account: accountWithoutPassword, session }
   }
 
 

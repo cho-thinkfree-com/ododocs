@@ -5,19 +5,19 @@ interface RenameDialogProps {
   open: boolean;
   onClose: () => void;
   onRename: (newName: string) => Promise<void>;
-  initialName: string;
-  itemType: 'document' | 'folder';
+  currentName: string;
+  itemType: 'file' | 'folder';
 }
 
-const RenameDialog = ({ open, onClose, onRename, initialName, itemType }: RenameDialogProps) => {
-  const [name, setName] = useState(initialName);
+const RenameDialog = ({ open, onClose, onRename, currentName, itemType }: RenameDialogProps) => {
+  const [name, setName] = useState(currentName);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (open) {
-      setName(initialName);
+      setName(currentName);
       setError(null);
       // Focus input after dialog animation
       if (inputRef.current) {
@@ -29,7 +29,7 @@ const RenameDialog = ({ open, onClose, onRename, initialName, itemType }: Rename
         }, 100);
       }
     }
-  }, [open, initialName]);
+  }, [open, currentName]);
 
   const handleRename = async () => {
     if (!name.trim()) {

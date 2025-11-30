@@ -18,6 +18,7 @@ type UseEditorInstanceOptions = Partial<EditorOptions> & {
   localeStrings?: AppStrings
   extensionOptions?: BaseExtensionOptions
   onError?: (error: Error) => void
+  waitForContent?: boolean
 }
 
 const useEditorInstance = (options?: UseEditorInstanceOptions) => {
@@ -28,6 +29,7 @@ const useEditorInstance = (options?: UseEditorInstanceOptions) => {
     editorProps: optionEditorProps,
     content,
     onError,
+    waitForContent,
     ...editorConfig
   } = options ?? {}
 
@@ -66,6 +68,11 @@ const useEditorInstance = (options?: UseEditorInstanceOptions) => {
 
   useEffect(() => {
     if (!editor || hasInitialized.current) {
+      return
+    }
+
+    // If waitForContent is true and content is null, wait for it to be populated
+    if (waitForContent && content === null) {
       return
     }
 

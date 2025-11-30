@@ -1,7 +1,7 @@
-import { Snackbar, Alert, Box, Button } from '@mui/material';
+import { Snackbar, Alert, Box, Button, CircularProgress } from '@mui/material';
 import { useCallback, useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { appendRevision, renameDocument, type DocumentRevision, type DocumentSummary } from '../../lib/api';
+import { updateDocumentContent, renameFileSystemEntry, type FileSystemEntry } from '../../lib/api';
 import EditorLayout from '../../components/layout/EditorLayout';
 import useEditorInstance from '../../editor/useEditorInstance';
 import { useDebouncedCallback } from '../../lib/useDebounce';
@@ -9,15 +9,16 @@ import { broadcastSync } from '../../lib/syncEvents';
 import { usePageTitle } from '../../hooks/usePageTitle';
 import { useI18n } from '../../lib/i18n';
 import CloseOverlay from '../../components/editor/CloseOverlay';
+import { processContentForLoad, processContentForSave } from '../../lib/editorUtils';
 
 type ConnectedEditorProps = {
-    document: DocumentSummary;
-    initialRevision: DocumentRevision | null;
+    document: FileSystemEntry;
+    initialContent: any;
 };
 
 type CloseFlowState = null | 'saving' | 'success' | 'error';
 
-const ConnectedEditor = ({ document, initialRevision }: ConnectedEditorProps) => {
+const ConnectedEditor = ({ document, initialContent }: ConnectedEditorProps) => {
     const { isAuthenticated } = useAuth();
     const { strings } = useI18n();
     const [saveStatus, setSaveStatus] = useState<'saved' | 'unsaved' | 'saving'>('saved');
@@ -25,13 +26,30 @@ const ConnectedEditor = ({ document, initialRevision }: ConnectedEditorProps) =>
     const [currentDocument, setCurrentDocument] = useState(document);
     const [editorError, setEditorError] = useState<string | null>(null);
     const [closeFlowState, setCloseFlowState] = useState<CloseFlowState>(null);
+    const [resolvedContent, setResolvedContent] = useState<any>(null);
+    const [isResolving, setIsResolving] = useState(true);
 
-    // Update page title when document title changes
-    usePageTitle(currentDocument.title, saveStatus === 'unsaved' || saveStatus === 'saving');
+    // Update page title when document name changes
+    usePageTitle(currentDocument.name, saveStatus === 'unsaved' || saveStatus === 'saving');
+
+    // Resolve assets on mount
+    useEffect(() => {
+        const resolve = async () => {
+            if (initialContent) {
+                const resolved = await processContentForLoad(initialContent, document.workspaceId, document.id);
+                setResolvedContent(resolved);
+            } else {
+                setResolvedContent(undefined); // Let editor use default
+            }
+            setIsResolving(false);
+        };
+        resolve();
+    }, [initialContent, document.workspaceId, document.id]);
 
     // This hook is now called ONLY when ConnectedEditor mounts, which happens after data is loaded.
     const editor = useEditorInstance({
-        content: initialRevision?.content,
+        content: resolvedContent,
+        waitForContent: true,
         onError: () => {
             setEditorError('The document content is invalid or corrupted.');
         }
@@ -46,8 +64,10 @@ const ConnectedEditor = ({ document, initialRevision }: ConnectedEditorProps) =>
 
         try {
             // Save content
-            const content = editor.getJSON();
-            await appendRevision(currentDocument.id, { content });
+            const rawContent = editor.getJSON();
+            const contentToSave = processContentForSave(rawContent);
+
+            await updateDocumentContent(currentDocument.id, contentToSave);
 
             setSaveStatus('saved');
             if (!isImmediateSave) {
@@ -58,7 +78,7 @@ const ConnectedEditor = ({ document, initialRevision }: ConnectedEditorProps) =>
             broadcastSync({
                 type: 'document-updated',
                 workspaceId: currentDocument.workspaceId,
-                folderId: currentDocument.folderId,
+                folderId: currentDocument.parentId,
                 documentId: currentDocument.id,
                 data: { source: 'content-save' }
             });
@@ -79,17 +99,17 @@ const ConnectedEditor = ({ document, initialRevision }: ConnectedEditorProps) =>
         setSaveStatus('saving');
 
         try {
-            const updatedDoc = await renameDocument(currentDocument.id, { title: newTitle });
-            setCurrentDocument(updatedDoc);
+            await renameFileSystemEntry(currentDocument.id, newTitle);
+            setCurrentDocument({ ...currentDocument, name: newTitle });
             setSaveStatus('saved');
             setSnackbarOpen(true);
 
             // Broadcast document update to other tabs
             broadcastSync({
                 type: 'document-updated',
-                workspaceId: updatedDoc.workspaceId,
-                folderId: updatedDoc.folderId,
-                documentId: updatedDoc.id,
+                workspaceId: currentDocument.workspaceId,
+                folderId: currentDocument.parentId,
+                documentId: currentDocument.id,
                 data: { title: newTitle }
             });
         } catch (err) {
@@ -160,12 +180,20 @@ const ConnectedEditor = ({ document, initialRevision }: ConnectedEditorProps) =>
         );
     }
 
+    if (isResolving) {
+        return (
+            <Box sx={{ height: '100dvh', minHeight: '100dvh', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <CircularProgress />
+            </Box>
+        );
+    }
+
     // Extract initial width from content to prevent layout shift
     const getInitialWidth = () => {
-        if (!initialRevision?.content) return '950px';
+        if (!initialContent) return '950px';
         try {
             // content is Tiptap JSON
-            const content = initialRevision.content as any;
+            const content = initialContent as any;
             return content.attrs?.['x-odocs-layoutWidth'] || '950px';
         } catch (e) {
             return '950px';

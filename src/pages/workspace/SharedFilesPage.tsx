@@ -1,8 +1,8 @@
-import { Alert, Box, Breadcrumbs, CircularProgress, Container, Link, Typography, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Chip, Snackbar, TableSortLabel } from '@mui/material';
+import { Alert, Box, Breadcrumbs, CircularProgress, Container, Link, Typography, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Snackbar, TableSortLabel } from '@mui/material';
 import { useEffect, useState, useMemo, useCallback } from 'react';
-import { useParams, Link as RouterLink, useNavigate } from 'react-router-dom';
+import { useParams, Link as RouterLink } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { getPublicDocuments, type DocumentSummary, toggleDocumentStarred, getShareLinks } from '../../lib/api';
+import { getPublicDocuments, type DocumentSummary, toggleDocumentStarred } from '../../lib/api';
 import { formatRelativeDate } from '../../lib/formatDate';
 import { generateShareUrl } from '../../lib/shareUtils';
 import HomeIcon from '@mui/icons-material/Home';
@@ -12,35 +12,38 @@ import NavigateNextIcon from '@mui/icons-material/NavigateNext';
 import { usePageTitle } from '../../hooks/usePageTitle';
 import { useI18n } from '../../lib/i18n';
 import SelectionToolbar from '../../components/workspace/SelectionToolbar';
-import PublicDocumentIndicator from '../../components/workspace/PublicDocumentIndicator';
+import FileShareIndicator from '../../components/workspace/FileShareIndicator';
 
-const SharedDocumentsPage = () => {
+const SharedFilesPage = () => {
     const { workspaceId } = useParams<{ workspaceId: string }>();
     const { isAuthenticated } = useAuth();
-    const navigate = useNavigate();
+    // const navigate = useNavigate();
     const [documents, setDocuments] = useState<DocumentSummary[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const [snackbarOpen, setSnackbarOpen] = useState(false);
-    const [snackbarMessage, setSnackbarMessage] = useState('');
+    const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({
+        open: false,
+        message: '',
+        severity: 'success'
+    });
 
     // Multi-select state
     const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
     const [lastSelectedId, setLastSelectedId] = useState<string | null>(null);
 
     // Sorting state
-    const [orderBy, setOrderBy] = useState<string>('createdAt');
+    const [orderBy, setOrderBy] = useState<keyof DocumentSummary>('createdAt');
     const [order, setOrder] = useState<'asc' | 'desc'>('desc');
 
-    const handleRequestSort = (property: string) => {
+    const handleRequestSort = (property: keyof DocumentSummary) => {
         const isAsc = orderBy === property && order === 'asc';
         setOrder(isAsc ? 'desc' : 'asc');
         setOrderBy(property);
     };
 
-    const { strings } = useI18n();
 
-    usePageTitle('공유 문서함');
+
+    usePageTitle('Shared Files');
 
     const formatBytes = (bytes?: number) => {
         if (bytes === undefined || bytes === null) return '-';
@@ -96,16 +99,14 @@ const SharedDocumentsPage = () => {
         window.open(`/document/${itemId}`, '_blank');
     };
 
-    const handleClearSelection = () => {
-        setSelectedItems(new Set());
-    };
+
 
     const fetchDocuments = useCallback(async () => {
         if (!isAuthenticated || !workspaceId) return;
         setLoading(true);
         setError(null);
         try {
-            const docs = await getPublicDocuments(workspaceId, { sortBy: orderBy, sortOrder: order });
+            const docs = await getPublicDocuments(workspaceId);
             setDocuments(docs);
         } catch (err) {
             setError((err as Error).message);
@@ -123,7 +124,7 @@ const SharedDocumentsPage = () => {
         let allStarred = true;
         for (const itemId of itemsToStar) {
             const doc = documents.find(d => d.id === itemId);
-            if (doc && !doc.isImportant) {
+            if (doc && !doc.isStarred) {
                 allStarred = false;
                 break;
             }
@@ -133,12 +134,18 @@ const SharedDocumentsPage = () => {
 
         try {
             await Promise.all(itemsToStar.map(async (itemId) => {
-                await toggleDocumentStarred(itemId, newImportantStatus);
+                const doc = documents.find(d => d.id === itemId);
+                if (doc && doc.isStarred !== newImportantStatus) {
+                    await toggleDocumentStarred(doc.id);
+                }
             }));
 
             fetchDocuments();
-            setSnackbarMessage(newImportantStatus ? 'Added to Starred' : 'Removed from Starred');
-            setSnackbarOpen(true);
+            setSnackbar({
+                open: true,
+                message: newImportantStatus ? 'Added to Starred' : 'Removed from Starred',
+                severity: 'success'
+            });
         } catch (err) {
             setError((err as Error).message);
         }
@@ -154,11 +161,11 @@ const SharedDocumentsPage = () => {
         try {
             const links = await Promise.all(
                 selectedDocs.map(async (doc) => {
-                    const shareLinks = await getShareLinks(doc.id);
+                    const shareLinks = doc.shareLinks || [];
                     const activeLink = shareLinks.find(l => !l.revokedAt);
                     if (activeLink) {
-                        const url = generateShareUrl(activeLink.token, doc.title);
-                        return `${doc.title}\n${url}`;
+                        const url = generateShareUrl(activeLink.token, doc.name);
+                        return `${doc.name}\n${url}`;
                     }
                     return null;
                 })
@@ -167,13 +174,19 @@ const SharedDocumentsPage = () => {
             const validLinks = links.filter(l => l !== null).join('\n\n');
             if (validLinks) {
                 await navigator.clipboard.writeText(validLinks);
-                setSnackbarMessage(`Copied ${selectedDocs.length} link(s)`);
-                setSnackbarOpen(true);
+                setSnackbar({
+                    open: true,
+                    message: `Copied ${selectedDocs.length} link(s)`,
+                    severity: 'success'
+                });
             }
         } catch (err) {
             console.error('Failed to copy links:', err);
-            setSnackbarMessage('Failed to copy links');
-            setSnackbarOpen(true);
+            setSnackbar({
+                open: true,
+                message: 'Failed to copy links',
+                severity: 'error'
+            });
         }
     };
 
@@ -192,11 +205,11 @@ const SharedDocumentsPage = () => {
 
     // Sort documents by size on client side when sorting by size
     const sortedDocuments = useMemo(() => {
-        if (orderBy === 'viewCount') {
+        if (orderBy === 'size') {
             return [...documents].sort((a, b) => {
-                const aViews = a.viewCount || 0;
-                const bViews = b.viewCount || 0;
-                return order === 'asc' ? aViews - bViews : bViews - aViews;
+                const aSize = parseInt(a.size || '0');
+                const bSize = parseInt(b.size || '0');
+                return order === 'asc' ? aSize - bSize : bSize - aSize;
             });
         }
         return documents;
@@ -235,33 +248,32 @@ const SharedDocumentsPage = () => {
                         <TableRow>
                             <TableCell width="40%">
                                 <TableSortLabel
-                                    active={orderBy === 'title'}
-                                    direction={orderBy === 'title' ? order : 'asc'}
-                                    onClick={() => handleRequestSort('title')}
+                                    active={orderBy === 'name'}
+                                    direction={orderBy === 'name' ? order : 'asc'}
+                                    onClick={() => handleRequestSort('name')}
                                 >
-                                    {strings.workspace.nameColumn}
-                                </TableSortLabel>
-                            </TableCell>
-                            <TableCell width="20%">{strings.workspace.folderColumn}</TableCell>
-                            <TableCell width="15%">
-                                <TableSortLabel
-                                    active={orderBy === 'viewCount'}
-                                    direction={orderBy === 'viewCount' ? order : 'asc'}
-                                    onClick={() => handleRequestSort('viewCount')}
-                                >
-                                    조회수
-                                </TableSortLabel>
-                            </TableCell>
-                            <TableCell width="15%">
-                                <TableSortLabel
-                                    active={orderBy === 'createdAt'}
-                                    direction={orderBy === 'createdAt' ? order : 'asc'}
-                                    onClick={() => handleRequestSort('createdAt')}
-                                >
-                                    공개 일시
+                                    Name
                                 </TableSortLabel>
                             </TableCell>
 
+                            <TableCell width="15%">
+                                <TableSortLabel
+                                    active={orderBy === 'updatedAt'}
+                                    direction={orderBy === 'updatedAt' ? order : 'asc'}
+                                    onClick={() => handleRequestSort('updatedAt')}
+                                >
+                                    Last Modified
+                                </TableSortLabel>
+                            </TableCell>
+                            <TableCell width="15%">
+                                <TableSortLabel
+                                    active={orderBy === 'size'}
+                                    direction={orderBy === 'size' ? order : 'asc'}
+                                    onClick={() => handleRequestSort('size')}
+                                >
+                                    Size
+                                </TableSortLabel>
+                            </TableCell>
                         </TableRow>
                     </TableHead>
                     <TableBody>
@@ -282,8 +294,8 @@ const SharedDocumentsPage = () => {
                                             alt="document"
                                             sx={{ width: 24, height: 24, mr: 1.5 }}
                                         />
-                                        {doc.title}
-                                        {doc.isImportant && (
+                                        {doc.name}
+                                        {doc.isStarred && (
                                             <StarIcon
                                                 sx={{
                                                     ml: 1,
@@ -293,37 +305,22 @@ const SharedDocumentsPage = () => {
                                                 }}
                                             />
                                         )}
-                                        <PublicDocumentIndicator
-                                            documentId={doc.id}
-                                            title={doc.title}
-                                        />
+                                        <FileShareIndicator fileId={doc.id} shareLinks={doc.shareLinks} />
                                     </Box>
                                 </TableCell>
+
                                 <TableCell>
-                                    <Typography variant="body2" color="text.secondary">
-                                        <Link
-                                            component={RouterLink}
-                                            to={`/workspace/${doc.workspaceId}${doc.folderId ? `?folderId=${doc.folderId}` : ''}`}
-                                            underline="hover"
-                                            color="inherit"
-                                            onClick={(e) => e.stopPropagation()}
-                                        >
-                                            {doc.folderName || strings.workspace.rootFolder}
-                                        </Link>
-                                    </Typography>
+                                    <Typography variant="body2" color="text.secondary">{formatRelativeDate(doc.updatedAt)}</Typography>
                                 </TableCell>
                                 <TableCell>
-                                    <Typography variant="body2" color="text.secondary">{doc.viewCount || 0}</Typography>
-                                </TableCell>
-                                <TableCell>
-                                    <Typography variant="body2" color="text.secondary">{formatRelativeDate(doc.createdAt)}</Typography>
+                                    <Typography variant="body2" color="text.secondary">{formatBytes(parseInt(doc.size || '0'))}</Typography>
                                 </TableCell>
 
                             </TableRow>
                         ))}
                     </TableBody>
                 </Table>
-            </TableContainer>
+            </TableContainer >
         );
     };
 
@@ -346,7 +343,7 @@ const SharedDocumentsPage = () => {
                     공유 문서함
                 </Typography>
                 <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-                    공개된 문서 목록입니다. 회원 간 공유 기능은 추후 지원될 예정입니다.
+                    공유 링크가 생성된 문서 목록입니다.
                 </Typography>
                 <Box sx={{ height: 60, display: 'flex', alignItems: 'center', mb: 2 }}>
                     <SelectionToolbar
@@ -365,13 +362,18 @@ const SharedDocumentsPage = () => {
             </Box>
 
             <Snackbar
-                open={snackbarOpen}
-                autoHideDuration={3000}
-                onClose={() => setSnackbarOpen(false)}
-                message={snackbarMessage}
-            />
+                open={snackbar.open}
+                autoHideDuration={6000}
+                onClose={() => setSnackbar({ ...snackbar, open: false })}
+                message={snackbar.message}
+            >
+                <Alert onClose={() => setSnackbar({ ...snackbar, open: false })} severity={snackbar.severity} sx={{ width: '100%' }}>
+                    {snackbar.message}
+                </Alert>
+            </Snackbar>
         </Container>
     );
 };
 
-export default SharedDocumentsPage;
+export default SharedFilesPage;
+

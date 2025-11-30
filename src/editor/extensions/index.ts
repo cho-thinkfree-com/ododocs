@@ -145,7 +145,16 @@ export const createBaseExtensions = (strings: AppStrings, options?: BaseExtensio
     CodeBlockLowlight.configure({
       lowlight,
     }),
-    ResizableImage,
+    ResizableImage.extend({
+      addAttributes() {
+        return {
+          ...this.parent?.(),
+          'data-odocs-url': {
+            default: null,
+          },
+        }
+      },
+    }),
     TableImproved.configure({
       resizable: true,
     }),

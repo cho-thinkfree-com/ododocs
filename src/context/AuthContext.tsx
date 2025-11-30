@@ -24,8 +24,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const refreshProfile = useCallback(async () => {
     try {
-      const profile = await getMe()
-      setUser(profile)
+      const { account } = await getMe()
+      setUser(account)
     } catch (error) {
       // console.error('Failed to fetch user profile:', error)
       setUser(null)

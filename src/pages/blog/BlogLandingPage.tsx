@@ -53,7 +53,7 @@ const BlogLandingPage = () => {
                         getWorkspaceMemberPublicDocuments(workspaceId, profileId)
                     ]);
                     profileData = pData;
-                    docsData = dData.items;
+                    docsData = dData.documents;
                 } else {
                     throw new Error('Invalid blog URL');
                 }
@@ -61,7 +61,7 @@ const BlogLandingPage = () => {
                 setProfile(profileData);
                 setDocuments(docsData);
                 setTotalPages(totalPagesData);
-                setTotalPages(totalPagesData);
+
 
                 // Theme Logic:
                 // 1. Check localStorage for visitor preference
@@ -86,16 +86,26 @@ const BlogLandingPage = () => {
     }, [workspaceId, profileId, handle, page]);
 
     const handleDocumentClick = (doc: DocumentSummary) => {
-        if (handle && doc.documentNumber) {
-            const titleSlug = slugify(doc.title);
-            navigate(`/blog/${handle}/documents/${doc.documentNumber}/${titleSlug}`);
-        } else {
-            // Fallback for legacy route or if no handle
-            if ((doc as any).publicToken) {
-                navigate(`/public/${(doc as any).publicToken}`);
+        // Use publicToken if available (from new API or legacy)
+        const token = (doc as any).publicToken;
+        const titleSlug = slugify(doc.title);
+
+        if (token) {
+            if (handle) {
+                // New standard blog URL
+                window.open(`/blog/${handle}/documents/${token}/${titleSlug}`, '_blank');
+            } else if (workspaceId && profileId) {
+                // Legacy blog URL structure
+                window.open(`/blog/${workspaceId}/${profileId}/documents/${token}/${titleSlug}`, '_blank');
             } else {
-                console.warn('Cannot navigate: no handle or public token available');
+                // Fallback to generic public viewer
+                window.open(`/public/${token}/${titleSlug}`, '_blank');
             }
+        } else if (handle && doc.documentNumber) {
+            // Fallback to legacy document number route if no token
+            window.open(`/blog/${handle}/documents/${doc.documentNumber}/${titleSlug}`, '_blank');
+        } else {
+            console.warn('Cannot navigate: no public token available');
         }
     };
 

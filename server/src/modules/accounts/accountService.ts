@@ -41,6 +41,10 @@ export class AccountService {
     return this.repository.findByEmail(email.toLowerCase())
   }
 
+  async findById(id: string): Promise<AccountEntity | null> {
+    return this.repository.findById(id)
+  }
+
   async updatePassword(accountId: string, newPassword: string): Promise<void> {
     const hash = await this.passwordHasher.hash(newPassword)
     await this.repository.updatePasswordHash(accountId, hash)

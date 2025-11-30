@@ -24,6 +24,7 @@ const createWorkspaceSchema = z.object({
   defaultLocale: z.string().trim().min(2).max(10).default('en'),
   defaultTimezone: z.string().trim().min(1).max(50).optional(),
   visibility: z.enum(visibilityEnum).default('private'),
+  handle: z.string().optional(),
 })
 
 const updateWorkspaceSchema = z
@@ -38,6 +39,7 @@ const updateWorkspaceSchema = z
     defaultLocale: z.string().trim().min(2).max(10).optional(),
     defaultTimezone: z.string().trim().min(1).max(50).optional(),
     visibility: z.enum(visibilityEnum).optional(),
+    handle: z.string().optional(),
   })
   .refine((value) => Object.keys(value).length > 0, { message: 'At least one field required' })
 
@@ -51,7 +53,17 @@ export class WorkspaceService {
 
   async create(ownerAccountId: string, rawInput: z.input<typeof createWorkspaceSchema>): Promise<WorkspaceEntity> {
     const input = createWorkspaceSchema.parse(rawInput)
-    const slug = await ensureUniqueSlug(input.name, (candidate: string) => this.repository.slugExists(candidate))
+
+    let handle = input.handle
+    if (!handle) {
+      handle = await ensureUniqueSlug(input.name, (candidate: string) => this.repository.slugExists(candidate))
+    } else {
+      // Check if provided handle is available
+      const exists = await this.repository.slugExists(handle)
+      if (exists) {
+        throw new Error('Handle already taken')
+      }
+    }
 
     const owner = await this.accountRepository.findById(ownerAccountId)
     if (!owner) {
@@ -61,14 +73,12 @@ export class WorkspaceService {
     const effectiveTimezone = rawInput.defaultTimezone ?? owner.preferredTimezone ?? 'UTC'
 
     const workspace = await this.repository.create({
-      ownerAccountId,
+      ownerId: ownerAccountId,
       name: input.name,
       description: input.description,
-      coverImage: input.coverImage,
-      defaultLocale: input.defaultLocale,
-      defaultTimezone: effectiveTimezone,
+      defaultLanguage: input.defaultLocale,
       visibility: input.visibility,
-      slug,
+      handle,
     })
 
     const ownerDisplayName = owner.legalName?.trim() && owner.legalName.trim().length > 0 ? owner.legalName.trim() : owner.email.split('@')[0]
@@ -78,7 +88,7 @@ export class WorkspaceService {
       accountId: ownerAccountId,
       role: 'owner',
       status: 'active',
-      preferredLocale: owner.preferredLocale,
+      preferredLocale: owner.preferredLocale ?? undefined,
       displayName: ownerDisplayName,
       timezone: owner.preferredTimezone ?? effectiveTimezone,
     })
@@ -86,28 +96,36 @@ export class WorkspaceService {
     return workspace
   }
 
-  listOwned(ownerAccountId: string) {
-    return this.repository.listByOwner(ownerAccountId)
+  async listForAccount(accountId: string): Promise<WorkspaceEntity[]> {
+    const memberships = await this.membershipRepository.findByAccount(accountId)
+    const workspaceIds = memberships.map((m) => m.workspaceId)
+    return this.repository.findByIds(workspaceIds)
   }
 
-  getById(id: string) {
-    return this.repository.findById(id)
+  async getById(accountId: string, workspaceId: string): Promise<WorkspaceEntity | null> {
+    await this.workspaceAccess.assertMember(accountId, workspaceId)
+    return this.repository.findById(workspaceId)
   }
 
   async update(actorAccountId: string, workspaceId: string, rawInput: z.input<typeof updateWorkspaceSchema>) {
     await this.workspaceAccess.assertAdminOrOwner(actorAccountId, workspaceId)
     const input = updateWorkspaceSchema.parse(rawInput)
-    return this.repository.update(workspaceId, input)
+
+    return this.repository.update(workspaceId, {
+      name: input.name,
+      description: input.description,
+      defaultLanguage: input.defaultLocale,
+      visibility: input.visibility,
+      handle: input.handle,
+    })
   }
 
   async softDelete(ownerAccountId: string, workspaceId: string): Promise<void> {
     const workspace = await this.repository.findByIdIncludingDeleted(workspaceId)
-    if (!workspace || workspace.ownerAccountId !== ownerAccountId) {
+    if (!workspace || workspace.ownerId !== ownerAccountId) {
       throw new WorkspaceNotFoundError()
     }
-    if (workspace.deletedAt) {
-      return
-    }
+    // Schema doesn't support soft delete, so we just check if it exists
     await this.repository.softDelete(workspaceId)
   }
 }

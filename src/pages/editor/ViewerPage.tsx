@@ -8,10 +8,15 @@ import { useSEO } from '../../hooks/useSEO';
 
 interface ViewerPageProps {
     isPublic?: boolean;
+    documentNumber?: string;
+    token?: string;
 }
 
-const ViewerPage = ({ isPublic = false }: ViewerPageProps) => {
-    const { token, handle, documentNumber } = useParams<{ token?: string; handle?: string; documentNumber?: string }>();
+const ViewerPage = ({ isPublic = false, documentNumber: propDocNum, token: propToken }: ViewerPageProps) => {
+    const params = useParams<{ token?: string; handle?: string; documentNumber?: string }>();
+    const token = propToken || params.token;
+    const documentNumber = propDocNum || params.documentNumber;
+    const { handle } = params;
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [passwordRequired, setPasswordRequired] = useState(false);
@@ -67,9 +72,9 @@ const ViewerPage = ({ isPublic = false }: ViewerPageProps) => {
 
     // SEO metadata
     useSEO({
-        title: document?.title || 'Shared Document',
+        title: document?.name || 'Shared Document', // Fixed title property access
         description: revision ? getTextContent(revision.content) : 'View shared document on ododocs',
-        author: document?.lastModifiedBy || undefined,
+        author: (document as any)?.creator?.displayName || (document as any)?.creator?.account?.legalName || document?.lastModifiedBy || undefined,
         publishedTime: document?.createdAt,
         modifiedTime: revision?.createdAt,
         url: typeof window !== 'undefined' ? window.location.href : undefined,
@@ -98,8 +103,23 @@ const ViewerPage = ({ isPublic = false }: ViewerPageProps) => {
 
             if (result) {
                 console.log('[ViewerPage] API response:', result);
-                setDocument(result.document);
-                setRevision(result.revision);
+                // Handle both legacy { document, revision } and new { file, shareLink } formats
+                const doc = result.document || result.file;
+                const rev = result.revision || result.file?.currentRevision;
+
+                // Add shareLink information to document if available
+                if (result.shareLink && doc) {
+                    doc.shareLinks = [{
+                        token: token,
+                        isPublic: result.shareLink.isPublic,
+                        requiresPassword: result.shareLink.requiresPassword,
+                        expiresAt: result.shareLink.expiresAt,
+                        accessLevel: result.shareLink.accessLevel,
+                    }];
+                }
+
+                setDocument(doc);
+                setRevision(rev);
                 setPasswordRequired(false);
                 console.log('[ViewerPage] Document and revision set successfully');
             }
@@ -187,7 +207,7 @@ const ViewerPage = ({ isPublic = false }: ViewerPageProps) => {
         <Box sx={{ height: '100dvh', minHeight: '100dvh', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
             <EditorLayout
                 editor={editor}
-                document={document}
+                document={document as any} // Cast to any to satisfy FileSystemEntry type requirement
                 onContentChange={() => { }}
                 onTitleChange={() => { }}
                 onClose={() => { }} // No close action for public view? Or maybe redirect to home?
@@ -195,6 +215,9 @@ const ViewerPage = ({ isPublic = false }: ViewerPageProps) => {
                 readOnly={true}
                 initialWidth={initialWidth}
                 shareToken={token}
+                authorHandle={handle || (document as any).creator?.blogHandle}
+                authorName={(document as any).creator?.displayName || (document as any).creator?.account?.legalName || document.lastModifiedBy || undefined}
+                isPublic={isPublic}
             />
         </Box>
     );

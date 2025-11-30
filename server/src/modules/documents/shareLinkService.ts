@@ -1,6 +1,6 @@
 import { randomBytes } from 'node:crypto'
 import { z } from 'zod'
-import type { DocumentShareLinkAccess } from '@prisma/client'
+import type { ShareLinkAccess } from '@prisma/client'
 import { Argon2PasswordHasher } from '../../lib/passwordHasher.js'
 import { hashToken } from '../../lib/tokenGenerator.js'
 import { AuditLogService } from '../audit/auditLogService.js'
@@ -74,12 +74,13 @@ export class ShareLinkService {
       const shareLink = await this.shareLinkRepository.reactivate(existingShareLink.id, {
         documentId,
         token: existingShareLink.token,
-        accessLevel: input.accessLevel as DocumentShareLinkAccess,
-        passwordHash,
-        expiresAt: input.expiresAt ? new Date(input.expiresAt) : null,
+        accessLevel: input.accessLevel as ShareLinkAccess,
+        passwordHash: passwordHash ?? undefined,
+        expiresAt: input.expiresAt ? new Date(input.expiresAt) : undefined,
         createdByMembershipId: membership.id,
         allowExternalEdit: existingShareLink.allowExternalEdit, // Preserve existing setting or take from input if we supported it here
         isPublic: input.isPublic ?? false,
+        workspaceId,
       })
 
       await this.auditLogService.record({
@@ -98,15 +99,16 @@ export class ShareLinkService {
     }
 
     const token = randomBytes(24).toString('base64url')
-    const passwordHash = input.password ? await this.passwordHasher.hash(input.password) : null
+    const passwordHash = input.password ? await this.passwordHasher.hash(input.password) : undefined
     const shareLink = await this.shareLinkRepository.create({
       documentId,
       token,
-      accessLevel: input.accessLevel as DocumentShareLinkAccess,
+      accessLevel: input.accessLevel as ShareLinkAccess,
       passwordHash,
-      expiresAt: input.expiresAt ? new Date(input.expiresAt) : null,
+      expiresAt: input.expiresAt ? new Date(input.expiresAt) : undefined,
       createdByMembershipId: membership.id,
       isPublic: input.isPublic ?? false,
+      workspaceId,
     })
     await this.auditLogService.record({
       workspaceId,
@@ -314,8 +316,11 @@ export class ShareLinkService {
 
   private isActive(shareLink: ShareLinkEntity) {
     if (shareLink.revokedAt) return false
-    if (shareLink.expiresAt && shareLink.expiresAt.getTime() <= Date.now()) {
-      return false
+    if (shareLink.expiresAt) {
+      const expiresAt = new Date(shareLink.expiresAt)
+      if (expiresAt.getTime() <= Date.now()) {
+        return false
+      }
     }
     return true
   }

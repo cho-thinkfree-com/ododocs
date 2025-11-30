@@ -134,7 +134,7 @@ const GlobalSettingsPage = () => {
         'Australia/Sydney',
         'Australia/Melbourne',
         'Pacific/Auckland',
-      ];
+    ];
 
     const formatTzLabel = (tz: string) => {
         try {

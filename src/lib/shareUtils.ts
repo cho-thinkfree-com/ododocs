@@ -8,6 +8,7 @@
 export function generateShareUrl(token: string, title: string, isPublic: boolean = false): string {
   const truncatedTitle = title.substring(0, 30);
   const encodedTitle = encodeURIComponent(truncatedTitle);
+  // Use /public for search indexing, /share for link-only
   const prefix = isPublic ? '/public' : '/share';
   return `${window.location.origin}${prefix}/${token}/${encodedTitle}`;
 }

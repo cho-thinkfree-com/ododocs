@@ -7,6 +7,10 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// ============================================================================
+// ENUMS
+// ============================================================================
+
 enum AccountStatus {
   ACTIVE
   SUSPENDED
@@ -32,42 +36,15 @@ enum WorkspaceMembershipStatus {
   removed
 }
 
-enum DocumentStatus {
-  draft
-  published
-  archived
+enum FileSystemType {
+  folder
+  file
 }
 
-enum DocumentVisibility {
-  private
-  workspace
-  shared
-  public
-}
-
-enum DocumentWorkspaceAccess {
-  none
+enum ShareLinkAccess {
   viewer
   commenter
   editor
-}
-
-enum DocumentPermissionRole {
-  viewer
-  commenter
-  editor
-}
-
-enum DocumentPermissionPrincipalType {
-  workspace
-  membership
-  account
-  share_link
-}
-
-enum DocumentShareLinkAccess {
-  viewer
-  commenter
 }
 
 enum ExternalCollaboratorStatus {
@@ -88,268 +65,206 @@ enum ExportJobStatus {
   cancelled
 }
 
+// ============================================================================
+// CORE MODELS
+// ============================================================================
+
 model Account {
-  id            String        @id @default(uuid())
-  email         String        @unique
-  passwordHash  String        @map("password_hash")
-  status        AccountStatus @default(ACTIVE)
-  legalName     String?       @map("legal_name")
-  recoveryEmail String?       @map("recovery_email")
-  recoveryPhone String?       @map("recovery_phone")
-  preferredTimezone String?   @map("preferred_timezone")
-  preferredLocale String?     @map("preferred_locale")
-  createdAt     DateTime      @default(now()) @map("created_at")
-  updatedAt     DateTime      @updatedAt @map("updated_at")
-  sessions      Session[]
-  passwordResetTokens PasswordResetToken[]
-  ownedWorkspaces   Workspace[] @relation("WorkspaceOwner")
-  memberships    WorkspaceMembership[]
-  joinRequests   WorkspaceJoinRequest[]
+  id                String        @id @default(uuid())
+  email             String        @unique
+  passwordHash      String        @map("password_hash")
+  status            AccountStatus @default(ACTIVE)
+  legalName         String?       @map("legal_name")
+  recoveryEmail     String?       @map("recovery_email")
+  recoveryPhone     String?       @map("recovery_phone")
+  preferredTimezone String?       @map("preferred_timezone")
+  preferredLocale   String?       @map("preferred_locale")
+  createdAt         DateTime      @default(now()) @map("created_at")
+  updatedAt         DateTime      @updatedAt @map("updated_at")
+  sessions          Session[]
+  ownedWorkspaces   Workspace[]
+  memberships       WorkspaceMembership[]
 }
 
 model Session {
-  id               String   @id @default(uuid())
-  accountId        String   @map("account_id")
-  account          Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  expiresAt        DateTime @map("expires_at")
-  createdAt        DateTime @default(now()) @map("created_at")
-  revokedAt        DateTime? @map("revoked_at")
-  revokedReason    String?  @map("revoked_reason")
-}
+  id         String    @id @default(uuid())
+  account    Account   @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  accountId  String    @map("account_id")
+  expiresAt  DateTime  @map("expires_at")
+  revokedAt  DateTime? @map("revoked_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
 
-model PasswordResetToken {
-  id        String   @id @default(uuid())
-  accountId String   @map("account_id")
-  account   Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  tokenHash String   @map("token_hash") @unique
-  expiresAt DateTime @map("expires_at")
-  usedAt    DateTime? @map("used_at")
-  createdAt DateTime  @default(now()) @map("created_at")
+  @@index([accountId])
 }
 
 model Workspace {
-  id             String              @id @default(uuid())
-  name           String
-  slug           String              @unique
-  description    String?
-  coverImage     String?             @map("cover_image")
-  defaultLocale  String              @map("default_locale") @default("en")
-  defaultTimezone String             @map("default_timezone") @default("UTC")
-  visibility     WorkspaceVisibility @default(private)
-  ownerAccountId String              @map("owner_account_id")
-  allowedDomains Json?               @map("allowed_domains")
-  owner          Account             @relation("WorkspaceOwner", fields: [ownerAccountId], references: [id], onDelete: Cascade)
-  createdAt      DateTime            @default(now()) @map("created_at")
-  updatedAt      DateTime            @updatedAt @map("updated_at")
-  deletedAt      DateTime?           @map("deleted_at")
-  memberships    WorkspaceMembership[]
-  invitations    WorkspaceInvitation[]
-  joinRequests   WorkspaceJoinRequest[]
-  folders        Folder[]
-  documents      Document[]
-  exportJobs     ExportJob[]
-  auditLogs      AuditLog[]
+  id              String               @id @default(uuid())
+  name            String
+  description     String?
+  visibility      WorkspaceVisibility  @default(private)
+  handle          String?              @unique
+  owner           Account              @relation(fields: [ownerId], references: [id])
+  ownerId         String               @map("owner_id")
+  defaultLanguage String?              @map("default_language")
+  createdAt       DateTime             @default(now()) @map("created_at")
+  updatedAt       DateTime             @updatedAt @map("updated_at")
+  memberships     WorkspaceMembership[]
+  fileSystem      FileSystemEntry[]
+  shareLinks      ShareLink[]
+  exportJobs      ExportJob[]
+  auditLogs       AuditLog[]
+
+  @@index([ownerId])
 }
 
 model WorkspaceMembership {
-  id          String                   @id @default(uuid())
-  workspace   Workspace                @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  workspaceId String                   @map("workspace_id")
-  account     Account                  @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  accountId   String                   @map("account_id")
-  role        WorkspaceMembershipRole  @default(member)
-  status      WorkspaceMembershipStatus @default(active)
-  displayName String?                  @map("display_name")
-  avatarUrl   String?                  @map("avatar_url")
-  timezone    String?                  @map("timezone")
-  preferredLocale String?              @map("preferred_locale")
-  blogTheme   String?                  @map("blog_theme") @default("modern")
-  blogHandle  String?                  @unique @map("blog_handle")
-  blogDescription String?              @map("blog_description")
-  notifications Json?                  @map("notification_settings")
-  createdAt   DateTime                 @default(now()) @map("created_at")
-  updatedAt   DateTime                 @updatedAt @map("updated_at")
-  ownedDocuments Document[]            @relation("DocumentOwner")
-  revisionHistory DocumentRevision[]   @relation("RevisionAuthor")
-  documentPermissions DocumentPermission[] @relation("DocumentPermissionMembership")
-  createdShareLinks DocumentShareLink[]
+  id              String                    @id @default(uuid())
+  workspace       Workspace                 @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  workspaceId     String                    @map("workspace_id")
+  account         Account                   @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  accountId       String                    @map("account_id")
+  role            WorkspaceMembershipRole
+  status          WorkspaceMembershipStatus @default(active)
+  displayName     String?                   @map("display_name")
+  locale          String?
+  invitedBy       String?                   @map("invited_by")
+  joinedAt        DateTime?                 @map("joined_at")
+  
+  // Blog fields
+  blogHandle      String?                   @unique @map("blog_handle")
+  blogDescription String?                   @map("blog_description")
+  blogTheme       String?                   @map("blog_theme")
+  
+  createdAt       DateTime                  @default(now()) @map("created_at")
+  updatedAt       DateTime                  @updatedAt @map("updated_at")
+  
+  createdFiles FileSystemEntry[]         @relation("FileCreator")
+  revisions    Revision[]                @relation("RevisionCreator")
+  shareLinks   ShareLink[]
 
   @@unique([workspaceId, accountId])
+  @@index([accountId])
+  @@index([blogHandle])
 }
 
-model WorkspaceInvitation {
-  id          String    @id @default(uuid())
-  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  workspaceId String    @map("workspace_id")
-  email       String
-  tokenHash   String    @map("token_hash") @unique
-  status      String    @default("pending")
-  invitedBy   String    @map("invited_by")
-  expiresAt   DateTime  @map("expires_at")
-  resentCount Int       @map("resent_count") @default(0)
-  createdAt   DateTime  @default(now()) @map("created_at")
-  updatedAt   DateTime  @updatedAt @map("updated_at")
-}
+// ============================================================================
+// FILE SYSTEM - UNIFIED MODEL
+// ============================================================================
 
-model WorkspaceJoinRequest {
-  id          String    @id @default(uuid())
-  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  workspaceId String    @map("workspace_id")
-  account     Account   @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  accountId   String    @map("account_id")
-  status      String    @default("pending")
-  message     String?
-  createdAt   DateTime  @default(now()) @map("created_at")
-  updatedAt   DateTime  @updatedAt @map("updated_at")
-}
-
-model Folder {
-  id          String     @id @default(uuid())
-  workspace   Workspace  @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  workspaceId String     @map("workspace_id")
-  parentId    String?    @map("parent_id")
-  parent      Folder?    @relation("FolderHierarchy", fields: [parentId], references: [id], onDelete: Cascade)
-  children    Folder[]   @relation("FolderHierarchy")
+model FileSystemEntry {
+  id          String          @id @default(uuid())
   name        String
-  pathCache   String     @map("path_cache")
-  sortOrder   Int        @map("sort_order") @default(0)
-  deletedAt   DateTime?  @map("deleted_at")
-  deletedBy   String?    @map("deleted_by")
-  originalParentId String? @map("original_parent_id")
-  createdAt   DateTime   @default(now()) @map("created_at")
-  updatedAt   DateTime   @updatedAt @map("updated_at")
-  documents   Document[]
-  tags        FolderTag[]
-  isImportant Boolean    @default(false) @map("is_important")
-
-  @@index([workspaceId])
+  type        FileSystemType
+  
+  // Hierarchy
+  parentId    String?         @map("parent_id")
+  parent      FileSystemEntry? @relation("FileSystemHierarchy", fields: [parentId], references: [id], onDelete: Cascade)
+  children    FileSystemEntry[] @relation("FileSystemHierarchy")
+  
+  // Workspace
+  workspaceId String
+  workspace   Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  
+  // File metadata (type='file' only)
+  mimeType    String?         @map("mime_type")
+  extension   String?
+  size        BigInt?
+  
+  // Current version
+  currentRevisionId String?   @map("current_revision_id")
+  currentRevision   Revision? @relation("CurrentRevision", fields: [currentRevisionId], references: [id])
+  
+  // Metadata
+  isStarred   Boolean         @default(false) @map("is_starred")
+  isPublic    Boolean         @default(false) @map("is_public") // type='file' only
+  description String?
+  tags        String[]
+  viewCount   Int             @default(0) @map("view_count") // type='file' only - tracks document views
+  
+  // Soft delete
+  deletedAt   DateTime?       @map("deleted_at")
+  deletedBy   String?         @map("deleted_by")
+  originalParentId String?    @map("original_parent_id")
+  
+  // Timestamps & creators
+  createdAt   DateTime        @default(now()) @map("created_at")
+  updatedAt   DateTime        @updatedAt @map("updated_at")
+  createdBy   String          @map("created_by")
+  creator     WorkspaceMembership @relation("FileCreator", fields: [createdBy], references: [id])
+  lastModifiedBy String?      @map("last_modified_by")
+  
+  // Relations
+  revisions   Revision[]      @relation("FileRevisions")
+  shareLinks  ShareLink[]
+  exportJobs  ExportJob[]
+  
   @@index([workspaceId, parentId])
+  @@index([workspaceId, deletedAt])
+  @@index([type])
+  @@index([mimeType])
+  @@index([isStarred])
+  @@map("file_system")
 }
 
-model Document {
-  id                 String               @id @default(uuid())
-  workspace          Workspace            @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  workspaceId        String               @map("workspace_id")
-  folder             Folder?              @relation(fields: [folderId], references: [id], onDelete: SetNull)
-  folderId           String?              @map("folder_id")
-  ownerMembership    WorkspaceMembership  @relation("DocumentOwner", fields: [ownerMembershipId], references: [id])
-  ownerMembershipId  String               @map("owner_membership_id")
-  title              String
-  slug               String
-  documentNumber     Int?                 @map("document_number")
-  status             DocumentStatus       @default(draft)
-  visibility         DocumentVisibility   @default(private)
-  summary            String?              @map("summary")
-  contentSize        Int                  @map("content_size") @default(0)
-  sortOrder          Int                  @map("sort_order") @default(0)
-  workspaceDefaultAccess DocumentWorkspaceAccess @map("workspace_default_access") @default(none)
-  workspaceEditorAdminsOnly Boolean @map("workspace_editor_admins_only") @default(false)
-  deletedAt          DateTime?            @map("deleted_at")
-  deletedBy          String?              @map("deleted_by")
-  originalFolderId   String?              @map("original_folder_id")
-  createdAt          DateTime             @default(now()) @map("created_at")
-  updatedAt          DateTime             @updatedAt @map("updated_at")
-  revisions          DocumentRevision[]
-  permissions        DocumentPermission[]
-  shareLinks         DocumentShareLink[]
-  exportJobs         ExportJob[]
-  tags               DocumentTag[]
-  isImportant        Boolean              @default(false) @map("is_important")
-  viewCount          Int                  @default(0) @map("view_count")
+// ============================================================================
+// REVISION SYSTEM - UNIVERSAL FOR ALL FILES
+// ============================================================================
 
-  @@unique([workspaceId, slug])
-  @@unique([workspaceId, documentNumber])
-  @@index([workspaceId, folderId])
-  @@index([ownerMembershipId])
+model Revision {
+  id          String          @id @default(uuid())
+  fileId      String          @map("file_id")
+  file        FileSystemEntry @relation("FileRevisions", fields: [fileId], references: [id], onDelete: Cascade)
+  
+  // S3 storage
+  storageKey  String          @map("storage_key")  // v1, v2, v3... (latest는 별도)
+  size        BigInt
+  version     Int
+  
+  // Change tracking
+  changeNote  String?         @map("change_note")
+  
+  // Creator
+  createdAt   DateTime        @default(now()) @map("created_at")
+  createdBy   String          @map("created_by")
+  creator     WorkspaceMembership @relation("RevisionCreator", fields: [createdBy], references: [id])
+  
+  // Files using this as current
+  currentForFiles FileSystemEntry[] @relation("CurrentRevision")
+  
+  @@unique([fileId, version])
+  @@index([fileId, version])
+  @@map("revisions")
 }
 
-model ExportJob {
-  id           String          @id @default(uuid())
-  workspace    Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  workspaceId  String          @map("workspace_id")
-  document     Document?       @relation(fields: [documentId], references: [id])
-  documentId   String?         @map("document_id")
-  format       String
-  status       ExportJobStatus @default(pending)
-  resultUrl    String?         @map("result_url")
-  errorMessage String?         @map("error_message")
-  retryCount   Int             @default(0) @map("retry_count")
-  createdAt    DateTime        @default(now()) @map("created_at")
-  updatedAt    DateTime        @updatedAt @map("updated_at")
+// ============================================================================
+// SHARING
+// ============================================================================
 
+model ShareLink {
+  id            String          @id @default(uuid())
+  token         String          @unique
+  
+  fileId        String          @map("file_id")
+  file          FileSystemEntry @relation(fields: [fileId], references: [id], onDelete: Cascade)
+  
+  workspaceId   String          @map("workspace_id")
+  workspace     Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  
+  accessLevel   ShareLinkAccess @map("access_level") @default(viewer)
+  isPublic      Boolean         @map("is_public") @default(false)
+  passwordHash  String?         @map("password_hash")
+  expiresAt     DateTime?       @map("expires_at")
+  revokedAt     DateTime?       @map("revoked_at")
+  
+  createdAt     DateTime        @default(now()) @map("created_at")
+  createdBy     String          @map("created_by")
+  creator       WorkspaceMembership @relation(fields: [createdBy], references: [id])
+  
+  sessions      ShareLinkSession[]
+  
+  @@index([fileId])
   @@index([workspaceId])
-}
-
-model DocumentTag {
-  id          String   @id @default(uuid())
-  document    Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
-  documentId  String   @map("document_id")
-  name        String
-  createdAt   DateTime @default(now()) @map("created_at")
-
-  @@unique([documentId, name])
-  @@index([documentId])
-}
-
-model FolderTag {
-  id          String   @id @default(uuid())
-  folder      Folder   @relation(fields: [folderId], references: [id], onDelete: Cascade)
-  folderId    String   @map("folder_id")
-  name        String
-  createdAt   DateTime @default(now()) @map("created_at")
-
-  @@unique([folderId, name])
-  @@index([folderId])
-}
-
-model DocumentRevision {
-  id                    String              @id @default(uuid())
-  document              Document            @relation(fields: [documentId], references: [id], onDelete: Cascade)
-  documentId            String              @map("document_id")
-  version               Int
-  contentSize           Int                  @map("content_size") @default(0)
-  content               Json                @map("content")
-  summary               String?             @map("summary")
-  createdByMembership   WorkspaceMembership @relation("RevisionAuthor", fields: [createdByMembershipId], references: [id])
-  createdByMembershipId String              @map("created_by_membership_id")
-  createdAt             DateTime            @default(now()) @map("created_at")
-
-  @@unique([documentId, version])
-}
-
-model DocumentPermission {
-  id            String                         @id @default(uuid())
-  document      Document                       @relation(fields: [documentId], references: [id], onDelete: Cascade)
-  documentId    String                         @map("document_id")
-  principalType DocumentPermissionPrincipalType @map("principal_type")
-  principalId   String                         @map("principal_id")
-  membershipId  String?                        @map("membership_id")
-  membership    WorkspaceMembership?           @relation("DocumentPermissionMembership", fields: [membershipId], references: [id], onDelete: Cascade)
-  role          DocumentPermissionRole
-  createdAt     DateTime                       @default(now()) @map("created_at")
-  updatedAt     DateTime                       @updatedAt @map("updated_at")
-
-  @@unique([documentId, principalType, principalId])
-  @@index([membershipId])
-}
-
-model DocumentShareLink {
-  id                  String                 @id @default(uuid())
-  document            Document               @relation(fields: [documentId], references: [id], onDelete: Cascade)
-  documentId          String                 @map("document_id")
-  token               String                 @unique
-  accessLevel         DocumentShareLinkAccess @map("access_level")
-  passwordHash        String?                @map("password_hash")
-  expiresAt           DateTime?              @map("expires_at")
-  revokedAt           DateTime?              @map("revoked_at")
-  createdByMembership WorkspaceMembership    @relation(fields: [createdByMembershipId], references: [id], onDelete: Cascade)
-  createdByMembershipId String               @map("created_by_membership_id")
-  allowExternalEdit   Boolean                @map("allow_external_edit") @default(false)
-  isPublic            Boolean                @map("is_public") @default(false)
-  sessions            DocumentShareLinkSession[]
-  createdAt           DateTime               @default(now()) @map("created_at")
-
-  @@index([documentId])
+  @@map("share_links")
 }
 
 model ExternalCollaborator {
@@ -359,22 +274,47 @@ model ExternalCollaborator {
   status       ExternalCollaboratorStatus  @default(active)
   createdAt    DateTime                    @default(now()) @map("created_at")
   updatedAt    DateTime                    @updatedAt @map("updated_at")
-  sessions     DocumentShareLinkSession[]
+  sessions     ShareLinkSession[]
 }
 
-model DocumentShareLinkSession {
-  id               String             @id @default(uuid())
-  shareLink        DocumentShareLink  @relation(fields: [shareLinkId], references: [id], onDelete: Cascade)
-  shareLinkId      String             @map("share_link_id")
+model ShareLinkSession {
+  id               String               @id @default(uuid())
+  shareLink        ShareLink            @relation(fields: [shareLinkId], references: [id], onDelete: Cascade)
+  shareLinkId      String               @map("share_link_id")
   collaborator     ExternalCollaborator @relation(fields: [collaboratorId], references: [id], onDelete: Cascade)
-  collaboratorId   String             @map("collaborator_id")
-  tokenHash        String             @map("token_hash") @unique
-  expiresAt        DateTime           @map("expires_at")
-  revokedAt        DateTime?          @map("revoked_at")
-  createdAt        DateTime           @default(now()) @map("created_at")
+  collaboratorId   String               @map("collaborator_id")
+  tokenHash        String               @map("token_hash") @unique
+  expiresAt        DateTime             @map("expires_at")
+  revokedAt        DateTime?            @map("revoked_at")
+  createdAt        DateTime             @default(now()) @map("created_at")
 
   @@index([shareLinkId])
   @@index([collaboratorId])
+  @@map("share_link_sessions")
+}
+
+// ============================================================================
+// EXPORT & AUDIT
+// ============================================================================
+
+model ExportJob {
+  id            String          @id @default(uuid())
+  workspace     Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  workspaceId   String          @map("workspace_id")
+  
+  file          FileSystemEntry? @relation(fields: [fileId], references: [id])
+  fileId        String?         @map("file_id")
+  
+  format        String
+  status        ExportJobStatus @default(pending)
+  resultUrl     String?         @map("result_url")
+  errorMessage  String?         @map("error_message")
+  retryCount    Int             @default(0) @map("retry_count")
+  createdAt     DateTime        @default(now()) @map("created_at")
+  updatedAt     DateTime        @updatedAt @map("updated_at")
+
+  @@index([workspaceId])
+  @@map("export_jobs")
 }
 
 model AuditLog {
@@ -393,4 +333,5 @@ model AuditLog {
   @@index([workspaceId, createdAt])
   @@index([actorMembershipId])
   @@index([actorCollaboratorId])
+  @@map("audit_logs")
 }

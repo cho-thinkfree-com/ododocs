@@ -2,13 +2,17 @@ import { IconButton, Tooltip } from '@mui/material';
 import PersonIcon from '@mui/icons-material/Person';
 import { useState } from 'react';
 import AuthorInfoPopover from './AuthorInfoPopover';
+import type { FileSystemEntry } from '../../lib/api';
 
 interface AuthorInfoButtonProps {
     token: string;
+    handle?: string;
     authorName?: string;
+    document?: FileSystemEntry;
+    isPublic?: boolean;
 }
 
-const AuthorInfoButton = ({ token, authorName }: AuthorInfoButtonProps) => {
+const AuthorInfoButton = ({ token, handle, authorName, document, isPublic }: AuthorInfoButtonProps) => {
     const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
 
     const handleClick = (event: React.MouseEvent<HTMLElement>) => {
@@ -20,6 +24,15 @@ const AuthorInfoButton = ({ token, authorName }: AuthorInfoButtonProps) => {
     };
 
     const open = Boolean(anchorEl);
+
+    // Construct currentDocInfo from document prop
+    const currentDocInfo = document ? {
+        title: document.name,
+        viewCount: (document as any).viewCount,
+        createdAt: document.createdAt,
+        isPublic: isPublic ?? (document.shareLinks?.some(l => l.token === token && l.isPublic) ?? false),
+        authorName: authorName
+    } : undefined;
 
     return (
         <>
@@ -41,7 +54,9 @@ const AuthorInfoButton = ({ token, authorName }: AuthorInfoButtonProps) => {
                 anchorEl={anchorEl}
                 onClose={handleClose}
                 token={token}
+                handle={handle}
                 authorName={authorName}
+                currentDocInfo={currentDocInfo}
             />
         </>
     );

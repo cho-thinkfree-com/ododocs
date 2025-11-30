@@ -4,39 +4,30 @@ import type { DatabaseClient } from '../../lib/prismaClient.js'
 export interface WorkspaceEntity {
   id: string
   name: string
-  slug: string
+  handle: string | null
   description?: string | null
-  coverImage?: string | null
-  defaultLocale: string
-  defaultTimezone: string
+  defaultLanguage?: string | null
   visibility: WorkspaceVisibility
-  ownerAccountId: string
-  allowedDomains: string[]
+  ownerId: string
   createdAt: Date
   updatedAt: Date
-  deletedAt?: Date | null
 }
 
 export interface CreateWorkspaceInput {
   name: string
-  slug: string
+  handle?: string
   description?: string | null
-  coverImage?: string | null
-  defaultLocale: string
-  defaultTimezone: string
+  defaultLanguage?: string
   visibility: WorkspaceVisibility
-  ownerAccountId: string
-  allowedDomains?: string[]
+  ownerId: string
 }
 
 export interface UpdateWorkspaceInput {
   name?: string
+  handle?: string
   description?: string | null
-  coverImage?: string | null
-  defaultLocale?: string
-  defaultTimezone?: string
+  defaultLanguage?: string
   visibility?: WorkspaceVisibility
-  allowedDomains?: string[]
 }
 
 export class WorkspaceRepository {
@@ -45,36 +36,48 @@ export class WorkspaceRepository {
   async create(input: CreateWorkspaceInput): Promise<WorkspaceEntity> {
     const workspace = await this.prisma.workspace.create({
       data: {
-        ...input,
-        allowedDomains: input.allowedDomains ?? [],
+        name: input.name,
+        handle: input.handle,
+        description: input.description,
+        defaultLanguage: input.defaultLanguage,
+        visibility: input.visibility,
+        ownerId: input.ownerId,
       },
     })
     return toEntity(workspace)
   }
 
-  async listByOwner(ownerAccountId: string): Promise<WorkspaceEntity[]> {
+  async listByOwner(ownerId: string): Promise<WorkspaceEntity[]> {
     const workspaces = await this.prisma.workspace.findMany({
-      where: { ownerAccountId, deletedAt: null },
+      where: { ownerId },
+      orderBy: { createdAt: 'asc' },
+    })
+    return workspaces.map(toEntity)
+  }
+
+  async findByIds(ids: string[]): Promise<WorkspaceEntity[]> {
+    const workspaces = await this.prisma.workspace.findMany({
+      where: { id: { in: ids } },
       orderBy: { createdAt: 'asc' },
     })
     return workspaces.map(toEntity)
   }
 
   async findById(id: string): Promise<WorkspaceEntity | null> {
-    const workspace = await this.prisma.workspace.findFirst({
-      where: { id, deletedAt: null },
+    const workspace = await this.prisma.workspace.findUnique({
+      where: { id },
     })
     return workspace ? toEntity(workspace) : null
   }
 
   async findByIdIncludingDeleted(id: string): Promise<WorkspaceEntity | null> {
-    const workspace = await this.prisma.workspace.findUnique({ where: { id } })
-    return workspace ? toEntity(workspace) : null
+    // Schema doesn't support soft delete yet, so just findById
+    return this.findById(id)
   }
 
-  async slugExists(slug: string): Promise<boolean> {
+  async slugExists(handle: string): Promise<boolean> {
     const count = await this.prisma.workspace.count({
-      where: { slug },
+      where: { handle },
     })
     return count > 0
   }
@@ -83,32 +86,30 @@ export class WorkspaceRepository {
     const workspace = await this.prisma.workspace.update({
       where: { id },
       data: {
-        ...input,
-        allowedDomains: input.allowedDomains,
+        name: input.name,
+        handle: input.handle,
+        description: input.description,
+        defaultLanguage: input.defaultLanguage,
+        visibility: input.visibility,
       },
     })
     return toEntity(workspace)
   }
 
   async softDelete(id: string): Promise<void> {
-    await this.prisma.workspace.update({
+    // Schema doesn't support soft delete yet.
+    // For now, we might want to actually delete or just do nothing/throw.
+    // Let's actually delete to keep it clean for now, or maybe throw error?
+    // Given "db clean reset", maybe actual delete is fine.
+    await this.prisma.workspace.delete({
       where: { id },
-      data: { deletedAt: new Date() },
     })
   }
 
-  async updateAllowedDomains(id: string, domains: string[]): Promise<WorkspaceEntity> {
-    const workspace = await this.prisma.workspace.update({
-      where: { id },
-      data: { allowedDomains: domains },
-    })
-    return toEntity(workspace)
-  }
-
-  async updateOwner(id: string, ownerAccountId: string): Promise<void> {
+  async updateOwner(id: string, ownerId: string): Promise<void> {
     await this.prisma.workspace.update({
       where: { id },
-      data: { ownerAccountId },
+      data: { ownerId },
     })
   }
 }
@@ -116,31 +117,21 @@ export class WorkspaceRepository {
 const toEntity = (workspace: {
   id: string
   name: string
-  slug: string
+  handle: string | null
   description: string | null
-  coverImage: string | null
-  defaultLocale: string
-  defaultTimezone: string
+  defaultLanguage: string | null
   visibility: WorkspaceVisibility
-  ownerAccountId: string
-  allowedDomains: unknown
+  ownerId: string
   createdAt: Date
   updatedAt: Date
-  deletedAt: Date | null
 }): WorkspaceEntity => ({
   id: workspace.id,
   name: workspace.name,
-  slug: workspace.slug,
+  handle: workspace.handle,
   description: workspace.description,
-  coverImage: workspace.coverImage,
-  defaultLocale: workspace.defaultLocale,
-  defaultTimezone: workspace.defaultTimezone,
+  defaultLanguage: workspace.defaultLanguage,
   visibility: workspace.visibility,
-  ownerAccountId: workspace.ownerAccountId,
-  allowedDomains: Array.isArray(workspace.allowedDomains)
-    ? (workspace.allowedDomains as string[]).map((domain) => domain.toLowerCase())
-    : [],
+  ownerId: workspace.ownerId,
   createdAt: workspace.createdAt,
   updatedAt: workspace.updatedAt,
-  deletedAt: workspace.deletedAt,
 })

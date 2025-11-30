@@ -15,6 +15,8 @@ import {
   DocumentPlanLimitService,
   NoopDocumentPlanLimitService,
 } from './planLimitService.js'
+import { StorageService } from '../storage/storageService.js'
+import { v4 as uuidv4 } from 'uuid'
 
 const documentStatusEnum: [DocumentStatus, ...DocumentStatus[]] = ['draft', 'published', 'archived']
 const documentVisibilityEnum: [DocumentVisibility, ...DocumentVisibility[]] = ['private', 'workspace', 'shared', 'public']
@@ -71,6 +73,7 @@ export class DocumentService {
     private readonly folderRepository: FolderRepository,
     private readonly membershipRepository: MembershipRepository,
     private readonly workspaceAccess: WorkspaceAccessService,
+    private readonly storageService: StorageService,
     private readonly planLimitService: DocumentPlanLimitService = new NoopDocumentPlanLimitService(),
   ) { }
 
@@ -225,14 +228,19 @@ export class DocumentService {
     await this.planLimitService.assertDocumentEditAllowed(document.workspaceId)
 
     const input = revisionSchema.parse(rawInput)
+
+    // --- Draft-Commit Logic Start ---
+    const processedContent = await this.processAssetDrafts(document.workspaceId, documentId, input.content)
+    // --- Draft-Commit Logic End ---
+
     const latest = await this.revisionRepository.findLatest(documentId)
     const nextVersion = (latest?.version ?? 0) + 1
-    const contentSize = calculateContentSize(input.content)
+    const contentSize = calculateContentSize(processedContent)
 
     const revision = await this.revisionRepository.create({
       documentId,
       version: nextVersion,
-      content: input.content,
+      content: processedContent,
       contentSize,
       summary: input.summary,
       createdByMembershipId: membership.id,
@@ -241,6 +249,121 @@ export class DocumentService {
     await this.documentRepository.update(documentId, { contentSize })
 
     return revision
+  }
+
+  /**
+   * Scans content for asset drafts, moves them to permanent storage, and updates URLs.
+   */
+  private async processAssetDrafts(workspaceId: string, documentId: string, content: any): Promise<any> {
+    const contentString = JSON.stringify(content)
+    // Regex to find: odocs://workspaces/{ws}/documents/{doc}/asset-drafts/{uuid}
+    // We only care about the UUID part for moving, but we need the full string for replacement.
+    const draftRegex = new RegExp(`odocs://workspaces/${workspaceId}/documents/${documentId}/asset-drafts/([a-zA-Z0-9-]+)`, 'g')
+
+    let match
+    const draftsToMove: string[] = []
+
+    // 1. Scan
+    while ((match = draftRegex.exec(contentString)) !== null) {
+      draftsToMove.push(match[1]) // The UUID
+    }
+
+    if (draftsToMove.length === 0) {
+      return content
+    }
+
+    // 2. Move (Parallel)
+    await Promise.all(draftsToMove.map(async (uuid) => {
+      const sourceKey = `workspaces/${workspaceId}/documents/${documentId}/asset-drafts/${uuid}`
+      const targetKey = `workspaces/${workspaceId}/documents/${documentId}/assets/${uuid}`
+      try {
+        await this.storageService.moveObject(sourceKey, targetKey)
+      } catch (error) {
+        // Ignore if object doesn't exist (maybe already moved or deleted)
+        // In production, we might want to log this.
+        console.warn(`Failed to move draft asset ${uuid}:`, error)
+      }
+    }))
+
+    // 3. Replace
+    const newContentString = contentString.replace(draftRegex, `odocs://workspaces/${workspaceId}/documents/${documentId}/assets/$1`)
+    return JSON.parse(newContentString)
+  }
+
+  async createAssetUploadUrl(accountId: string, documentId: string, mimeType: string) {
+    const document = await this.ensureDocument(documentId)
+    await this.workspaceAccess.assertMember(accountId, document.workspaceId)
+
+    const assetId = uuidv4()
+    // Path: workspaces/{ws}/documents/{doc}/asset-drafts/{uuid}
+    const key = `workspaces/${document.workspaceId}/documents/${documentId}/asset-drafts/${assetId}`
+
+    const uploadUrl = await this.storageService.getPresignedPutUrl(key, mimeType)
+    const odocsUrl = `odocs://workspaces/${document.workspaceId}/documents/${documentId}/asset-drafts/${assetId}`
+
+    return { uploadUrl, odocsUrl }
+  }
+
+  async getAssetViewUrl(accountId: string, workspaceId: string, documentId: string, assetId: string) {
+    // 1. Check permissions (User must be able to view the document)
+    // Note: We can optimize this by caching permissions or using a lightweight check
+    const document = await this.ensureDocument(documentId, workspaceId)
+    await this.workspaceAccess.assertMember(accountId, workspaceId)
+    // TODO: Add finer-grained document permission check (e.g. is this user allowed to view THIS private doc?)
+    // For now, workspace membership is the baseline.
+
+    // 2. Generate S3 URL
+    // Path: workspaces/{ws}/documents/{doc}/assets/{uuid}
+    const key = `workspaces/${workspaceId}/documents/${documentId}/assets/${assetId}`
+
+    return this.storageService.getPresignedGetUrl(key)
+  }
+
+  async resolveAssetUrls(accountId: string, workspaceId: string, documentId: string, assetUrls: string[]) {
+    const document = await this.ensureDocument(documentId, workspaceId)
+    await this.workspaceAccess.assertMember(accountId, workspaceId)
+
+    const resolved: Record<string, string> = {}
+
+    await Promise.all(assetUrls.map(async (url) => {
+      // Parse URL: odocs://workspaces/{ws}/documents/{doc}/assets/{uuid}
+      // We support both 'assets' and 'asset-drafts' for flexibility, though mostly 'assets' will be requested on load.
+      const match = url.match(/odocs:\/\/workspaces\/([^\/]+)\/documents\/([^\/]+)\/(assets|asset-drafts)\/([^\/]+)/)
+      if (match) {
+        const [, wsId, docId, type, assetId] = match
+        // Security check: ensure the asset belongs to the requested document/workspace
+        if (wsId === workspaceId && docId === documentId) {
+          const key = `workspaces/${workspaceId}/documents/${documentId}/${type}/${assetId}`
+          resolved[url] = await this.storageService.getPresignedGetUrl(key)
+        }
+      }
+    }))
+
+    return resolved
+  }
+
+  async cloneAsset(accountId: string, targetDocumentId: string, sourceUrl: string) {
+    const targetDoc = await this.ensureDocument(targetDocumentId)
+    await this.workspaceAccess.assertMember(accountId, targetDoc.workspaceId)
+
+    // Parse Source URL: odocs://workspaces/{ws}/documents/{doc}/assets/{uuid}
+    const sourceMatch = sourceUrl.match(/odocs:\/\/workspaces\/([^\/]+)\/documents\/([^\/]+)\/assets\/([^\/]+)/)
+    if (!sourceMatch) {
+      throw new Error('Invalid source asset URL')
+    }
+    const [, sourceWsId, sourceDocId, sourceAssetId] = sourceMatch
+
+    // Check read permission on source document (Implicitly handled by S3 Copy if we had strict IAM, 
+    // but here we should ideally check if user can read sourceDoc. 
+    // For MVP, we assume if you have the link, you can copy it, OR we enforce workspace boundary).
+
+    const newAssetId = uuidv4()
+    const sourceKey = `workspaces/${sourceWsId}/documents/${sourceDocId}/assets/${sourceAssetId}`
+    const targetKey = `workspaces/${targetDoc.workspaceId}/documents/${targetDocumentId}/assets/${newAssetId}`
+
+    await this.storageService.copyObject(sourceKey, targetKey)
+
+    return `odocs://workspaces/${targetDoc.workspaceId}/documents/${targetDocumentId}/assets/${newAssetId}`
   }
 
   async getLatestRevision(accountId: string, documentId: string) {

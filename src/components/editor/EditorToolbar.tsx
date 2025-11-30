@@ -108,12 +108,17 @@ const GROUP_KEY = {
   superscript: 'script-group',
 } as const
 
+import type { DocumentSummary } from '../../lib/api'
+
+// ...
+
 type EditorToolbarProps = {
   showTableOfContentsToggle?: boolean
   tableOfContentsOpen?: boolean
   onToggleTableOfContents?: () => void
   toolbarToggleControl?: ReactNode
   paddingX?: { xs?: number; sm?: number; lg?: number } | number
+  document?: DocumentSummary
 }
 
 const EditorToolbar = ({
@@ -122,25 +127,24 @@ const EditorToolbar = ({
   onToggleTableOfContents,
   toolbarToggleControl,
   paddingX,
+  document,
 }: EditorToolbarProps) => {
   const { strings } = useI18n()
   const toolbarStrings = strings.editor.toolbar
   const editor = useRichTextEditorContext()
-  const editorSelectionJSON = editor?.state?.selection?.toJSON()
-  const [, forceRender] = useState(0)
   const rafRef = useRef<number | null>(null)
-  const [overflowAnchor, setOverflowAnchor] = useState<HTMLElement | null>(null)
-  const containerRef = useRef<HTMLDivElement | null>(null)
-  const itemRefs = useRef<Array<HTMLDivElement | null>>([])
-  const overflowMeasureRef = useRef<HTMLButtonElement | null>(null)
-  const toggleRef = useRef<HTMLDivElement | null>(null)
-  const toolbarToggleRef = useRef<HTMLDivElement | null>(null)
-  const hasToolbarToggleControl = Boolean(toolbarToggleControl)
-  const [alignAnchor, setAlignAnchor] = useState<HTMLElement | null>(null)
-  const [listAnchor, setListAnchor] = useState<HTMLElement | null>(null)
-  const [scriptAnchor, setScriptAnchor] = useState<HTMLElement | null>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
+  const itemRefs = useRef<(HTMLDivElement | null)[]>([])
+  const toggleRef = useRef<HTMLButtonElement>(null)
+  const overflowMeasureRef = useRef<HTMLButtonElement>(null)
+  const toolbarToggleRef = useRef<HTMLButtonElement>(null)
+  const [, forceRender] = useState(0)
+
   const [visibleCount, setVisibleCount] = useState(0)
   const isCompactToolbar = Boolean(showTableOfContentsToggle)
+  const hasToolbarToggleControl = Boolean(toolbarToggleControl)
+  const [overflowAnchor, setOverflowAnchor] = useState<HTMLElement | null>(null)
+  const editorSelectionJSON = editor?.state.selection.toJSON()
 
   useEffect(() => {
     if (!editor) {
@@ -172,12 +176,12 @@ const EditorToolbar = ({
 
   const handleUpload = useCallback(async (files: File[]) => {
     try {
-      return await filesToImageAttributes(files)
+      return await filesToImageAttributes(files, document ? { workspaceId: document.workspaceId, documentId: document.id } : undefined)
     } catch (error) {
       console.error('Failed to process images', error)
       return []
     }
-  }, [])
+  }, [document])
 
   const renderStandaloneControl = useCallback(
     (key: string) => {
@@ -686,12 +690,12 @@ const EditorToolbar = ({
               ...(isVisible
                 ? {}
                 : {
-                    position: 'absolute',
-                    visibility: 'hidden',
-                    pointerEvents: 'none',
-                    top: 0,
-                    left: 0,
-                  }),
+                  position: 'absolute',
+                  visibility: 'hidden',
+                  pointerEvents: 'none',
+                  top: 0,
+                  left: 0,
+                }),
             }}
           >
             {(() => {
@@ -825,7 +829,7 @@ const EditorToolbar = ({
     </Box>
   )
 
-    return (
+  return (
     <MenuBar
       disableSticky={false}
       stickyOffset={0}

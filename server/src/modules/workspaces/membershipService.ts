@@ -205,7 +205,7 @@ export class MembershipService {
     if (membership.role === 'owner') {
       throw new OwnerDemotionError()
     }
-    if (role === 'owner' && workspace.ownerAccountId !== requestorId) {
+    if (role === 'owner' && workspace.ownerId !== requestorId) {
       throw new MembershipAccessDeniedError()
     }
     await this.repository.update(membership.id, { role })
@@ -219,17 +219,17 @@ export class MembershipService {
       metadata: {
         accountId: membership.accountId,
         role,
-        requestedByOwner: workspace.ownerAccountId === requestorId,
+        requestedByOwner: workspace.ownerId === requestorId,
       },
     })
   }
 
   async leaveWorkspace(accountId: string, workspaceId: string) {
     const workspace = await this.workspaceRepository.findByIdIncludingDeleted(workspaceId)
-    if (!workspace || workspace.deletedAt) {
+    if (!workspace) {
       throw new WorkspaceNotFoundError()
     }
-    if (workspace.ownerAccountId === accountId) {
+    if (workspace.ownerId === accountId) {
       throw new OwnerDemotionError()
     }
     const membership = await this.repository.findByWorkspaceAndAccount(workspaceId, accountId)
@@ -257,6 +257,28 @@ export class MembershipService {
 
   private async getActorMembership(workspaceId: string, accountId: string): Promise<MembershipEntity> {
     return this.getMember(workspaceId, accountId)
+  }
+
+  // Additional methods for app.ts compatibility
+  async listMemberships(workspaceId: string) {
+    return this.repository.list(workspaceId)
+  }
+
+  async getMemberProfile(workspaceId: string, accountId: string) {
+    return this.getMember(workspaceId, accountId)
+  }
+
+  async updateMemberProfile(workspaceId: string, accountId: string, body: any) {
+    const membership = await this.getMember(workspaceId, accountId)
+    return this.repository.update(membership.id, body)
+  }
+
+  async changeMemberRole(membershipId: string, role: string) {
+    return this.repository.update(membershipId, { role: role as WorkspaceMembershipRole })
+  }
+
+  async removeMemberById(membershipId: string) {
+    return this.repository.markRemoved(membershipId)
   }
 }
 

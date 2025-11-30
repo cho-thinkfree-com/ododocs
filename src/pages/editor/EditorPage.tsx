@@ -2,14 +2,14 @@ import { Alert, Box, CircularProgress } from '@mui/material';
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { getDocument, getLatestRevision, type DocumentRevision, type DocumentSummary } from '../../lib/api';
+import { getFileSystemEntry, getDocumentContent, type FileSystemEntry } from '../../lib/api';
 import ConnectedEditor from './ConnectedEditor';
 
 const EditorPage = () => {
   const { documentId } = useParams<{ documentId: string }>();
   const { isAuthenticated } = useAuth();
-  const [document, setDocument] = useState<DocumentSummary | null>(null);
-  const [revision, setRevision] = useState<DocumentRevision | null>(null);
+  const [document, setDocument] = useState<FileSystemEntry | null>(null);
+  const [content, setContent] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -28,16 +28,17 @@ const EditorPage = () => {
       body.style.overflow = prevBodyOverflow;
     };
   }, []);
+
   useEffect(() => {
     if (isAuthenticated && documentId) {
       setLoading(true);
       Promise.all([
-        getDocument(documentId),
-        getLatestRevision(documentId),
+        getFileSystemEntry(documentId),
+        getDocumentContent(documentId),
       ])
-        .then(([docData, revData]) => {
+        .then(([docData, contentData]) => {
           setDocument(docData);
-          setRevision(revData);
+          setContent(contentData);
         })
         .catch((err) => {
           setError((err as Error).message);
@@ -47,8 +48,6 @@ const EditorPage = () => {
         });
     }
   }, [isAuthenticated, documentId]);
-
-
 
   const fullPageBox = (child: React.ReactNode) => (
     <Box sx={{ height: '100dvh', minHeight: '100dvh', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -72,7 +71,7 @@ const EditorPage = () => {
     <Box sx={{ height: '100dvh', minHeight: '100dvh', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
       <ConnectedEditor
         document={document}
-        initialRevision={revision}
+        initialContent={content}
       />
     </Box>
   );

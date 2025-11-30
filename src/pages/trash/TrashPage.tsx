@@ -108,40 +108,23 @@ export default function TrashPage() {
         try {
             setLoading(true)
             setError(null)
-            const data = await listTrash(workspaceId, { sortBy: orderBy, sortOrder: order }) as { documents: TrashDocument[], folders: TrashFolder[] }
+            // The API now returns FileSystemEntry[]
+            const data = await listTrash(workspaceId, { sortBy: orderBy, sortOrder: order }) as unknown as any[]
 
-            // Convert to TrashItem format
-            const folderItems: TrashItem[] = (data.folders || []).map(f => ({
-                id: f.id,
-                name: f.name,
-                type: 'folder' as const,
-                deletedAt: f.deletedAt,
-                location: f.originalParentName || null,
+            // Handle both legacy and new format if necessary, but assuming new format is flat array
+            const entries = Array.isArray(data) ? data : []
+
+            const trashItems: TrashItem[] = entries.map(item => ({
+                id: item.id,
+                name: item.name,
+                type: item.type === 'folder' ? 'folder' : 'document',
+                deletedAt: item.deletedAt || new Date().toISOString(),
+                size: item.size ? parseInt(item.size) : undefined,
+                location: item.originalParentId ? 'Folder' : 'Root',
             }));
 
-            const documentItems: TrashItem[] = (data.documents || []).map(d => ({
-                id: d.id,
-                name: d.title,
-                type: 'document' as const,
-                deletedAt: d.deletedAt,
-                size: d.contentSize,
-                location: d.originalFolderName || null,
-            }));
-
-            // Sort folders and documents separately
-            const sortedFolders = [...folderItems].sort((a, b) => {
-                if (orderBy === 'name') {
-                    return order === 'asc' ? a.name.localeCompare(b.name) : b.name.localeCompare(a.name);
-                } else if (orderBy === 'deletedAt') {
-                    return order === 'asc' ? new Date(a.deletedAt).getTime() - new Date(b.deletedAt).getTime() : new Date(b.deletedAt).getTime() - new Date(a.deletedAt).getTime();
-                } else if (orderBy === 'size') {
-                    // Folders don't have size, so sort by name (A-Z)
-                    return a.name.localeCompare(b.name);
-                }
-                return 0;
-            });
-
-            const sortedDocuments = [...documentItems].sort((a, b) => {
+            // Sort items
+            const sortedItems = [...trashItems].sort((a, b) => {
                 if (orderBy === 'name') {
                     return order === 'asc' ? a.name.localeCompare(b.name) : b.name.localeCompare(a.name);
                 } else if (orderBy === 'deletedAt') {
@@ -154,10 +137,7 @@ export default function TrashPage() {
                 return 0;
             });
 
-            // Always keep folders first, then documents
-            const combinedItems: TrashItem[] = [...sortedFolders, ...sortedDocuments];
-
-            setItems(combinedItems)
+            setItems(sortedItems)
         } catch (err) {
             setError('Failed to load trash')
             console.error(err)
@@ -397,7 +377,7 @@ export default function TrashPage() {
     }
 
     return (
-        <Box p={3} onKeyDown={handleKeyDown} tabIndex={0}>
+        <Box p={3} onKeyDown={handleKeyDown} tabIndex={0} sx={{ outline: 'none' }}>
             <Breadcrumbs separator={<NavigateNextIcon fontSize="small" />} sx={{ mb: 2 }}>
                 <Link
                     component="button"

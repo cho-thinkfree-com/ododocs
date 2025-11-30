@@ -1,27 +1,28 @@
-const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/+$/, '')
+// API client for tiptap-example backend
+// Base URL from environment or default to localhost
 
-const buildQuery = (params?: Record<string, string | number | boolean | undefined>) => {
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:9920'
+
+function buildQuery(params?: Record<string, string | number | boolean | undefined>) {
   if (!params) return ''
-  const entries = Object.entries(params)
-    .map(([key, value]) => (value === undefined ? null : `${encodeURIComponent(key)}=${encodeURIComponent(String(value))}`))
-    .filter((entry): entry is string => entry !== null)
-  if (entries.length === 0) return ''
-  return `?${entries.join('&')}`
+  const filtered = Object.entries(params).filter(([_, v]) => v !== undefined)
+  if (filtered.length === 0) return ''
+  const query = new URLSearchParams(filtered.map(([k, v]) => [k, String(v)]))
+  return `?${query.toString()}`
 }
 
-const dispatchAuthExpired = (message: string) => {
-  if (typeof window === 'undefined') {
-    return
-  }
-  window.dispatchEvent(
-    new CustomEvent('tiptap-auth-expired', {
-      detail: {
-        message,
-      },
-    }),
-  )
+function dispatchAuthExpired(message: string) {
+  const event = new CustomEvent('auth:expired', {
+    detail: { message },
+    bubbles: true,
+    composed: true,
+  })
+  document.dispatchEvent(event)
 }
 
+// ============================================================================
+// ERROR HANDLING
+// ============================================================================
 
 export class ApiError extends Error {
   status: number
@@ -32,23 +33,19 @@ export class ApiError extends Error {
   }
 }
 
-const handleResponse = async <T>(response: Response): Promise<T> => {
-  let payload: unknown = null
-  try {
-    payload = await response.json()
-  } catch {
-    payload = null
+async function handleResponse<T>(response: Response): Promise<T> {
+  if (response.status === 401) {
+    const error = await response.json().catch(() => ({ error: 'Unauthorized' }))
+    dispatchAuthExpired(error.error || 'Session expired')
+    throw new ApiError(error.error || 'Unauthorized', 401)
   }
 
   if (!response.ok) {
-    const message =
-      typeof payload === 'object' && payload && 'message' in (payload as Record<string, unknown>)
-        ? (payload as Record<string, string>).message
-        : response.statusText
-    throw new ApiError(message || 'Request failed', response.status)
+    const error = await response.json().catch(() => ({ error: 'Unknown error' }))
+    throw new ApiError(error.error || `HTTP ${response.status}`, response.status)
   }
 
-  return payload as T
+  return response.json()
 }
 
 interface RequestOptions {
@@ -57,45 +54,28 @@ interface RequestOptions {
   query?: Record<string, string | number | boolean | undefined>
 }
 
-const requestJSON = async <T>(path: string, options: RequestOptions = {}): Promise<T> => {
+async function requestJSON<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const { method = 'GET', body, query } = options
   const url = `${API_BASE_URL}${path}${buildQuery(query)}`
-  const headers = new Headers()
+
+  const headers: Record<string, string> = {}
   if (body) {
-    headers.set('Content-Type', 'application/json')
+    headers['Content-Type'] = 'application/json'
   }
 
-  console.log(`[API] ${method} ${path}`)
   const response = await fetch(url, {
     method,
+    credentials: 'include',
     headers,
     body: body ? JSON.stringify(body) : undefined,
-    credentials: 'include',
   })
-
-  if (response.status === 401) {
-    dispatchAuthExpired('auth.sessionExpired')
-  }
 
   return handleResponse<T>(response)
 }
 
-export interface LoginInput {
-  email: string
-  password: string
-}
-
-export interface SignupInput extends LoginInput {
-  legalName?: string
-  preferredLocale?: string
-  preferredTimezone?: string
-}
-
-export interface LoginResult {
-  sessionId: string
-  accountId: string
-  expiresAt: string
-}
+// ============================================================================
+// TYPE DEFINITIONS
+// ============================================================================
 
 export interface AccountResponse {
   id: string
@@ -111,10 +91,9 @@ export interface AccountResponse {
 export interface WorkspaceSummary {
   id: string
   name: string
-  slug: string
   description?: string | null
   visibility: string
-  ownerAccountId: string
+  ownerId: string
   createdAt: string
   updatedAt: string
 }
@@ -126,433 +105,558 @@ export interface MembershipSummary {
   role: 'owner' | 'admin' | 'member'
   status: 'active' | 'invited' | 'pending' | 'removed'
   displayName?: string | null
-  avatarUrl?: string | null
-  timezone?: string | null
-  preferredLocale?: string | null
-  blogTheme?: string | null
-  blogHandle?: string | null
-  blogDescription?: string | null
-}
-
-export const getBlogByHandle = (handle: string, page = 1, limit = 10) =>
-  requestJSON<{
-    profile: MembershipSummary
-    documents: (DocumentSummary & { publicToken?: string })[]
-    pagination: {
-      page: number
-      limit: number
-      total: number
-      totalPages: number
-    }
-  }>(`/api/v1/blog/${handle}?page=${page}&limit=${limit}`)
-
-export const getBlogDocument = (handle: string, documentNumber: string) =>
-  requestJSON<{
-    document: DocumentSummary & { publicToken?: string }
-    revision: DocumentRevision | null
-    accessLevel: string
-    createdByMembershipId: string
-  }>(`/api/v1/blog/${handle}/documents/${documentNumber}`)
-
-export const checkBlogHandleAvailability = (handle: string) =>
-  requestJSON<{ available: boolean }>(`/api/v1/blog/check-handle?handle=${handle}`)
-
-
-
-export interface FolderSummary {
-  id: string
-  workspaceId: string
-  name: string
-  parentId?: string | null
-  parentFolderName?: string | null
-  pathCache: string
   createdAt: string
   updatedAt: string
-  deletedAt?: string | null
-  originalParentId?: string | null
-  originalParentName?: string | null
-  tags: string[]
-  isImportant: boolean
 }
 
-export interface DocumentSummary {
+export interface LoginInput {
+  email: string
+  password: string
+}
+
+export interface SignupInput {
+  email: string
+  password: string
+  legalName?: string
+}
+
+export interface LoginResult {
+  account: AccountResponse
+  session: any
+}
+
+// NEW: Unified FileSystemEntry type
+export interface FileSystemEntry {
   id: string
+  name: string
+  type: 'folder' | 'file'
+  parentId?: string | null
   workspaceId: string
-  title: string
-  slug: string
-  documentNumber?: number
-  status: string
-  visibility: string
+
+  // File metadata
+  mimeType?: string | null
+  extension?: string | null
+  size?: string | null // BigInt as string
+
+  // Current revision
+  currentRevisionId?: string | null
+
+  // Metadata
+  isStarred: boolean
+  description?: string | null
+  tags: string[]
+
+  // Soft delete
+  deletedAt?: string | null
+  deletedBy?: string | null
+  originalParentId?: string | null
+
+  // Timestamps
+  createdAt: string
+  updatedAt: string
+  createdBy: string
+  lastModifiedBy?: string | null
+  lastModifiedByName?: string | null
+
+  // Folder information (for documents)
   folderId?: string | null
   folderName?: string | null
-  summary?: string | null
-  contentSize?: number
-  createdAt: string
-  updatedAt: string
-  tags: string[]
-  lastModifiedBy?: string | null
-  deletedAt?: string | null
-  originalFolderId?: string | null
-  originalFolderName?: string | null
-  isImportant: boolean
-  viewCount?: number
+
+  // Relations (optionally populated)
+  shareLinks?: any[]
+  parent?: FileSystemEntry | null
+  children?: FileSystemEntry[]
+  currentRevision?: any
+  creator?: any
 }
 
-
-export interface DocumentCreateInput {
-  title?: string
-  folderId?: string | null
-  slug?: string
-  visibility?: 'private' | 'workspace' | 'shared' | 'public'
-  status?: 'draft' | 'published' | 'archived'
-  summary?: string
-  sortOrder?: number
-  initialRevision?: {
-    content: Record<string, unknown>
-    summary?: string
-  }
-}
-export interface FolderCreateInput {
-  name: string
-  parentId?: string | null
-}
+// Backwards compatibility aliases
+export type DocumentSummary = FileSystemEntry & { type: 'file'; mimeType: 'application/x-odocs' }
+export type FolderSummary = FileSystemEntry & { type: 'folder' }
+export type FileSummary = FileSystemEntry & { type: 'file' }
 
 export interface ShareLinkResponse {
-  shareLink: {
-    id: string
-    token: string
-    accessLevel: string
-    revokedAt?: string | null
-    expiresAt?: string | null
-    allowExternalEdit?: boolean
-    passwordHash?: string | null
-    isPublic?: boolean
-  }
+  id: string
   token: string
+  url: string
+  isPublic: boolean
+  expiresAt?: string | null
+  requiresPassword?: boolean
 }
 
-export const login = (input: LoginInput) => requestJSON<LoginResult>('/api/v1/auth/login', { method: 'POST', body: input })
-export const signup = (input: SignupInput) => requestJSON<AccountResponse>('/api/v1/auth/signup', { method: 'POST', body: input })
-export const logout = async () => {
-  return requestJSON<{ ok: boolean }>('/api/v1/auth/logout', {
-    method: 'POST',
-  })
-}
-export const getMe = () => requestJSON<AccountResponse>('/api/v1/auth/me')
-export const updateAccount = (body: { email?: string; legalName?: string; preferredLanguage?: string; preferredTimezone?: string; currentPassword?: string; newPassword?: string }) => requestJSON<AccountResponse>('/api/v1/auth/me', { method: 'PATCH', body })
+// ============================================================================
+// AUTH API
+// ============================================================================
 
-export const getWorkspaces = () =>
-  requestJSON<{ items: WorkspaceSummary[] }>('/api/v1/workspaces').then((payload) => payload.items ?? [])
-
-export const getWorkspace = (workspaceId: string) =>
-  requestJSON<WorkspaceSummary>(`/api/v1/workspaces/${workspaceId}`)
-
-export const getWorkspaceMembers = (workspaceId: string) =>
-  requestJSON<{ items: MembershipSummary[] }>(`/api/v1/workspaces/${workspaceId}/members`)
-
-export const getWorkspaceMemberProfile = (workspaceId: string) =>
-  requestJSON<MembershipSummary>(`/api/v1/workspaces/${workspaceId}/members/me`)
-
-export const updateWorkspaceMemberProfile = (
-  workspaceId: string,
-  body: {
-    displayName?: string
-    avatarUrl?: string
-    timezone?: string
-    preferredLocale?: string
-    blogTheme?: string
-    blogHandle?: string
-    blogDescription?: string;
-  },
-) =>
-  requestJSON<MembershipSummary>(`/api/v1/workspaces/${workspaceId}/members/me`, {
-    method: 'PATCH',
-    body,
-  })
-
-export interface InviteMemberInput {
-  accountId: string
-  role?: 'owner' | 'admin' | 'member'
-}
-
-export const inviteWorkspaceMember = (
-  workspaceId: string,
-  input: InviteMemberInput,
-) =>
-  requestJSON<MembershipSummary>(`/api/v1/workspaces/${workspaceId}/members`, {
+export async function login(input: { email: string; password: string }) {
+  return requestJSON<{ account: AccountResponse; session: any }>('/api/v1/auth/login', {
     method: 'POST',
     body: input,
   })
-
-export const changeWorkspaceMemberRole = (
-  workspaceId: string,
-  accountId: string,
-  role: 'owner' | 'admin' | 'member',
-) =>
-  requestJSON<MembershipSummary>(`/api/v1/workspaces/${workspaceId}/members/${accountId}/role`, {
-    method: 'PATCH',
-    body: { role },
-  })
-
-export const removeWorkspaceMember = (workspaceId: string, accountId: string) =>
-  requestJSON<void>(`/api/v1/workspaces/${workspaceId}/members/${accountId}`, {
-    method: 'DELETE',
-  })
-
-export const getWorkspaceDocuments = (
-  workspaceId: string,
-  options?: { search?: string; folderId?: string; sortBy?: string; sortOrder?: 'asc' | 'desc' },
-) =>
-  requestJSON<{ documents: DocumentSummary[]; folders: FolderSummary[] }>(
-    `/api/v1/workspaces/${workspaceId}/documents`,
-    {
-      query: {
-        search: options?.search,
-        folderId: options?.folderId,
-        sortBy: options?.sortBy,
-        sortOrder: options?.sortOrder,
-      },
-    },
-  )
-
-export const getRecentDocuments = (options?: { sortBy?: string; sortOrder?: 'asc' | 'desc' }) =>
-  requestJSON<{ items: DocumentSummary[] }>(`/api/v1/documents/recent`, {
-    query: {
-      sortBy: options?.sortBy,
-      sortOrder: options?.sortOrder,
-    },
-  }).then((payload) => payload.items ?? [])
-
-export const getPublicDocuments = (workspaceId: string, options?: { sortBy?: string; sortOrder?: 'asc' | 'desc' }) =>
-  requestJSON<{ items: DocumentSummary[] }>(`/api/v1/workspaces/${workspaceId}/public-documents`, {
-    query: {
-      sortBy: options?.sortBy,
-      sortOrder: options?.sortOrder,
-    },
-  }).then((payload) => payload.items ?? [])
-
-export interface DocumentRevision {
-  id: string;
-  documentId: string;
-  content: Record<string, unknown>;
-  contentSize?: number;
-  authorId: string;
-  createdAt: string;
 }
 
-export const getDocument = (documentId: string) =>
-  requestJSON<DocumentSummary>(`/api/v1/documents/${documentId}`)
-
-export const getLatestRevision = (documentId: string) =>
-  requestJSON<{ document: DocumentSummary; revision: DocumentRevision }>(
-    `/api/v1/documents/${documentId}/revisions/latest`,
-  ).then((payload) => payload.revision)
-
-export const appendRevision = (documentId: string, body: { content: Record<string, unknown> }) =>
-  requestJSON<DocumentRevision>(`/api/v1/documents/${documentId}/revisions`, { method: 'POST', body })
-
-export const createDocument = (workspaceId: string, body: DocumentCreateInput) =>
-  requestJSON<DocumentSummary>(`/api/v1/workspaces/${workspaceId}/documents`, { method: 'POST', body })
-
-export const deleteDocument = (documentId: string) =>
-  requestJSON<void>(`/api/v1/documents/${documentId}`, { method: 'DELETE' })
-
-export const renameDocument = (documentId: string, body: { title: string }) =>
-  requestJSON<DocumentSummary>(`/api/v1/documents/${documentId}`, { method: 'PATCH', body })
-
-export const createFolder = (workspaceId: string, body: FolderCreateInput) =>
-  requestJSON<FolderSummary>(`/api/v1/workspaces/${workspaceId}/folders`, { method: 'POST', body })
-
-export const deleteFolder = (folderId: string) =>
-  requestJSON<void>(`/api/v1/folders/${folderId}`, { method: 'DELETE' })
-
-export const renameFolder = (folderId: string, body: { name: string }) =>
-  requestJSON<FolderSummary>(`/api/v1/folders/${folderId}`, { method: 'PATCH', body })
-
-export const moveFolder = (folderId: string, body: { parentId: string | null }) =>
-  requestJSON<FolderSummary>(`/api/v1/folders/${folderId}/move`, { method: 'PUT', body })
-
-export const getFolder = (folderId: string) =>
-  requestJSON<{ folder: FolderSummary; ancestors: FolderSummary[] }>(`/api/v1/folders/${folderId}`)
-
-export const addDocumentTag = (documentId: string, tag: string) =>
-  requestJSON<{ name: string }>(`/api/v1/documents/${documentId}/tags`, { method: 'POST', body: { name: tag } })
-
-export const removeDocumentTag = (documentId: string, tag: string) =>
-  requestJSON<void>(`/api/v1/documents/${documentId}/tags/${encodeURIComponent(tag)}`, {
-    method: 'DELETE',
-  })
-
-export const addFolderTag = (folderId: string, tag: string) =>
-  requestJSON<{ name: string }>(`/api/v1/folders/${folderId}/tags`, { method: 'POST', body: { name: tag } })
-
-export const removeFolderTag = (folderId: string, tag: string) =>
-  requestJSON<void>(`/api/v1/folders/${folderId}/tags/${encodeURIComponent(tag)}`, {
-    method: 'DELETE',
-  })
-
-export const toggleDocumentStarred = (documentId: string, isStarred: boolean) =>
-  requestJSON<DocumentSummary>(`/api/v1/documents/${documentId}/starred`, {
-    method: 'PATCH',
-    body: { isStarred },
-  })
-
-export const toggleFolderStarred = (folderId: string, isStarred: boolean) =>
-  requestJSON<FolderSummary>(`/api/v1/folders/${folderId}/starred`, {
-    method: 'PATCH',
-    body: { isStarred },
-  })
-
-export const getStarredDocuments = (workspaceId: string) =>
-  requestJSON<{ documents: DocumentSummary[]; folders: FolderSummary[] }>(`/api/v1/workspaces/${workspaceId}/starred`)
-
-export const createShareLink = (documentId: string, payload?: { isPublic?: boolean; password?: string }) =>
-  requestJSON<ShareLinkResponse>(`/api/v1/documents/${documentId}/share-links`, {
+export async function signup(input: { email: string; password: string; legalName?: string }) {
+  return requestJSON<{ account: AccountResponse; session: any }>('/api/v1/auth/signup', {
     method: 'POST',
-    body: { accessLevel: 'viewer', ...payload },
+    body: input,
   })
-
-export const getShareLinks = (documentId: string) =>
-  requestJSON<{ shareLinks: ShareLinkResponse['shareLink'][] }>(`/api/v1/documents/${documentId}/share-links`).then((payload) => payload.shareLinks)
-
-export const revokeShareLink = (shareLinkId: string) =>
-  requestJSON<void>(`/api/v1/share-links/${shareLinkId}`, { method: 'DELETE' })
-
-export const updateShareLink = (shareLinkId: string, body: { allowExternalEdit?: boolean; isPublic?: boolean }) =>
-  requestJSON<ShareLinkResponse['shareLink']>(`/api/v1/share-links/${shareLinkId}`, {
-    method: 'PATCH',
-    body,
-  })
-
-export const resolveShareLink = (token: string, password?: string) =>
-  requestJSON<{
-    token: string
-    document: DocumentSummary
-    revision: DocumentRevision | null
-    accessLevel: string
-    createdByMembershipId: string
-  }>(`/api/v1/share-links/${token}/access`, {
-    method: 'POST',
-    body: { password },
-  })
-
-export interface AuthorDocument {
-  document: DocumentSummary
-  shareLink: {
-    id: string
-    token: string
-    accessLevel: string
-    isPublic: boolean
-  }
-  revision: DocumentRevision | null
-  isCurrentDocument: boolean
-  authorName?: string
 }
 
-export const getAuthorPublicDocuments = (token: string) =>
-  requestJSON<{ documents: AuthorDocument[] }>(`/api/v1/share-links/${token}/author/documents`)
+export async function logout() {
+  return requestJSON<{ success: boolean }>('/api/v1/auth/logout', {
+    method: 'POST',
+  })
+}
 
-export const getWorkspaceMemberPublicProfile = (workspaceId: string, profileId: string) =>
-  requestJSON<MembershipSummary>(`/api/v1/workspaces/${workspaceId}/public-profiles/${profileId}`)
+export async function getMe() {
+  return requestJSON<{ account: AccountResponse }>('/api/v1/auth/me')
+}
 
-export const getWorkspaceMemberPublicDocuments = (workspaceId: string, profileId: string) =>
-  requestJSON<{ items: DocumentSummary[] }>(`/api/v1/workspaces/${workspaceId}/public-profiles/${profileId}/documents`)
+// ============================================================================
+// WORKSPACE API
+// ============================================================================
 
-export const updateWorkspace = (workspaceId: string, body: { name?: string; description?: string }) =>
-  requestJSON<WorkspaceSummary>(`/api/v1/workspaces/${workspaceId}`, { method: 'PATCH', body })
+export async function getWorkspaces() {
+  const { workspaces } = await requestJSON<{ workspaces: WorkspaceSummary[] }>('/api/v1/workspaces')
+  return workspaces
+}
 
-export const closeWorkspace = (workspaceId: string) =>
-  requestJSON<void>(`/api/v1/workspaces/${workspaceId}`, { method: 'DELETE' })
+export async function getWorkspace(workspaceId: string) {
+  return requestJSON<WorkspaceSummary>(`/api/v1/workspaces/${workspaceId}`)
+}
 
-export const createWorkspace = (body: { name: string }) =>
-  requestJSON<WorkspaceSummary>('/api/v1/workspaces', { method: 'POST', body })
+export async function createWorkspace(input: { name: string; description?: string; handle?: string }) {
+  return requestJSON<WorkspaceSummary>('/api/v1/workspaces', {
+    method: 'POST',
+    body: input,
+  })
+}
 
-export const checkDocumentTitle = (
+export async function updateWorkspace(
+  workspaceId: string,
+  input: { name?: string; description?: string; handle?: string; visibility?: string }
+) {
+  return requestJSON<WorkspaceSummary>(`/api/v1/workspaces/${workspaceId}`, {
+    method: 'PATCH',
+    body: input,
+  })
+}
+
+export async function getWorkspaceMembers(workspaceId: string) {
+  const { memberships } = await requestJSON<{ memberships: MembershipSummary[] }>(`/api/v1/workspaces/${workspaceId}/members`)
+  return memberships
+}
+
+// ============================================================================
+// FILE SYSTEM API (NEW UNIFIED API)
+// ============================================================================
+
+// List files in workspace root
+export async function getWorkspaceFiles(workspaceId: string, folderId?: string | null) {
+  const path = folderId
+    ? `/api/workspaces/${workspaceId}/files/${folderId}`
+    : `/api/workspaces/${workspaceId}/files`
+
+  return requestJSON<FileSystemEntry[]>(path)
+}
+
+// Create folder
+export async function createFolder(workspaceId: string, name: string, parentId?: string) {
+  return requestJSON<FileSystemEntry>(`/api/workspaces/${workspaceId}/folders`, {
+    method: 'POST',
+    body: { name, parentId },
+  })
+}
+
+// Create document (.odocs file)
+export async function createDocument(
   workspaceId: string,
   title: string,
-  folderId?: string | null,
-  excludeId?: string,
-) =>
-  requestJSON<{ isDuplicate: boolean }>(
-    `/api/v1/workspaces/${workspaceId}/documents/check-title?title=${encodeURIComponent(title)}${folderId ? `&folderId=${folderId}` : ''}${excludeId ? `&excludeId=${excludeId}` : ''}`,
-  )
+  content?: any,
+  folderId?: string
+) {
+  return requestJSON<FileSystemEntry>(`/api/workspaces/${workspaceId}/documents`, {
+    method: 'POST',
+    body: { title, content, folderId },
+  })
+}
 
-export const updateDocument = (
-  documentId: string,
-  body: {
-    title?: string
-    folderId?: string | null
-    slug?: string
-    status?: 'draft' | 'published' | 'archived'
-    visibility?: 'private' | 'workspace' | 'shared' | 'public'
-    summary?: string
-    sortOrder?: number
-  },
-) => requestJSON<DocumentSummary>(`/api/v1/documents/${documentId}`, { method: 'PATCH', body })
+// Get document content
+export async function getDocumentContent(documentId: string) {
+  return requestJSON<any>(`/api/documents/${documentId}/content`)
+}
 
-export const downloadDocument = async (documentId: string) => {
-  const url = `${API_BASE_URL}/api/v1/documents/${documentId}/download`
+// Update document content
+export async function updateDocumentContent(documentId: string, content: any) {
+  return requestJSON<FileSystemEntry>(`/api/documents/${documentId}/content`, {
+    method: 'PUT',
+    body: { content },
+  })
+}
 
-  const response = await fetch(url, {
-    method: 'GET',
-    credentials: 'include',
+// Get single file/folder
+export async function getFileSystemEntry(fileId: string) {
+  return requestJSON<FileSystemEntry>(`/api/filesystem/${fileId}`)
+}
+
+// Rename
+export async function renameFileSystemEntry(fileId: string, name: string) {
+  return requestJSON<FileSystemEntry>(`/api/filesystem/${fileId}/rename`, {
+    method: 'PATCH',
+    body: { name },
+  })
+}
+
+// Update metadata
+export async function updateFileSystemEntry(
+  fileId: string,
+  updates: {
+    name?: string;
+    description?: string;
+    isPublic?: boolean;
+    isStarred?: boolean;
+  }
+) {
+  return requestJSON<FileSystemEntry>(`/api/filesystem/${fileId}`, {
+    method: 'PATCH',
+    body: updates,
+  })
+}
+
+// Move
+export async function moveFileSystemEntry(fileId: string, parentId: string | null) {
+  return requestJSON<FileSystemEntry>(`/api/filesystem/${fileId}/move`, {
+    method: 'PATCH',
+    body: { parentId },
+  })
+}
+
+// Toggle star
+export async function toggleFileStar(fileId: string) {
+  return requestJSON<FileSystemEntry>(`/api/filesystem/${fileId}/star`, {
+    method: 'POST',
+  })
+}
+
+// Delete
+export async function deleteFileSystemEntry(fileId: string) {
+  return requestJSON<{ success: boolean }>(`/api/filesystem/${fileId}`, {
+    method: 'DELETE',
+  })
+}
+
+// Restore
+export async function restoreFileSystemEntry(fileId: string) {
+  return requestJSON<FileSystemEntry>(`/api/filesystem/${fileId}/restore`, {
+    method: 'POST',
+  })
+}
+
+// Get ancestors (breadcrumb)
+export async function getFileAncestors(fileId: string) {
+  return requestJSON<FileSystemEntry[]>(`/api/filesystem/${fileId}/ancestors`)
+}
+
+// Get starred
+export async function getStarredFiles(workspaceId: string) {
+  return requestJSON<FileSystemEntry[]>(`/api/workspaces/${workspaceId}/starred`)
+}
+
+// Get recently modified
+export async function getRecentFiles(workspaceId: string, limit?: number) {
+  return requestJSON<FileSystemEntry[]>(`/api/workspaces/${workspaceId}/recent`, {
+    query: { limit },
+  })
+}
+
+// Search
+export async function searchFiles(workspaceId: string, query: string) {
+  return requestJSON<FileSystemEntry[]>(`/api/workspaces/${workspaceId}/search`, {
+    query: { q: query },
+  })
+}
+
+// Create share link
+export async function createShareLink(
+  fileId: string,
+  options?: { password?: string; expiresAt?: string; isPublic?: boolean }
+) {
+  return requestJSON<ShareLinkResponse>(`/api/filesystem/${fileId}/share`, {
+    method: 'POST',
+    body: options,
+  })
+}
+
+// Alias for backward compatibility
+export const createFileShareLink = createShareLink
+
+// Get shared file (public)
+export async function getSharedFile(token: string, password?: string) {
+  return requestJSON<{ file: FileSystemEntry; shareLink: any }>(`/api/share/${token}`, {
+    query: { password },
+  })
+}
+
+// Download shared file
+export function getSharedFileDownloadUrl(token: string, password?: string) {
+  const query = password ? `?password=${encodeURIComponent(password)}` : ''
+  return `${API_BASE_URL}/api/share/${token}/download${query}`
+}
+
+// ============================================================================
+// BACKWARDS COMPATIBILITY (deprecated but still work)
+// ============================================================================
+
+// Aliases for backward compatibility
+export const getWorkspaceDocuments = getWorkspaceFiles
+export const getFolder = getFileSystemEntry
+export const renameDocument = renameFileSystemEntry
+export const renameFolder = renameFileSystemEntry
+
+// Delete aliases
+export const deleteFile = deleteFileSystemEntry
+export const deleteDocument = deleteFileSystemEntry
+export const deleteFolder = deleteFileSystemEntry
+
+// Upload to S3 directly
+export async function uploadFileToS3(uploadUrl: string, file: File) {
+  const response = await fetch(uploadUrl, {
+    method: 'PUT',
+    body: file,
+    headers: {
+      'Content-Type': file.type,
+    },
   })
 
   if (!response.ok) {
-    throw new ApiError(response.statusText, response.status)
+    throw new Error(`S3 upload failed: ${response.statusText}`)
   }
 
-  const blob = await response.blob()
-  const contentDisposition = response.headers.get('Content-Disposition')
-  let filename = 'document.odocs'
-  if (contentDisposition) {
-    const filenameMatch = contentDisposition.match(/filename\*=UTF-8''(.+)/) || contentDisposition.match(/filename="(.+)"/)
-    if (filenameMatch && filenameMatch[1]) {
-      filename = decodeURIComponent(filenameMatch[1])
+  return response
+}
+export const restoreDocument = restoreFileSystemEntry
+export const restoreFolder = restoreFileSystemEntry
+export const toggleDocumentStarred = toggleFileStar
+export const toggleFolderStarred = toggleFileStar
+export const downloadDocument = (documentId: string) => {
+  return `${API_BASE_URL}/api/files/${documentId}/download`
+}
+export const moveFolder = moveFileSystemEntry
+export const updateDocument = updateDocumentContent
+
+// Upload file (presigned URL flow)
+export async function initiateFileUpload(
+  workspaceId: string,
+  name: string,
+  mimeType: string,
+  size: number,
+  folderId?: string
+) {
+  return requestJSON<{ uploadUrl: string; uploadKey: string; fileId: string }>(
+    `/api/workspaces/${workspaceId}/files/upload`,
+    {
+      method: 'POST',
+      body: { name, mimeType, size, folderId },
     }
-  }
-
-  const downloadUrl = URL.createObjectURL(blob)
-  const link = document.createElement('a')
-  link.href = downloadUrl
-  link.download = filename
-  document.body.appendChild(link)
-  link.click()
-  document.body.removeChild(link)
-  URL.revokeObjectURL(downloadUrl)
+  )
 }
 
-// Trash management
-export const listTrash = async (workspaceId: string, options?: { sortBy?: string; sortOrder?: 'asc' | 'desc' }) => {
-  return requestJSON<{ documents: DocumentSummary[]; folders: FolderSummary[] }>(`/api/v1/workspaces/${workspaceId}/trash`, {
-    method: 'GET',
-    query: {
-      sortBy: options?.sortBy,
-      sortOrder: options?.sortOrder,
+export async function confirmFileUpload(
+  workspaceId: string,
+  uploadKey: string,
+  name: string,
+  mimeType: string,
+  size: number,
+  folderId?: string
+) {
+  return requestJSON<FileSystemEntry>(`/api/workspaces/${workspaceId}/files/confirm`, {
+    method: 'POST',
+    body: { uploadKey, name, mimeType, size, folderId },
+  })
+}
+
+// ============================================================================
+// LEGACY/STUB FUNCTIONS (for compatibility)
+// ============================================================================
+
+// Account
+export async function updateAccount(body: any) {
+  return requestJSON<any>('/api/v1/auth/update', {
+    method: 'PATCH',
+    body,
+  })
+}
+
+// Workspace Members
+export async function getWorkspaceMemberProfile(workspaceId: string, accountId?: string) {
+  // If accountId not provided, backend will use current user from auth token
+  const endpoint = accountId
+    ? `/api/v1/workspaces/${workspaceId}/members/${accountId}`
+    : `/api/v1/workspaces/${workspaceId}/members/me`
+  return requestJSON<any>(endpoint)
+}
+
+export async function updateWorkspaceMemberProfile(workspaceId: string, accountIdOrBody: string | any, body?: any) {
+  // Support both signatures:
+  // 1. updateWorkspaceMemberProfile(workspaceId, body)
+  // 2. updateWorkspaceMemberProfile(workspaceId, accountId, body)
+  const isBodyOnly = typeof accountIdOrBody === 'object'
+  const endpoint = isBodyOnly
+    ? `/api/v1/workspaces/${workspaceId}/members/me`
+    : `/api/v1/workspaces/${workspaceId}/members/${accountIdOrBody}`
+  const requestBody = isBodyOnly ? accountIdOrBody : body
+
+  return requestJSON<any>(endpoint, {
+    method: 'PATCH',
+    body: requestBody,
+  })
+}
+
+export async function getWorkspaceMemberPublicProfile(workspaceIdOrHandle: string, membershipId?: string) {
+  if (membershipId) {
+    return requestJSON<any>(`/api/v1/blog/${workspaceIdOrHandle}/${membershipId}/profile`)
+  }
+  return requestJSON<any>(`/api/v1/blog/${workspaceIdOrHandle}/profile`)
+}
+
+export async function inviteWorkspaceMember(workspaceId: string, email: string, role: string) {
+  return requestJSON<any>(`/api/v1/workspaces/${workspaceId}/members`, {
+    method: 'POST',
+    body: { email, role },
+  })
+}
+
+export async function changeWorkspaceMemberRole(workspaceId: string, membershipId: string, role: string) {
+  return requestJSON<any>(`/api/v1/workspaces/${workspaceId}/members/${membershipId}/role`, {
+    method: 'PATCH',
+    body: { role },
+  })
+}
+
+export async function removeWorkspaceMember(workspaceId: string, membershipId: string) {
+  return requestJSON<any>(`/api/v1/workspaces/${workspaceId}/members/${membershipId}`, {
+    method: 'DELETE',
+  })
+}
+
+// Share Links (legacy)
+export async function getShareLinks(documentId: string) {
+  return requestJSON<any[]>(`/api/v1/documents/${documentId}/share-links`)
+}
+
+export async function revokeShareLink(linkId: string) {
+  return requestJSON<any>(`/api/v1/share-links/${linkId}/revoke`, {
+    method: 'POST',
+  })
+}
+
+export async function updateShareLink(linkId: string, body: any) {
+  return requestJSON<any>(`/api/v1/share-links/${linkId}`, {
+    method: 'PATCH',
+    body,
+  })
+}
+
+export async function resolveShareLink(token: string, password?: string) {
+  return requestJSON<any>(`/api/v1/share-links/${token}/access`, {
+    method: 'POST',
+    body: { password },
+  })
+}
+
+// Documents (legacy)
+export async function getRecentDocuments(params?: any) {
+  return requestJSON<any[]>('/api/v1/documents/recent', {
+    query: params,
+  })
+}
+
+export async function getPublicDocuments(workspaceId: string) {
+  return requestJSON<any[]>(`/api/v1/workspaces/${workspaceId}/public-documents`)
+}
+
+export async function getAuthorPublicDocuments(identifier: string, type: 'handle' | 'token' = 'handle', page = 1, limit = 10) {
+  if (type === 'token') {
+    return requestJSON<any>(`/api/v1/share-links/${identifier}/author-documents`, {
+      query: { page, limit },
+    })
+  }
+  return requestJSON<any>(`/api/v1/blog/${identifier}/documents`, {
+    query: { page, limit },
+  })
+}
+
+export async function getWorkspaceMemberPublicDocuments(workspaceIdOrHandle: string, membershipIdOrPage?: string | number, pageOrLimit: number = 1, limit: number = 10) {
+  // Handle overload: (handle, page, limit) vs (workspaceId, membershipId)
+  // Since page is number and membershipId is string (UUID), we can distinguish.
+
+  if (typeof membershipIdOrPage === 'string') {
+    // (workspaceId, membershipId) case - Legacy
+    // Note: Legacy route might not support pagination yet, or we need to add it.
+    // Assuming legacy route returns all docs or default limit.
+    return requestJSON<any>(`/api/v1/blog/${workspaceIdOrHandle}/${membershipIdOrPage}/documents`)
+  }
+
+  // (handle, page, limit) case
+  const page = typeof membershipIdOrPage === 'number' ? membershipIdOrPage : 1
+  return requestJSON<any>(`/api/v1/blog/${workspaceIdOrHandle}/documents`, {
+    query: { page, limit: pageOrLimit },
+  })
+}
+
+// Blog
+export async function getBlogByHandle(handle: string, page = 1, limit = 10) {
+  return requestJSON<any>(`/api/v1/blog/${handle}`, {
+    query: { page, limit },
+  })
+}
+
+export async function checkBlogHandleAvailability(handle: string) {
+  return requestJSON<{ available: boolean }>(`/api/v1/blog/check/${handle}`)
+}
+
+// Trash
+export async function listTrash(workspaceId: string, params?: any) {
+  return requestJSON<any>(`/api/v1/workspaces/${workspaceId}/trash`, {
+    query: params,
+  })
+}
+
+export async function permanentlyDeleteDocument(documentId: string) {
+  return requestJSON<any>(`/api/v1/documents/${documentId}/permanent`, {
+    method: 'DELETE',
+  })
+}
+
+export async function permanentlyDeleteFolder(folderId: string) {
+  return requestJSON<any>(`/api/v1/folders/${folderId}/permanent`, {
+    method: 'DELETE',
+  })
+}
+
+// Assets
+export async function resolveAssetUrls(content: any, workspaceId: string, documentId: string) {
+  // Just return content as-is for now
+  return content
+}
+
+export async function getAssetUploadUrl(workspaceId: string, documentId: string, filename: string) {
+  return requestJSON<{ uploadUrl: string; assetKey: string }>(`/api/v1/workspaces/${workspaceId}/documents/${documentId}/assets/upload`, {
+    method: 'POST',
+    body: { filename },
+  })
+}
+
+export async function uploadAssetToS3(uploadUrl: string, file: File) {
+  await fetch(uploadUrl, {
+    method: 'PUT',
+    body: file,
+    headers: {
+      'Content-Type': file.type || 'application/octet-stream',
     },
   })
 }
 
-export const restoreDocument = async (documentId: string) => {
-  return requestJSON(`/api/v1/trash/restore/document/${documentId}`, {
-    method: 'POST',
-  })
-}
-
-export const permanentlyDeleteDocument = async (documentId: string) => {
-  return requestJSON(`/api/v1/trash/document/${documentId}`, {
-    method: 'DELETE',
-  })
-}
-
-export const restoreFolder = async (folderId: string) => {
-  return requestJSON(`/api/v1/trash/restore/folder/${folderId}`, {
-    method: 'POST',
-  })
-}
-
-export const permanentlyDeleteFolder = async (folderId: string) => {
-  return requestJSON(`/api/v1/trash/folder/${folderId}`, {
-    method: 'DELETE',
-  })
-}
+// Export types for compatibility
+export type DocumentRevision = any
+export type AuthorDocument = any

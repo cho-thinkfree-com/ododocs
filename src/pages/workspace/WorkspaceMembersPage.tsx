@@ -23,8 +23,8 @@ const WorkspaceMembersPage = () => {
     if (isAuthenticated && workspaceId) {
       setLoading(true);
       try {
-        const response = await getWorkspaceMembers(workspaceId);
-        setMembers(response.items);
+        const members = await getWorkspaceMembers(workspaceId);
+        setMembers(members);
       } catch (err) {
         setError((err as Error).message);
       } finally {
@@ -44,7 +44,7 @@ const WorkspaceMembersPage = () => {
     setInviteLoading(true);
     setInviteError(null);
     try {
-      await inviteWorkspaceMember(workspaceId, { accountId: inviteEmail }); // Assuming inviteEmail is accountId for now
+      await inviteWorkspaceMember(workspaceId, inviteEmail, 'member');
       setInviteDialogOpen(false);
       setInviteEmail('');
       fetchMembers();

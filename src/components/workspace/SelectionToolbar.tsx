@@ -3,6 +3,7 @@ import ClearIcon from '@mui/icons-material/Clear';
 import DeleteIcon from '@mui/icons-material/Delete';
 import StarBorderIcon from '@mui/icons-material/StarBorder';
 import SelectAllIcon from '@mui/icons-material/SelectAll';
+import PublicIcon from '@mui/icons-material/Public';
 
 interface SelectionToolbarProps {
     selectedCount: number;
@@ -13,6 +14,8 @@ interface SelectionToolbarProps {
     onSelectAll: () => void;
     showStar?: boolean;
     showDelete?: boolean;
+    hasPublicLinks?: boolean;
+    onPublish?: () => void;
 }
 
 const SelectionToolbar = ({
@@ -24,6 +27,8 @@ const SelectionToolbar = ({
     onSelectAll,
     showStar = true,
     showDelete = true,
+    hasPublicLinks,
+    onPublish,
 }: SelectionToolbarProps) => {
     if (selectedCount === 0) return null;
 
@@ -31,6 +36,7 @@ const SelectionToolbar = ({
         <Paper
             elevation={0}
             sx={{
+                width: '100%',
                 px: 2,
                 py: 1.5,
                 display: 'flex',
@@ -64,6 +70,16 @@ const SelectionToolbar = ({
             </IconButton>
 
             <Divider orientation="vertical" flexItem sx={{ mx: 1 }} />
+
+            {hasPublicLinks && onPublish && (
+                <IconButton
+                    size="small"
+                    onClick={onPublish}
+                    title="Copy share links"
+                >
+                    <PublicIcon fontSize="small" />
+                </IconButton>
+            )}
 
             {showStar && (
                 <IconButton

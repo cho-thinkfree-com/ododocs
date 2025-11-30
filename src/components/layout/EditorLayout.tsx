@@ -1,12 +1,11 @@
-import { AppBar, Box, Button, Drawer, IconButton, Menu, MenuItem, TextField, Toolbar, Tooltip, Typography } from '@mui/material';
+import { AppBar, Box, Button, Drawer, IconButton, TextField, Toolbar, Tooltip, Typography } from '@mui/material';
 import { RichTextEditorProvider } from 'mui-tiptap';
 import MenuIcon from '@mui/icons-material/Menu';
-import MoreVertIcon from '@mui/icons-material/MoreVert';
+import ShareIcon from '@mui/icons-material/Share';
 import EditorToolbar from '../editor/EditorToolbar';
 import EditorContentArea from '../editor/EditorContentArea';
 import EditorTableOfContents from '../editor/EditorTableOfContents';
-import { type DocumentSummary, downloadDocument } from '../../lib/api';
-import { useAuth } from '../../context/AuthContext';
+import { type FileSystemEntry } from '../../lib/api';
 import type { Editor } from '@tiptap/react';
 import { useEffect, useRef, useState } from 'react';
 import ShareDialog from '../editor/ShareDialog';
@@ -15,10 +14,12 @@ import EditorWidthSelector from '../editor/EditorWidthSelector';
 import ViewerTemplateSelector from '../editor/ViewerTemplateSelector';
 import type { ViewerTemplate } from '../../lib/viewerTemplates';
 import AuthorInfoButton from '../viewer/AuthorInfoButton';
+import PublicIcon from '@mui/icons-material/Public';
+import PublicOffIcon from '@mui/icons-material/PublicOff';
 
 interface EditorLayoutProps {
     editor: Editor | null;
-    document: DocumentSummary;
+    document: FileSystemEntry;
     onContentChange: () => void;
     onTitleChange: (newTitle: string) => void;
     onClose: () => void;
@@ -26,6 +27,9 @@ interface EditorLayoutProps {
     readOnly?: boolean;
     initialWidth?: string;
     shareToken?: string;
+    authorHandle?: string;
+    authorName?: string;
+    isPublic?: boolean;
 }
 
 // Adaptive title component that reduces font size when overflowing
@@ -118,26 +122,50 @@ const AdaptiveTitle = ({ title }: { title: string }) => {
     );
 };
 
-const EditorLayout = ({ editor, document, onContentChange, onTitleChange, onClose, saveStatus, readOnly = false, initialWidth = '950px', shareToken }: EditorLayoutProps) => {
-
+const EditorLayout = ({ editor, document, onContentChange, onTitleChange, onClose, saveStatus, readOnly = false, initialWidth = '950px', shareToken, authorHandle, authorName, isPublic = false }: EditorLayoutProps) => {
     const [tocOpen, setTocOpen] = useState(false);
-    const [localTitle, setLocalTitle] = useState(document.title);
+    const [localTitle, setLocalTitle] = useState(document.name);
     const [shareOpen, setShareOpen] = useState(false);
     const [hasHeadings, setHasHeadings] = useState(false);
-    const [menuAnchorEl, setMenuAnchorEl] = useState<null | HTMLElement>(null);
     const [showSavedStatus, setShowSavedStatus] = useState(true);
     const [viewerWidth, setViewerWidth] = useState(initialWidth);
     const [viewerTemplate, setViewerTemplate] = useState<ViewerTemplate>('original');
-    const { isAuthenticated } = useAuth();
+    const [publicStatus, setPublicStatus] = useState<'none' | 'active' | 'expired'>('none');
     const { strings } = useI18n();
 
     useEffect(() => {
-        setLocalTitle(document.title);
-    }, [document.title]);
+        setLocalTitle(document.name);
+    }, [document.name]);
 
     useEffect(() => {
         setViewerWidth(initialWidth);
     }, [initialWidth]);
+
+    // Check public status
+    const checkPublicStatus = async () => {
+        if (readOnly) return;
+        try {
+            const links = document.shareLinks || [];
+            const activeLink = links.find((l: any) => !l.revokedAt);
+
+            if (!activeLink) {
+                setPublicStatus('none');
+                return;
+            }
+
+            if (activeLink.expiresAt && new Date(activeLink.expiresAt) <= new Date()) {
+                setPublicStatus('expired');
+            } else {
+                setPublicStatus('active');
+            }
+        } catch (error) {
+            console.error('Failed to check public status:', error);
+        }
+    };
+
+    useEffect(() => {
+        checkPublicStatus();
+    }, [document.id, shareOpen, readOnly]);
 
     // Auto-hide "Saved" status after 2 seconds
     useEffect(() => {
@@ -197,7 +225,7 @@ const EditorLayout = ({ editor, document, onContentChange, onTitleChange, onClos
         setLocalTitle(newTitle);
 
         // Call onTitleChange directly (debouncing handled in ConnectedEditor)
-        if (newTitle.trim() && newTitle !== document.title) {
+        if (newTitle.trim() && newTitle !== document.name) {
             onTitleChange(newTitle);
         }
     };
@@ -205,8 +233,8 @@ const EditorLayout = ({ editor, document, onContentChange, onTitleChange, onClos
     const handleTitleBlur = () => {
         // If title is empty on blur, revert to document title
         if (!localTitle.trim()) {
-            setLocalTitle(document.title);
-        } else if (localTitle !== document.title) {
+            setLocalTitle(document.name);
+        } else if (localTitle !== document.name) {
             // Save immediately on blur if changed
             onTitleChange(localTitle);
         }
@@ -215,30 +243,11 @@ const EditorLayout = ({ editor, document, onContentChange, onTitleChange, onClos
     const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
         if (e.key === 'Escape') {
             // Revert to original title on ESC
-            setLocalTitle(document.title);
+            setLocalTitle(document.name);
             (e.target as HTMLInputElement).blur();
         }
     };
 
-    const handleMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
-        setMenuAnchorEl(event.currentTarget);
-    };
-
-    const handleMenuClose = () => {
-        setMenuAnchorEl(null);
-    };
-
-    const handleShareClick = () => {
-        handleMenuClose();
-        setShareOpen(true);
-    };
-
-    const handleDownloadClick = () => {
-        handleMenuClose();
-        if (editor && isAuthenticated) {
-            downloadDocument(document.id);
-        }
-    };
 
     return (
         <RichTextEditorProvider editor={editor}>
@@ -324,10 +333,13 @@ const EditorLayout = ({ editor, document, onContentChange, onTitleChange, onClos
                                             value={viewerTemplate}
                                             onChange={setViewerTemplate}
                                         />
-                                        {shareToken && (
+                                        {(shareToken || authorHandle) && (
                                             <AuthorInfoButton
-                                                token={shareToken}
-                                                authorName={document.lastModifiedBy || undefined}
+                                                token={shareToken || ''}
+                                                handle={authorHandle}
+                                                authorName={authorName || document.lastModifiedBy || undefined}
+                                                document={document}
+                                                isPublic={isPublic}
                                             />
                                         )}
                                     </Box>
@@ -337,22 +349,42 @@ const EditorLayout = ({ editor, document, onContentChange, onTitleChange, onClos
 
                         <Box sx={{ flexGrow: 1, display: 'flex', alignItems: 'center', overflow: 'hidden', zIndex: 1 }}>
                             {!readOnly && (
-                                <TextField
-                                    value={localTitle}
-                                    onChange={handleTitleChange}
-                                    onBlur={handleTitleBlur}
-                                    onKeyDown={handleKeyDown}
-                                    placeholder={document.title}
-                                    variant="standard"
-                                    InputProps={{
-                                        disableUnderline: true,
-                                        sx: {
-                                            fontSize: '1.5rem',
-                                            fontWeight: 700,
-                                        }
-                                    }}
-                                    sx={{ minWidth: 200 }}
-                                />
+                                <>
+                                    <TextField
+                                        value={localTitle}
+                                        onChange={handleTitleChange}
+                                        onBlur={handleTitleBlur}
+                                        onKeyDown={handleKeyDown}
+                                        placeholder={document.name}
+                                        variant="standard"
+                                        InputProps={{
+                                            disableUnderline: true,
+                                            sx: {
+                                                fontSize: '1.5rem',
+                                                fontWeight: 700,
+                                            }
+                                        }}
+                                        sx={{ minWidth: 200 }}
+                                    />
+                                    {publicStatus === 'active' && (
+                                        <Tooltip title="Published to web">
+                                            <PublicIcon
+                                                color="success"
+                                                fontSize="small"
+                                                sx={{ ml: 1 }}
+                                            />
+                                        </Tooltip>
+                                    )}
+                                    {publicStatus === 'expired' && (
+                                        <Tooltip title="Public link expired">
+                                            <PublicOffIcon
+                                                color="disabled"
+                                                fontSize="small"
+                                                sx={{ ml: 1 }}
+                                            />
+                                        </Tooltip>
+                                    )}
+                                </>
                             )}
 
                             {!readOnly && (saveStatus !== 'saved' || showSavedStatus) && (
@@ -369,7 +401,7 @@ const EditorLayout = ({ editor, document, onContentChange, onTitleChange, onClos
                                 </Typography>
                             )}
 
-                            {localTitle !== document.title && (
+                            {localTitle !== document.name && (
                                 <Typography
                                     variant="caption"
                                     sx={{
@@ -390,30 +422,20 @@ const EditorLayout = ({ editor, document, onContentChange, onTitleChange, onClos
                             </Box>
                         )}
                         {!readOnly && (
-                            <Button color="primary" variant="contained" onClick={onClose}>
-                                Close
+                            <Button
+                                color="primary"
+                                variant="outlined"
+                                onClick={() => setShareOpen(true)}
+                                sx={{ mr: 1 }}
+                                startIcon={<ShareIcon />}
+                            >
+                                {strings.editor.title.share || 'Share'}
                             </Button>
                         )}
                         {!readOnly && (
-                            <>
-                                <IconButton
-                                    color="inherit"
-                                    onClick={handleMenuOpen}
-                                    sx={{ ml: 1 }}
-                                    aria-label="More options"
-                                >
-                                    <MoreVertIcon />
-                                </IconButton>
-                                <Menu
-                                    anchorEl={menuAnchorEl}
-                                    open={Boolean(menuAnchorEl)}
-                                    onClose={handleMenuClose}
-                                >
-                                    <MenuItem onClick={handleShareClick}>
-                                        {strings.editor.title.share || 'Share'}
-                                    </MenuItem>
-                                </Menu>
-                            </>
+                            <Button color="primary" variant="contained" onClick={onClose}>
+                                Close
+                            </Button>
                         )}
                     </Toolbar>
                 </AppBar>
@@ -435,6 +457,7 @@ const EditorLayout = ({ editor, document, onContentChange, onTitleChange, onClos
                             showTableOfContentsToggle={false}
                             tableOfContentsOpen={tocOpen}
                             onToggleTableOfContents={() => setTocOpen(!tocOpen)}
+                            document={document}
                         />
                     </Box>
                 )}

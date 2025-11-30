@@ -3,17 +3,29 @@ import PublicIcon from '@mui/icons-material/Public';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import LockIcon from '@mui/icons-material/Lock';
 import PersonIcon from '@mui/icons-material/Person';
+import LinkIcon from '@mui/icons-material/Link';
 import { useEffect, useRef, useState } from 'react';
+import { slugify } from '../../lib/slug';
 import { getAuthorPublicDocuments, type AuthorDocument } from '../../lib/api';
 import { useI18n } from '../../lib/i18n';
 import React from 'react';
+
+export interface CurrentDocInfo {
+    title: string;
+    viewCount?: number;
+    createdAt: string | Date;
+    isPublic: boolean;
+    authorName?: string;
+}
 
 interface AuthorInfoPopoverProps {
     open: boolean;
     anchorEl: HTMLElement | null;
     onClose: () => void;
     token: string;
+    handle?: string;
     authorName?: string;
+    currentDocInfo?: CurrentDocInfo;
 }
 
 // Component that only shows tooltip when text is truncated
@@ -40,48 +52,99 @@ const ConditionalTooltip = ({ title, children }: { title: string; children: Reac
     );
 };
 
-const AuthorInfoPopover = ({ open, anchorEl, onClose, token, authorName }: AuthorInfoPopoverProps) => {
+const AuthorInfoPopover = ({ open, anchorEl, onClose, token, handle, authorName, currentDocInfo }: AuthorInfoPopoverProps) => {
     const [documents, setDocuments] = useState<AuthorDocument[]>([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [fetchedHandle, setFetchedHandle] = useState<string | null>(null);
+    const [profileName, setProfileName] = useState<string | null>(null);
     const { strings } = useI18n();
-
-    useEffect(() => {
-        if (open && documents.length === 0) {
-            fetchDocuments();
-        }
-    }, [open]);
 
     const fetchDocuments = async () => {
         setLoading(true);
         setError(null);
         try {
-            const result = await getAuthorPublicDocuments(token);
+            let result;
+            if (handle) {
+                result = await getAuthorPublicDocuments(handle, 'handle');
+            } else {
+                result = await getAuthorPublicDocuments(token, 'token');
+            }
             setDocuments(result.documents);
+            if (result.profile) {
+                if (result.profile.blogHandle) {
+                    setFetchedHandle(result.profile.blogHandle);
+                }
+                if (result.profile.name) {
+                    setProfileName(result.profile.name);
+                }
+            }
         } catch (err: any) {
             console.error('Failed to fetch author documents:', err);
-            setError(err.message || 'Failed to load documents');
+            // Don't show error if we have currentDocInfo, just show current doc
+            if (!currentDocInfo) {
+                setError(err.message || 'Failed to load documents');
+            }
         } finally {
             setLoading(false);
         }
     };
 
-    const formatDate = (dateString: string) => {
+    useEffect(() => {
+        if (open) {
+            fetchDocuments();
+        }
+    }, [open]);
+
+    const formatDate = (dateString: string | Date) => {
         const date = new Date(dateString);
         return date.toISOString().split('T')[0]; // YYYY-MM-DD format
     };
 
+    // Filter and sort documents
+    // The API returns documents that are already filtered for public visibility
     const publicDocuments = documents
-        .filter(doc => doc.shareLink && doc.shareLink.isPublic)
-        .sort((a, b) => {
-            const dateA = new Date(a.document.updatedAt || a.document.createdAt).getTime();
-            const dateB = new Date(b.document.updatedAt || b.document.createdAt).getTime();
+        .filter(doc => (doc as any).publicToken) // Ensure there is a token
+        .sort((a: any, b: any) => {
+            const dateA = new Date(a.updatedAt || a.createdAt).getTime();
+            const dateB = new Date(b.updatedAt || b.createdAt).getTime();
             return dateB - dateA; // Most recent first
         });
-    const currentDocument = documents.find(doc => doc.isCurrentDocument);
+
+    // Find current document based on token match
+    let currentDocument = publicDocuments.find((doc: any) => doc.publicToken === token);
+
+    // Fallback to currentDocInfo if not found in list (e.g. link-only shared doc)
+    if (!currentDocument && currentDocInfo) {
+        currentDocument = {
+            isCurrentDocument: true,
+            title: currentDocInfo.title,
+            viewCount: currentDocInfo.viewCount,
+            createdAt: currentDocInfo.createdAt,
+            publicToken: token,
+            shareLink: {
+                isPublic: currentDocInfo.isPublic,
+                token: token
+            },
+            authorName: currentDocInfo.authorName
+        } as any;
+    }
 
     // Use authorName from API response if not provided as prop
-    const displayAuthorName = authorName || currentDocument?.authorName || '작성자';
+    // Note: API might not return authorName in document object, but we have profile in result
+    const displayAuthorName = authorName || (currentDocument as any)?.authorName || '작성자';
+
+    // Helper to generate document URL
+    const getDocumentUrl = (doc: any) => {
+        const titleSlug = slugify(doc.title);
+        const docToken = doc.publicToken;
+        const effectiveHandle = handle || fetchedHandle;
+
+        if (effectiveHandle) {
+            return `/blog/${effectiveHandle}/documents/${docToken}/${titleSlug}`;
+        }
+        return `/public/${docToken}/${titleSlug}`;
+    };
 
     return (
         <Popover
@@ -133,16 +196,16 @@ const AuthorInfoPopover = ({ open, anchorEl, onClose, token, authorName }: Autho
                         {currentDocument && (
                             <Box sx={{ mb: 1.5, pb: 1.5, borderBottom: 1, borderColor: 'divider' }}>
                                 <Typography variant="caption" color="text.secondary" sx={{ mb: 0.75, display: 'flex', alignItems: 'center', gap: 0.5, textTransform: 'uppercase', fontWeight: 600, letterSpacing: 0.5 }}>
-                                    {currentDocument.shareLink.isPublic ? (
-                                        <VisibilityIcon sx={{ fontSize: 14 }} />
+                                    {(currentDocument as any).shareLink?.isPublic ? (
+                                        <PublicIcon sx={{ fontSize: 14 }} />
                                     ) : (
-                                        <LockIcon sx={{ fontSize: 14 }} />
+                                        <LinkIcon sx={{ fontSize: 14 }} />
                                     )}
                                     {strings.editor?.author?.currentDocument || '현재 문서'}
                                 </Typography>
                                 <Box sx={{ pl: 0.5 }}>
                                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                        <ConditionalTooltip title={currentDocument.document.title}>
+                                        <ConditionalTooltip title={(currentDocument as any).title}>
                                             <Typography
                                                 variant="body2"
                                                 fontWeight={600}
@@ -154,7 +217,7 @@ const AuthorInfoPopover = ({ open, anchorEl, onClose, token, authorName }: Autho
                                                     minWidth: 0,
                                                 }}
                                             >
-                                                {currentDocument.document.title}
+                                                {(currentDocument as any).title}
                                             </Typography>
                                         </ConditionalTooltip>
                                         <Typography
@@ -166,16 +229,11 @@ const AuthorInfoPopover = ({ open, anchorEl, onClose, token, authorName }: Autho
                                                 flexShrink: 0,
                                             }}
                                         >
-                                            <span>{currentDocument.document.viewCount?.toLocaleString() || 0}</span>
+                                            <span>{(currentDocument as any).viewCount?.toLocaleString() || 0}</span>
                                             <span>•</span>
-                                            <span>{formatDate(currentDocument.document.createdAt)}</span>
+                                            <span>{formatDate((currentDocument as any).createdAt)}</span>
                                         </Typography>
                                     </Box>
-                                    {!currentDocument.shareLink.isPublic && (
-                                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontStyle: 'italic', mt: 0.5 }}>
-                                            링크가 있는 사람만 볼 수 있습니다
-                                        </Typography>
-                                    )}
                                 </Box>
                             </Box>
                         )}
@@ -188,11 +246,11 @@ const AuthorInfoPopover = ({ open, anchorEl, onClose, token, authorName }: Autho
                                     {strings.editor?.author?.publicDocuments || '공개 문서'} ({publicDocuments.length})
                                 </Typography>
                                 <List dense disablePadding>
-                                    {publicDocuments.slice(0, 5).map((doc) => {
-                                        const isCurrentDoc = doc.isCurrentDocument;
+                                    {publicDocuments.slice(0, 5).map((doc: any) => {
+                                        const isCurrentDoc = doc.publicToken === token;
                                         return (
                                             <ListItem
-                                                key={doc.document.id}
+                                                key={doc.id}
                                                 disablePadding
                                                 sx={{
                                                     mb: 0.25,
@@ -211,10 +269,11 @@ const AuthorInfoPopover = ({ open, anchorEl, onClose, token, authorName }: Autho
                                                             alignItems: 'center',
                                                             gap: 0.5,
                                                             cursor: 'default',
+                                                            bgcolor: 'action.selected',
                                                         }}
                                                     >
                                                         <Box sx={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 1 }}>
-                                                            <ConditionalTooltip title={doc.document.title}>
+                                                            <ConditionalTooltip title={doc.title}>
                                                                 <Typography
                                                                     variant="body2"
                                                                     sx={{
@@ -226,7 +285,7 @@ const AuthorInfoPopover = ({ open, anchorEl, onClose, token, authorName }: Autho
                                                                         minWidth: 0,
                                                                     }}
                                                                 >
-                                                                    {doc.document.title}
+                                                                    {doc.title}
                                                                 </Typography>
                                                             </ConditionalTooltip>
                                                             <VisibilityIcon
@@ -245,20 +304,18 @@ const AuthorInfoPopover = ({ open, anchorEl, onClose, token, authorName }: Autho
                                                                     flexShrink: 0,
                                                                 }}
                                                             >
-                                                                <span>{doc.document.viewCount?.toLocaleString() || 0}</span>
+                                                                <span>{doc.viewCount?.toLocaleString() || 0}</span>
                                                                 <span>•</span>
-                                                                <span>{formatDate(doc.document.createdAt)}</span>
+                                                                <span>{formatDate(doc.createdAt)}</span>
                                                             </Typography>
                                                         </Box>
                                                     </Box>
                                                 ) : (
                                                     <Link
-                                                        href={doc.shareLink.isPublic
-                                                            ? `/public/${doc.shareLink.token}/${encodeURIComponent(doc.document.title.substring(0, 30))}`
-                                                            : `/share/${doc.shareLink.token}/${encodeURIComponent(doc.document.title.substring(0, 30))}`
-                                                        }
+                                                        href={getDocumentUrl(doc)}
                                                         underline="none"
                                                         color="inherit"
+                                                        target="_blank"
                                                         sx={{
                                                             width: '100%',
                                                             p: 0.75,
@@ -269,7 +326,7 @@ const AuthorInfoPopover = ({ open, anchorEl, onClose, token, authorName }: Autho
                                                         }}
                                                     >
                                                         <Box sx={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 1 }}>
-                                                            <ConditionalTooltip title={doc.document.title}>
+                                                            <ConditionalTooltip title={doc.title}>
                                                                 <Typography
                                                                     variant="body2"
                                                                     sx={{
@@ -281,7 +338,7 @@ const AuthorInfoPopover = ({ open, anchorEl, onClose, token, authorName }: Autho
                                                                         minWidth: 0,
                                                                     }}
                                                                 >
-                                                                    {doc.document.title}
+                                                                    {doc.title}
                                                                 </Typography>
                                                             </ConditionalTooltip>
                                                             <Typography
@@ -293,9 +350,9 @@ const AuthorInfoPopover = ({ open, anchorEl, onClose, token, authorName }: Autho
                                                                     flexShrink: 0,
                                                                 }}
                                                             >
-                                                                <span>{doc.document.viewCount?.toLocaleString() || 0}</span>
+                                                                <span>{doc.viewCount?.toLocaleString() || 0}</span>
                                                                 <span>•</span>
-                                                                <span>{formatDate(doc.document.createdAt)}</span>
+                                                                <span>{formatDate(doc.createdAt)}</span>
                                                             </Typography>
                                                         </Box>
                                                     </Link>

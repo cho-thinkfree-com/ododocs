@@ -11,7 +11,7 @@ import SearchIcon from '@mui/icons-material/Search';
 import WorkspacesIcon from '@mui/icons-material/Workspaces';
 import StarIcon from '@mui/icons-material/Star';
 import CreateWorkspaceDialog from '../../components/workspace/CreateWorkspaceDialog';
-import PublicDocumentIndicator from '../../components/workspace/PublicDocumentIndicator';
+import FileShareIndicator from '../../components/workspace/FileShareIndicator';
 import { formatRelativeDate } from '../../lib/formatDate';
 import { useI18n } from '../../lib/i18n';
 
@@ -251,8 +251,8 @@ const WorkspaceDashboardPage = () => {
                         alt="document"
                         sx={{ width: 24, height: 24, mr: 1.5 }}
                       />
-                      {doc.title}
-                      {doc.isImportant && (
+                      {doc.name}
+                      {doc.isStarred && (
                         <StarIcon
                           sx={{
                             ml: 1,
@@ -262,12 +262,7 @@ const WorkspaceDashboardPage = () => {
                           }}
                         />
                       )}
-                      {doc.visibility === 'public' && (
-                        <PublicDocumentIndicator
-                          documentId={doc.id}
-                          title={doc.title}
-                        />
-                      )}
+                      <FileShareIndicator fileId={doc.id} shareLinks={doc.shareLinks} />
                     </Box>
                   </TableCell>
                   <TableCell>
@@ -288,7 +283,7 @@ const WorkspaceDashboardPage = () => {
                       {doc.folderId ? (
                         <Link
                           component={RouterLink}
-                          to={`/workspace/${doc.workspaceId}?folderId=${doc.folderId}`}
+                          to={`/workspace/${doc.workspaceId}/folder/${doc.folderId}`}
                           underline="hover"
                           color="inherit"
                           onClick={(e) => e.stopPropagation()}
@@ -313,7 +308,7 @@ const WorkspaceDashboardPage = () => {
                     <Typography variant="body2" color="text.secondary">{formatRelativeDate(doc.updatedAt)}</Typography>
                   </TableCell>
                   <TableCell>
-                    <Chip label={doc.lastModifiedBy || strings.workspace.ownerLabel} size="small" variant="outlined" sx={{ borderRadius: 1 }} />
+                    <Chip label={doc.lastModifiedByName || strings.workspace.ownerLabel} size="small" variant="outlined" sx={{ borderRadius: 1 }} />
                   </TableCell>
                 </TableRow>
               );

@@ -12,10 +12,10 @@ export class WorkspaceAccessService {
 
   async assertOwner(accountId: string, workspaceId: string): Promise<WorkspaceEntity> {
     const workspace = await this.workspaceRepository.findByIdIncludingDeleted(workspaceId)
-    if (!workspace || workspace.deletedAt) {
+    if (!workspace) {
       throw new WorkspaceNotFoundError()
     }
-    if (workspace.ownerAccountId !== accountId) {
+    if (workspace.ownerId !== accountId) {
       throw new MembershipAccessDeniedError()
     }
     return workspace
@@ -23,10 +23,10 @@ export class WorkspaceAccessService {
 
   async assertAdminOrOwner(accountId: string, workspaceId: string): Promise<WorkspaceEntity> {
     const workspace = await this.workspaceRepository.findByIdIncludingDeleted(workspaceId)
-    if (!workspace || workspace.deletedAt) {
+    if (!workspace) {
       throw new WorkspaceNotFoundError()
     }
-    if (workspace.ownerAccountId === accountId) {
+    if (workspace.ownerId === accountId) {
       return workspace
     }
     const membership = await this.membershipRepository.findByWorkspaceAndAccount(workspaceId, accountId)
@@ -38,10 +38,10 @@ export class WorkspaceAccessService {
 
   async assertMember(accountId: string, workspaceId: string): Promise<WorkspaceEntity> {
     const workspace = await this.workspaceRepository.findByIdIncludingDeleted(workspaceId)
-    if (!workspace || workspace.deletedAt) {
+    if (!workspace) {
       throw new WorkspaceNotFoundError()
     }
-    if (workspace.ownerAccountId === accountId) {
+    if (workspace.ownerId === accountId) {
       return workspace
     }
     const membership = await this.membershipRepository.findByWorkspaceAndAccount(workspaceId, accountId)

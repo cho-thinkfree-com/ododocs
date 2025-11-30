@@ -7,6 +7,7 @@ import GroupIcon from '@mui/icons-material/Group';
 import FolderSharedIcon from '@mui/icons-material/FolderShared';
 import HistoryIcon from '@mui/icons-material/History';
 import StarIcon from '@mui/icons-material/Star';
+import InsertDriveFileIcon from '@mui/icons-material/InsertDriveFile';
 import { useI18n } from '../../lib/i18n';
 import { useState } from 'react';
 import WorkspaceSettingsDialog from '../workspace/WorkspaceSettingsDialog';
