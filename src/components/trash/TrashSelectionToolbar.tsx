@@ -25,8 +25,9 @@ const TrashSelectionToolbar = ({
         <Paper
             elevation={0}
             sx={{
+                width: '100%',
                 px: 2,
-                py: 1.5,
+                py: 0.5,
                 display: 'flex',
                 alignItems: 'center',
                 gap: 1,

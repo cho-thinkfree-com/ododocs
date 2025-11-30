@@ -115,7 +115,7 @@ const WorkspaceFilesPage = () => {
             setCurrentFolder(folderData);
 
             if (folderData) {
-                setAncestors([...ancestorsData, folderData]);
+                setAncestors(ancestorsData);
             } else {
                 setAncestors([]);
             }
@@ -129,6 +129,12 @@ const WorkspaceFilesPage = () => {
     useEffect(() => {
         fetchData();
     }, [fetchData]);
+
+    // Clear selection when folder changes
+    useEffect(() => {
+        setSelectedIds(new Set());
+        setLastSelectedId(null);
+    }, [folderId]);
 
     const handleCreateFolder = async (name: string) => {
         if (!workspaceId) return;
@@ -449,32 +455,38 @@ const WorkspaceFilesPage = () => {
     const files = sortedItems.filter((i) => i.type === 'file' && i.mimeType !== 'application/x-odocs');
 
     return (
-        <Container maxWidth="xl" sx={{ py: 4 }}>
+        <Container maxWidth="xl">
             {/* Header */}
-            {/* Header */}
-            <Box sx={{ mb: 3, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 4 }}>
                 {/* Breadcrumbs */}
-                <Breadcrumbs separator={<NavigateNextIcon fontSize="small" />}>
+                <Breadcrumbs separator={<NavigateNextIcon fontSize="small" />} aria-label="breadcrumb">
                     <Link
                         component="button"
-                        variant="body1"
+                        underline="hover"
+                        color="inherit"
                         onClick={() => navigate(`/workspace/${workspaceId}/files`)}
                         sx={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}
                     >
-                        <HomeIcon sx={{ mr: 0.5 }} fontSize="small" />
-                        Home
+                        <HomeIcon sx={{ mr: 0.5 }} fontSize="inherit" />
+                        Files
                     </Link>
                     {ancestors.map((ancestor) => (
                         <Link
                             key={ancestor.id}
                             component="button"
-                            variant="body1"
+                            underline="hover"
+                            color="inherit"
                             onClick={() => navigate(`/workspace/${workspaceId}/folder/${ancestor.id}`)}
                             sx={{ cursor: 'pointer' }}
                         >
                             {ancestor.name}
                         </Link>
                     ))}
+                    {currentFolder && (
+                        <Typography color="text.primary" fontWeight="600" sx={{ display: 'flex', alignItems: 'center' }}>
+                            {currentFolder.name}
+                        </Typography>
+                    )}
                 </Breadcrumbs>
 
                 {/* Actions */}
@@ -483,6 +495,7 @@ const WorkspaceFilesPage = () => {
                         variant="contained"
                         startIcon={<AddIcon />}
                         onClick={handleCreateDocument}
+                        size="small"
                     >
                         New Document
                     </Button>
@@ -490,6 +503,7 @@ const WorkspaceFilesPage = () => {
                         variant="outlined"
                         startIcon={<CreateNewFolderIcon />}
                         onClick={() => setCreateFolderOpen(true)}
+                        size="small"
                     >
                         New Folder
                     </Button>
@@ -497,168 +511,202 @@ const WorkspaceFilesPage = () => {
                         variant="outlined"
                         startIcon={<UploadFileIcon />}
                         onClick={() => alert('File upload not implemented yet')}
+                        size="small"
                     >
                         Upload
                     </Button>
                 </Box>
             </Box>
 
-            {/* Selection Toolbar (Reserved Space) */}
-            <Box sx={{ height: 60, mb: 1 }}>
-                {selectedIds.size > 0 ? (
-                    <SelectionToolbar
-                        selectedCount={selectedIds.size}
-                        hasDocuments={true}
-                        hasPublicLinks={false}
-                        onDelete={handleBulkDelete}
-                        onClearSelection={() => setSelectedIds(new Set())}
-                        onStar={handleBulkStar}
-                        onSelectAll={() => setSelectedIds(new Set(items.map(i => i.id)))}
-                        showDelete={true}
-                        showStar={true}
-                    />
-                ) : showUndo ? (
-                    <Paper
-                        elevation={0}
-                        variant="outlined"
-                        sx={{
-                            height: '100%',
-                            display: 'flex',
-                            alignItems: 'center',
-                            px: 2,
-                            gap: 2,
-                            bgcolor: 'text.primary',
-                            color: 'background.paper',
-                            borderColor: 'divider',
-                        }}
-                    >
-                        <Typography variant="subtitle2" sx={{ mr: 'auto', color: 'inherit' }}>
-                            Deleted {deletedItemIds.length} items
+            <Box sx={{ mb: 4 }}>
+                <Typography variant="h5" fontWeight="bold" gutterBottom sx={{ mb: 1 }}>
+                    {currentFolder ? currentFolder.name : 'Files'}
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                    {currentFolder ? 'Manage files in this folder.' : 'Manage all files and folders in your workspace.'}
+                </Typography>
+
+                {/* Selection Toolbar (Reserved Space) */}
+                <Box sx={{ height: 32, display: 'flex', alignItems: 'center', mb: 2 }}>
+                    {selectedIds.size > 0 ? (
+                        <SelectionToolbar
+                            selectedCount={selectedIds.size}
+                            hasDocuments={true}
+                            hasPublicLinks={false}
+                            onDelete={handleBulkDelete}
+                            onClearSelection={() => setSelectedIds(new Set())}
+                            onStar={handleBulkStar}
+                            onSelectAll={() => setSelectedIds(new Set(items.map(i => i.id)))}
+                            showDelete={true}
+                            showStar={true}
+                        />
+                    ) : showUndo ? (
+                        <Paper
+                            elevation={0}
+                            variant="outlined"
+                            sx={{
+                                height: '100%',
+                                display: 'flex',
+                                alignItems: 'center',
+                                px: 2,
+                                gap: 2,
+                                bgcolor: 'text.primary',
+                                color: 'background.paper',
+                                borderColor: 'divider',
+                                width: '100%'
+                            }}
+                        >
+                            <Typography variant="subtitle2" sx={{ mr: 'auto', color: 'inherit' }}>
+                                Deleted {deletedItemIds.length} items
+                            </Typography>
+                            <Button size="small" onClick={handleUndo} sx={{ color: 'inherit', fontWeight: 'bold' }}>
+                                Undo
+                            </Button>
+                        </Paper>
+                    ) : null}
+                </Box>
+
+                {/* Files Table */}
+                {items.length === 0 ? (
+                    <Paper sx={{ p: 6, textAlign: 'center', borderStyle: 'dashed', bgcolor: 'transparent' }}>
+                        <Typography color="text.secondary">
+                            This folder is empty. Create a document or folder to get started.
                         </Typography>
-                        <Button size="small" onClick={handleUndo} sx={{ color: 'inherit', fontWeight: 'bold' }}>
-                            Undo
-                        </Button>
                     </Paper>
-                ) : null}
+                ) : (
+                    <TableContainer component={Paper} variant="outlined" sx={{ border: 'none' }}>
+                        <Table>
+                            <TableHead>
+                                <TableRow>
+                                    <TableCell width="40%">
+                                        <TableSortLabel
+                                            active={orderBy === 'name'}
+                                            direction={orderBy === 'name' ? order : 'asc'}
+                                            onClick={() => handleRequestSort('name')}
+                                        >
+                                            Name
+                                        </TableSortLabel>
+                                    </TableCell>
+                                    <TableCell width="20%">
+                                        <TableSortLabel
+                                            active={orderBy === 'updatedAt'}
+                                            direction={orderBy === 'updatedAt' ? order : 'asc'}
+                                            onClick={() => handleRequestSort('updatedAt')}
+                                        >
+                                            Modified
+                                        </TableSortLabel>
+                                    </TableCell>
+                                    <TableCell width="15%">
+                                        <TableSortLabel
+                                            active={orderBy === 'size'}
+                                            direction={orderBy === 'size' ? order : 'asc'}
+                                            onClick={() => handleRequestSort('size')}
+                                        >
+                                            Size
+                                        </TableSortLabel>
+                                    </TableCell>
+                                </TableRow>
+                            </TableHead>
+                            <TableBody>
+                                {/* Folders first */}
+                                {folders.map((item) => (
+                                    <TableRow
+                                        key={item.id}
+                                        hover
+                                        selected={selectedIds.has(item.id)}
+                                        sx={{ cursor: 'pointer', userSelect: 'none' }}
+                                        onClick={(e) => handleRowClick(e, item)}
+                                        onDoubleClick={() => handleRowDoubleClick(item)}
+                                        onContextMenu={(e) => handleContextMenu(e, item)}
+                                    >
+                                        <TableCell>
+                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                                <FolderIcon color="action" />
+                                                {item.name}
+                                                {item.isStarred && <StarIcon sx={{ fontSize: 16, color: 'warning.main' }} />}
+                                            </Box>
+                                        </TableCell>
+                                        <TableCell>
+                                            <Typography variant="body2" color="text.secondary">
+                                                {formatRelativeDate(item.updatedAt)}
+                                            </Typography>
+                                        </TableCell>
+                                        <TableCell>
+                                            <Typography variant="body2" color="text.secondary">
+                                                -
+                                            </Typography>
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+
+                                {/* Documents */}
+                                {documents.map((item) => (
+                                    <TableRow
+                                        key={item.id}
+                                        hover
+                                        selected={selectedIds.has(item.id)}
+                                        sx={{ cursor: 'pointer', userSelect: 'none' }}
+                                        onClick={(e) => handleRowClick(e, item)}
+                                        onDoubleClick={() => handleRowDoubleClick(item)}
+                                        onContextMenu={(e) => handleContextMenu(e, item)}
+                                    >
+                                        <TableCell>
+                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                                <FileIcon color="primary" />
+                                                {item.name}
+                                                {item.isStarred && <StarIcon sx={{ fontSize: 16, color: 'warning.main' }} />}
+                                                <FileShareIndicator fileId={item.id} shareLinks={item.shareLinks} />
+                                            </Box>
+                                        </TableCell>
+                                        <TableCell>
+                                            <Typography variant="body2" color="text.secondary">
+                                                {formatRelativeDate(item.updatedAt)}
+                                            </Typography>
+                                        </TableCell>
+                                        <TableCell>
+                                            <Typography variant="body2" color="text.secondary">
+                                                {formatBytes(item.size)}
+                                            </Typography>
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+
+                                {/* Other files */}
+                                {files.map((item) => (
+                                    <TableRow
+                                        key={item.id}
+                                        hover
+                                        selected={selectedIds.has(item.id)}
+                                        sx={{ cursor: 'pointer', userSelect: 'none' }}
+                                        onClick={(e) => handleRowClick(e, item)}
+                                        onDoubleClick={() => handleRowDoubleClick(item)}
+                                        onContextMenu={(e) => handleContextMenu(e, item)}
+                                    >
+                                        <TableCell>
+                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                                <FileIcon color="action" />
+                                                {item.name}
+                                                {item.isStarred && <StarIcon sx={{ fontSize: 16, color: 'warning.main' }} />}
+                                                <FileShareIndicator fileId={item.id} shareLinks={item.shareLinks} />
+                                            </Box>
+                                        </TableCell>
+                                        <TableCell>
+                                            <Typography variant="body2" color="text.secondary">
+                                                {formatRelativeDate(item.updatedAt)}
+                                            </Typography>
+                                        </TableCell>
+                                        <TableCell>
+                                            <Typography variant="body2" color="text.secondary">
+                                                {formatBytes(item.size)}
+                                            </Typography>
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </TableContainer>
+                )}
             </Box>
-
-            {/* Files Table */}
-            {items.length === 0 ? (
-                <Paper sx={{ p: 4, textAlign: 'center' }}>
-                    <Typography color="text.secondary">
-                        This folder is empty. Create a document or folder to get started.
-                    </Typography>
-                </Paper>
-            ) : (
-                <TableContainer component={Paper}>
-                    <Table>
-                        <TableHead>
-                            <TableRow>
-                                <TableCell width="50%">
-                                    <TableSortLabel
-                                        active={orderBy === 'name'}
-                                        direction={orderBy === 'name' ? order : 'asc'}
-                                        onClick={() => handleRequestSort('name')}
-                                    >
-                                        Name
-                                    </TableSortLabel>
-                                </TableCell>
-                                <TableCell>
-                                    <TableSortLabel
-                                        active={orderBy === 'updatedAt'}
-                                        direction={orderBy === 'updatedAt' ? order : 'asc'}
-                                        onClick={() => handleRequestSort('updatedAt')}
-                                    >
-                                        Modified
-                                    </TableSortLabel>
-                                </TableCell>
-                                <TableCell>
-                                    <TableSortLabel
-                                        active={orderBy === 'size'}
-                                        direction={orderBy === 'size' ? order : 'asc'}
-                                        onClick={() => handleRequestSort('size')}
-                                    >
-                                        Size
-                                    </TableSortLabel>
-                                </TableCell>
-                            </TableRow>
-                        </TableHead>
-                        <TableBody>
-                            {/* Folders first */}
-                            {folders.map((item) => (
-                                <TableRow
-                                    key={item.id}
-                                    hover
-                                    selected={selectedIds.has(item.id)}
-                                    sx={{ cursor: 'pointer', userSelect: 'none' }}
-                                    onClick={(e) => handleRowClick(e, item)}
-                                    onDoubleClick={() => handleRowDoubleClick(item)}
-                                    onContextMenu={(e) => handleContextMenu(e, item)}
-                                >
-                                    <TableCell>
-                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                            <FolderIcon color="action" />
-                                            {item.name}
-                                            {item.isStarred && <StarIcon sx={{ fontSize: 16, color: 'warning.main' }} />}
-                                        </Box>
-                                    </TableCell>
-                                    <TableCell>{formatRelativeDate(item.updatedAt)}</TableCell>
-                                    <TableCell>-</TableCell>
-                                </TableRow>
-                            ))}
-
-                            {/* Documents */}
-                            {documents.map((item) => (
-                                <TableRow
-                                    key={item.id}
-                                    hover
-                                    selected={selectedIds.has(item.id)}
-                                    sx={{ cursor: 'pointer', userSelect: 'none' }}
-                                    onClick={(e) => handleRowClick(e, item)}
-                                    onDoubleClick={() => handleRowDoubleClick(item)}
-                                    onContextMenu={(e) => handleContextMenu(e, item)}
-                                >
-                                    <TableCell>
-                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                            <FileIcon color="primary" />
-                                            {item.name}
-                                            {item.isStarred && <StarIcon sx={{ fontSize: 16, color: 'warning.main' }} />}
-                                            <FileShareIndicator fileId={item.id} shareLinks={item.shareLinks} />
-                                        </Box>
-                                    </TableCell>
-                                    <TableCell>{formatRelativeDate(item.updatedAt)}</TableCell>
-                                    <TableCell>{formatBytes(item.size)}</TableCell>
-                                </TableRow>
-                            ))}
-
-                            {/* Other files */}
-                            {files.map((item) => (
-                                <TableRow
-                                    key={item.id}
-                                    hover
-                                    selected={selectedIds.has(item.id)}
-                                    sx={{ cursor: 'pointer', userSelect: 'none' }}
-                                    onClick={(e) => handleRowClick(e, item)}
-                                    onDoubleClick={() => handleRowDoubleClick(item)}
-                                    onContextMenu={(e) => handleContextMenu(e, item)}
-                                >
-                                    <TableCell>
-                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                            <FileIcon color="action" />
-                                            {item.name}
-                                            {item.isStarred && <StarIcon sx={{ fontSize: 16, color: 'warning.main' }} />}
-                                            <FileShareIndicator fileId={item.id} shareLinks={item.shareLinks} />
-                                        </Box>
-                                    </TableCell>
-                                    <TableCell>{formatRelativeDate(item.updatedAt)}</TableCell>
-                                    <TableCell>{formatBytes(item.size)}</TableCell>
-                                </TableRow>
-                            ))}
-                        </TableBody>
-                    </Table>
-                </TableContainer>
-            )}
-
             {/* Context Menu */}
             <Menu
                 open={contextMenu !== null}

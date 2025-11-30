@@ -326,7 +326,7 @@ const SharedFilesPage = () => {
 
     return (
         <Container maxWidth="xl">
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 4 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 4, height: 40 }}>
                 <Breadcrumbs separator={<NavigateNextIcon fontSize="small" />} aria-label="breadcrumb">
                     <Link component={RouterLink} underline="hover" color="inherit" to={`/workspace/${workspaceId}`} sx={{ display: 'flex', alignItems: 'center' }}>
                         <HomeIcon sx={{ mr: 0.5 }} fontSize="inherit" />
@@ -342,10 +342,10 @@ const SharedFilesPage = () => {
                 <Typography variant="h5" fontWeight="bold" gutterBottom sx={{ mb: 1 }}>
                     공유 문서함
                 </Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
                     공유 링크가 생성된 문서 목록입니다.
                 </Typography>
-                <Box sx={{ height: 60, display: 'flex', alignItems: 'center', mb: 2 }}>
+                <Box sx={{ height: 32, display: 'flex', alignItems: 'center', mb: 2 }}>
                     <SelectionToolbar
                         selectedCount={selectedItems.size}
                         hasDocuments={true}

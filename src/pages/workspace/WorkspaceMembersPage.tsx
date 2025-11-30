@@ -1,4 +1,4 @@
-import { Alert, Box, Button, CircularProgress, Container, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, List, ListItem, ListItemText, MenuItem, Select, TextField, Typography, Tooltip } from '@mui/material';
+import { Alert, Box, Button, CircularProgress, Container, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, MenuItem, Select, TextField, Typography, Tooltip, Breadcrumbs, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper } from '@mui/material';
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
@@ -6,6 +6,7 @@ import { useAuth } from '../../context/AuthContext';
 import { getWorkspaceMembers, inviteWorkspaceMember, changeWorkspaceMemberRole, removeWorkspaceMember, type MembershipSummary } from '../../lib/api';
 import PersonAddIcon from '@mui/icons-material/PersonAdd';
 import DeleteIcon from '@mui/icons-material/Delete';
+import NavigateNextIcon from '@mui/icons-material/NavigateNext';
 
 const WorkspaceMembersPage = () => {
   const { workspaceId } = useParams<{ workspaceId: string }>();
@@ -93,9 +94,11 @@ const WorkspaceMembersPage = () => {
     }
   };
 
+
+
   if (loading) {
     return (
-      <Container sx={{ mt: 4, textAlign: 'center' }}>
+      <Container maxWidth="xl" sx={{ py: 4, display: 'flex', justifyContent: 'center' }}>
         <CircularProgress />
       </Container>
     );
@@ -103,18 +106,21 @@ const WorkspaceMembersPage = () => {
 
   if (error) {
     return (
-      <Container sx={{ mt: 4 }}>
+      <Container maxWidth="xl" sx={{ py: 4 }}>
         <Alert severity="error">{error}</Alert>
       </Container>
     );
   }
 
   return (
-    <Container maxWidth="md" sx={{ mt: 4, mb: 4 }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h4" component="h1">
-          Workspace Members
-        </Typography>
+    <Container maxWidth="xl">
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 4, height: 40 }}>
+        <Breadcrumbs separator={<NavigateNextIcon fontSize="small" />} aria-label="breadcrumb">
+          <Typography color="text.primary" fontWeight="600" sx={{ display: 'flex', alignItems: 'center' }}>
+            Members
+          </Typography>
+        </Breadcrumbs>
+
         <Button
           variant="contained"
           startIcon={<PersonAddIcon />}
@@ -124,51 +130,85 @@ const WorkspaceMembersPage = () => {
         </Button>
       </Box>
 
-      <List>
-        {members.map((member) => (
-          <ListItem
-            key={member.id}
-            secondaryAction={
-              <>
-                <Select
-                  value={member.role}
-                  onChange={(e) => handleChangeRole(member.accountId, e.target.value as 'owner' | 'admin' | 'member')}
-                  disabled={member.accountId === user?.id} // Disable role change for self
-                >
-                  <MenuItem value="owner">Owner</MenuItem>
-                  <MenuItem value="admin">Admin</MenuItem>
-                  <MenuItem value="member">Member</MenuItem>
-                </Select>
-                <Tooltip
-                  title={
-                    member.accountId === user?.id
-                      ? "자기 자신은 삭제할 수 없습니다"
-                      : member.role === 'owner' && members.filter(m => m.role === 'owner').length <= 1
-                        ? "최소 1명의 Owner가 필요합니다"
-                        : "멤버 삭제"
-                  }
-                >
-                  <span>
-                    <IconButton
-                      edge="end"
-                      aria-label="delete"
-                      onClick={() => handleRemoveMember(member.accountId, member.role)}
-                      disabled={
-                        member.accountId === user?.id ||
-                        (member.role === 'owner' && members.filter(m => m.role === 'owner').length <= 1)
+      <Box sx={{ mb: 4 }}>
+        <Typography variant="h5" fontWeight="bold" gutterBottom sx={{ mb: 1 }}>
+          Workspace Members
+        </Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+          Manage members and their roles in this workspace.
+        </Typography>
+
+        <TableContainer component={Paper} variant="outlined" sx={{ border: 'none' }}>
+          <Table>
+            <TableHead>
+              <TableRow>
+                <TableCell width="40%">Name</TableCell>
+                <TableCell width="20%">Role</TableCell>
+                <TableCell width="15%">Actions</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {members.map((member) => (
+                <TableRow key={member.id} hover>
+                  <TableCell>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Typography variant="body2">
+                        {member.displayName || member.accountId}
+                      </Typography>
+                      {member.accountId === user?.id && (
+                        <Typography variant="caption" color="text.secondary" sx={{ bgcolor: 'action.hover', px: 1, borderRadius: 1 }}>
+                          You
+                        </Typography>
+                      )}
+                    </Box>
+                  </TableCell>
+                  <TableCell>
+                    <Select
+                      value={member.role}
+                      onChange={(e) => handleChangeRole(member.accountId, e.target.value as 'owner' | 'admin' | 'member')}
+                      disabled={member.accountId === user?.id}
+                      size="small"
+                      variant="standard"
+                      disableUnderline
+                      sx={{ fontSize: '0.875rem' }}
+                    >
+                      <MenuItem value="owner">Owner</MenuItem>
+                      <MenuItem value="admin">Admin</MenuItem>
+                      <MenuItem value="member">Member</MenuItem>
+                    </Select>
+                  </TableCell>
+                  <TableCell>
+                    <Tooltip
+                      title={
+                        member.accountId === user?.id
+                          ? "Cannot remove yourself"
+                          : member.role === 'owner' && members.filter(m => m.role === 'owner').length <= 1
+                            ? "At least one owner required"
+                            : "Remove member"
                       }
                     >
-                      <DeleteIcon />
-                    </IconButton>
-                  </span>
-                </Tooltip>
-              </>
-            }
-          >
-            <ListItemText primary={member.displayName || member.accountId} secondary={`Role: ${member.role}`} />
-          </ListItem>
-        ))}
-      </List>
+                      <span>
+                        <IconButton
+                          edge="end"
+                          aria-label="delete"
+                          onClick={() => handleRemoveMember(member.accountId, member.role)}
+                          disabled={
+                            member.accountId === user?.id ||
+                            (member.role === 'owner' && members.filter(m => m.role === 'owner').length <= 1)
+                          }
+                          size="small"
+                        >
+                          <DeleteIcon fontSize="small" />
+                        </IconButton>
+                      </span>
+                    </Tooltip>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      </Box>
 
       <Dialog open={inviteDialogOpen} onClose={() => setInviteDialogOpen(false)}>
         <DialogTitle>Invite New Member</DialogTitle>

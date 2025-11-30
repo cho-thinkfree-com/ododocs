@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import {
     Box,
+    Container,
     Typography,
     Table,
     TableBody,
@@ -10,9 +11,6 @@ import {
     TableHead,
     TableRow,
     Paper,
-    IconButton,
-    Tooltip,
-    CircularProgress,
     Dialog,
     DialogTitle,
     DialogContent,
@@ -24,7 +22,7 @@ import {
     Snackbar,
     Alert,
     TableSortLabel,
-    Checkbox,
+    CircularProgress,
 } from '@mui/material'
 import RestoreIcon from '@mui/icons-material/Restore'
 import DeleteForeverIcon from '@mui/icons-material/DeleteForever'
@@ -377,112 +375,121 @@ export default function TrashPage() {
     }
 
     return (
-        <Box p={3} onKeyDown={handleKeyDown} tabIndex={0} sx={{ outline: 'none' }}>
-            <Breadcrumbs separator={<NavigateNextIcon fontSize="small" />} sx={{ mb: 2 }}>
-                <Link
-                    component="button"
-                    variant="body1"
-                    onClick={() => navigate(`/workspace/${workspaceId}`)}
-                    sx={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        textDecoration: 'none',
-                        color: 'text.primary',
-                        '&:hover': {
-                            textDecoration: 'underline',
-                        },
-                    }}
-                >
-                    <HomeIcon sx={{ mr: 0.5 }} fontSize="inherit" />
-                    Files
-                </Link>
-                <Typography color="text.primary">Trash</Typography>
-            </Breadcrumbs>
-
-            <Typography variant="h4" gutterBottom>
-                Trash
-            </Typography>
-            <Typography variant="body2" color="text.secondary" gutterBottom>
-                Items in trash are permanently deleted after 7 days
-            </Typography>
-
-            <Box sx={{ height: 60, display: 'flex', alignItems: 'center', mb: 2 }}>
-                <TrashSelectionToolbar
-                    selectedCount={selectedItems.size}
-                    onClearSelection={handleClearSelection}
-                    onRestoreAll={handleBulkRestore}
-                    onPermanentDeleteAll={handleBulkPermanentDelete}
-                    onSelectAll={handleSelectAll}
-                />
+        <Container maxWidth="xl" onKeyDown={handleKeyDown} tabIndex={0} sx={{ outline: 'none' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 4, height: 40 }}>
+                <Breadcrumbs separator={<NavigateNextIcon fontSize="small" />} aria-label="breadcrumb">
+                    <Link
+                        component="button"
+                        underline="hover"
+                        color="inherit"
+                        onClick={() => navigate(`/workspace/${workspaceId}/files`)}
+                        sx={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}
+                    >
+                        <HomeIcon sx={{ mr: 0.5 }} fontSize="inherit" />
+                        Files
+                    </Link>
+                    <Typography color="text.primary" fontWeight="600" sx={{ display: 'flex', alignItems: 'center' }}>
+                        Trash
+                    </Typography>
+                </Breadcrumbs>
             </Box>
 
-            {items.length === 0 ? (
-                <Box mt={4}>
-                    <Typography color="text.secondary">Trash is empty</Typography>
+            <Box sx={{ mb: 4 }}>
+                <Typography variant="h5" fontWeight="bold" gutterBottom sx={{ mb: 1 }}>
+                    Trash
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                    Items in trash are permanently deleted after 7 days.
+                </Typography>
+
+                <Box sx={{ height: 32, display: 'flex', alignItems: 'center', mb: 2 }}>
+                    <TrashSelectionToolbar
+                        selectedCount={selectedItems.size}
+                        onClearSelection={handleClearSelection}
+                        onRestoreAll={handleBulkRestore}
+                        onPermanentDeleteAll={handleBulkPermanentDelete}
+                        onSelectAll={handleSelectAll}
+                    />
                 </Box>
-            ) : (
-                <TableContainer component={Paper} sx={{ mt: 3 }}>
-                    <Table>
-                        <TableHead>
-                            <TableRow>
-                                <TableCell>
-                                    <TableSortLabel
-                                        active={orderBy === 'name'}
-                                        direction={orderBy === 'name' ? order : 'asc'}
-                                        onClick={() => handleRequestSort('name')}
-                                    >
-                                        Name
-                                    </TableSortLabel>
-                                </TableCell>
-                                <TableCell>Location</TableCell>
-                                <TableCell>
-                                    <TableSortLabel
-                                        active={orderBy === 'deletedAt'}
-                                        direction={orderBy === 'deletedAt' ? order : 'asc'}
-                                        onClick={() => handleRequestSort('deletedAt')}
-                                    >
-                                        Deleted
-                                    </TableSortLabel>
-                                </TableCell>
-                                <TableCell>
-                                    <TableSortLabel
-                                        active={orderBy === 'size'}
-                                        direction={orderBy === 'size' ? order : 'asc'}
-                                        onClick={() => handleRequestSort('size')}
-                                    >
-                                        Size
-                                    </TableSortLabel>
-                                </TableCell>
-                            </TableRow>
-                        </TableHead>
-                        <TableBody>
-                            {items.map((item) => (
-                                <TableRow
-                                    key={item.id}
-                                    hover
-                                    selected={selectedItems.has(item.id)}
-                                    onClick={(e) => handleRowClick(item.id, e)}
-                                    sx={{ cursor: 'pointer', userSelect: 'none' }}
-                                >
-                                    <TableCell>
-                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                            {item.type === 'folder' ? <FolderIcon color="action" /> : <ArticleIcon color="action" />}
-                                            {item.name}
-                                        </Box>
+
+                {items.length === 0 ? (
+                    <Paper sx={{ p: 6, textAlign: 'center', borderStyle: 'dashed', bgcolor: 'transparent' }}>
+                        <Typography color="text.secondary">
+                            Trash is empty.
+                        </Typography>
+                    </Paper>
+                ) : (
+                    <TableContainer component={Paper} variant="outlined" sx={{ border: 'none' }}>
+                        <Table>
+                            <TableHead>
+                                <TableRow>
+                                    <TableCell width="40%">
+                                        <TableSortLabel
+                                            active={orderBy === 'name'}
+                                            direction={orderBy === 'name' ? order : 'asc'}
+                                            onClick={() => handleRequestSort('name')}
+                                        >
+                                            Name
+                                        </TableSortLabel>
                                     </TableCell>
-                                    <TableCell>
-                                        <Typography variant="body2" color="text.secondary">
-                                            {item.location || 'Root'}
-                                        </Typography>
+                                    <TableCell width="25%">Location</TableCell>
+                                    <TableCell width="20%">
+                                        <TableSortLabel
+                                            active={orderBy === 'deletedAt'}
+                                            direction={orderBy === 'deletedAt' ? order : 'asc'}
+                                            onClick={() => handleRequestSort('deletedAt')}
+                                        >
+                                            Deleted
+                                        </TableSortLabel>
                                     </TableCell>
-                                    <TableCell>{formatDate(item.deletedAt)}</TableCell>
-                                    <TableCell>{formatSize(item.size)}</TableCell>
+                                    <TableCell width="15%">
+                                        <TableSortLabel
+                                            active={orderBy === 'size'}
+                                            direction={orderBy === 'size' ? order : 'asc'}
+                                            onClick={() => handleRequestSort('size')}
+                                        >
+                                            Size
+                                        </TableSortLabel>
+                                    </TableCell>
                                 </TableRow>
-                            ))}
-                        </TableBody>
-                    </Table>
-                </TableContainer>
-            )}
+                            </TableHead>
+                            <TableBody>
+                                {items.map((item) => (
+                                    <TableRow
+                                        key={item.id}
+                                        hover
+                                        selected={selectedItems.has(item.id)}
+                                        onClick={(e) => handleRowClick(item.id, e)}
+                                        sx={{ cursor: 'pointer', userSelect: 'none' }}
+                                    >
+                                        <TableCell>
+                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                                {item.type === 'folder' ? <FolderIcon color="action" /> : <ArticleIcon color="action" />}
+                                                {item.name}
+                                            </Box>
+                                        </TableCell>
+                                        <TableCell>
+                                            <Typography variant="body2" color="text.secondary">
+                                                {item.location || 'Root'}
+                                            </Typography>
+                                        </TableCell>
+                                        <TableCell>
+                                            <Typography variant="body2" color="text.secondary">
+                                                {formatDate(item.deletedAt)}
+                                            </Typography>
+                                        </TableCell>
+                                        <TableCell>
+                                            <Typography variant="body2" color="text.secondary">
+                                                {formatSize(item.size)}
+                                            </Typography>
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </TableContainer>
+                )}
+            </Box>
 
             <Dialog
                 open={bulkDeleteDialogOpen}
@@ -532,6 +539,6 @@ export default function TrashPage() {
                     {snackbarMessage}
                 </Alert>
             </Snackbar>
-        </Box>
+        </Container>
     )
 }

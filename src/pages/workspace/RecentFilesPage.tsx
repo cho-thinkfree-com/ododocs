@@ -133,7 +133,7 @@ const RecentFilesPage = () => {
 
     return (
         <Container maxWidth="xl">
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 4 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 4, height: 40 }}>
                 <Breadcrumbs separator={<NavigateNextIcon fontSize="small" />} aria-label="breadcrumb">
                     <Link component={RouterLink} underline="hover" color="inherit" to={`/workspace/${workspaceId}/files`} sx={{ display: 'flex', alignItems: 'center' }}>
                         <HomeIcon sx={{ mr: 0.5 }} fontSize="inherit" />
@@ -149,10 +149,10 @@ const RecentFilesPage = () => {
                 <Typography variant="h5" fontWeight="bold" gutterBottom sx={{ mb: 1 }}>
                     Recent Files
                 </Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
                     Recently modified files in this workspace.
                 </Typography>
-                <Box sx={{ height: 60, display: 'flex', alignItems: 'center', mb: 2 }}>
+                <Box sx={{ height: 32, display: 'flex', alignItems: 'center', mb: 2 }}>
                     <SelectionToolbar
                         selectedCount={selectedItems.size}
                         onClearSelection={() => setSelectedItems(new Set())}
@@ -174,9 +174,9 @@ const RecentFilesPage = () => {
                         <Table>
                             <TableHead>
                                 <TableRow>
-                                    <TableCell width="50%">Name</TableCell>
-                                    <TableCell>Size</TableCell>
-                                    <TableCell>Modified</TableCell>
+                                    <TableCell width="40%">Name</TableCell>
+                                    <TableCell width="20%">Modified</TableCell>
+                                    <TableCell width="15%">Size</TableCell>
                                 </TableRow>
                             </TableHead>
                             <TableBody>
@@ -199,12 +199,12 @@ const RecentFilesPage = () => {
                                         </TableCell>
                                         <TableCell>
                                             <Typography variant="body2" color="text.secondary">
-                                                {formatBytes(doc.size)}
+                                                {formatRelativeDate(doc.updatedAt)}
                                             </Typography>
                                         </TableCell>
                                         <TableCell>
                                             <Typography variant="body2" color="text.secondary">
-                                                {formatRelativeDate(doc.updatedAt)}
+                                                {formatBytes(doc.size)}
                                             </Typography>
                                         </TableCell>
                                     </TableRow>
