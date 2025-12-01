@@ -1,22 +1,36 @@
-import { Alert, Box, Button, CircularProgress, Container, TextField, Typography, Paper, Stack, Divider } from '@mui/material';
+import { Alert, Box, Button, CircularProgress, Container, TextField, Typography, Paper, Stack, Divider, Chip } from '@mui/material';
 import { useEffect, useMemo, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import ErrorIcon from '@mui/icons-material/Error';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import { useAuth } from '../../context/AuthContext';
 import { getWorkspace, getWorkspaceMemberProfile, updateWorkspace, type WorkspaceSummary, type MembershipSummary } from '../../lib/api';
 import { useI18n } from '../../lib/i18n';
 
 const WorkspaceSettingsPage = () => {
   const { workspaceId } = useParams<{ workspaceId: string }>();
+  const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
   const { strings } = useI18n();
   const [workspace, setWorkspace] = useState<WorkspaceSummary | null>(null);
   const [membership, setMembership] = useState<MembershipSummary | null>(null);
+
+  // General Section State
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
+
+  // Initial State for Change Detection
+  const [initialName, setInitialName] = useState('');
+  const [initialDescription, setInitialDescription] = useState('');
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [isSaving, setIsSaving] = useState(false);
-  const [saveSuccess, setSaveSuccess] = useState(false);
+
+  // Saving States
+  const [isSavingGeneral, setIsSavingGeneral] = useState(false);
+  const [generalSuccess, setGeneralSuccess] = useState(false);
+  const [generalError, setGeneralError] = useState<string | null>(null);
 
   const isPrivileged = useMemo(
     () => membership?.role === 'owner' || membership?.role === 'admin',
@@ -33,8 +47,12 @@ const WorkspaceSettingsPage = () => {
         .then(([currentWorkspace, member]) => {
           setWorkspace(currentWorkspace);
           setMembership(member);
+
           setName(currentWorkspace.name);
           setDescription(currentWorkspace.description || '');
+
+          setInitialName(currentWorkspace.name);
+          setInitialDescription(currentWorkspace.description || '');
         })
         .catch((err) => {
           setError((err as Error).message);
@@ -45,21 +63,28 @@ const WorkspaceSettingsPage = () => {
     }
   }, [isAuthenticated, workspaceId]);
 
-  const handleSave = async () => {
-    if (!isAuthenticated || !workspaceId) {
-      return;
-    }
-    setIsSaving(true);
-    setError(null);
-    setSaveSuccess(false);
+  const handleSaveGeneral = async () => {
+    if (!isAuthenticated || !workspaceId) return;
+
+    setIsSavingGeneral(true);
+    setGeneralError(null);
+    setGeneralSuccess(false);
 
     try {
       await updateWorkspace(workspaceId, { name, description });
-      setSaveSuccess(true);
+      setGeneralSuccess(true);
+      setInitialName(name);
+      setInitialDescription(description);
+
+      // Dispatch event to update global layout
+      window.dispatchEvent(new CustomEvent('workspace-updated', { detail: { workspaceId } }));
+
+      // Clear success message after 3 seconds
+      setTimeout(() => setGeneralSuccess(false), 3000);
     } catch (err) {
-      setError((err as Error).message);
+      setGeneralError((err as Error).message);
     } finally {
-      setIsSaving(false);
+      setIsSavingGeneral(false);
     }
   };
 
@@ -89,14 +114,57 @@ const WorkspaceSettingsPage = () => {
 
   return (
     <Container maxWidth="md" sx={{ mt: 4, mb: 4 }}>
-      <Typography variant="h4" component="h1" fontWeight="bold" sx={{ mb: 3 }}>
-        {strings.workspace.updateTitle}
-      </Typography>
+      {/* Header */}
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2, mb: 3 }}>
+        <Typography variant="h4" component="h1" fontWeight="bold">
+          {strings.workspace.updateTitle || 'Workspace Settings'}
+        </Typography>
+        <Button
+          variant="outlined"
+          startIcon={<ArrowBackIcon />}
+          onClick={() => navigate(`/workspace/${workspaceId}`)}
+        >
+          {strings.workspace.backToFiles || 'Back to Files'}
+        </Button>
+      </Box>
 
-      <Paper variant="outlined" sx={{ p: 3 }}>
-        <Stack spacing={3} divider={<Divider flexItem />}>
+      <Stack spacing={3}>
+        {/* General Section */}
+        <Paper variant="outlined" sx={{ p: 3 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Typography variant="h6">General</Typography>
+              <Box sx={{ minWidth: 80, display: 'flex', justifyContent: 'center' }}>
+                {generalSuccess && (
+                  <Chip
+                    icon={<CheckCircleIcon />}
+                    label="Saved"
+                    color="success"
+                    size="small"
+                  />
+                )}
+                {generalError && (
+                  <Chip
+                    icon={<ErrorIcon />}
+                    label="Error"
+                    color="error"
+                    size="small"
+                  />
+                )}
+              </Box>
+            </Box>
+            <Button
+              variant="contained"
+              onClick={handleSaveGeneral}
+              disabled={isSavingGeneral || !isPrivileged || (name === initialName && description === initialDescription)}
+              size="small"
+            >
+              {isSavingGeneral ? <CircularProgress size={20} /> : (strings.workspace.updateButton || 'Save Changes')}
+            </Button>
+          </Box>
+
           {!isPrivileged && (
-            <Alert severity="info">
+            <Alert severity="info" sx={{ mb: 2 }}>
               <Typography variant="subtitle2" fontWeight={600}>
                 {strings.workspace.settingsAccessRestricted}
               </Typography>
@@ -104,14 +172,13 @@ const WorkspaceSettingsPage = () => {
             </Alert>
           )}
 
-          <Box component="form" sx={{ display: 'grid', gap: 2 }}>
+          <Stack spacing={2}>
             <TextField
               label={strings.workspace.createWorkspacePlaceholder}
               fullWidth
               value={name}
               onChange={(e) => setName(e.target.value)}
-              margin="normal"
-              disabled={isSaving || !isPrivileged}
+              disabled={isSavingGeneral || !isPrivileged}
             />
             <TextField
               label={strings.workspace.descriptionLabel}
@@ -120,27 +187,35 @@ const WorkspaceSettingsPage = () => {
               rows={4}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              margin="normal"
-              disabled={isSaving || !isPrivileged}
+              disabled={isSavingGeneral || !isPrivileged}
             />
-            <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
-              <Button
-                variant="contained"
-                onClick={handleSave}
-                disabled={isSaving || !isPrivileged}
-              >
-                {isSaving ? <CircularProgress size={18} /> : strings.workspace.updateButton}
-              </Button>
-            </Box>
-            {saveSuccess && (
-              <Alert severity="success">{strings.workspace.updateSuccess}</Alert>
+            {generalError && (
+              <Alert severity="error">{generalError}</Alert>
             )}
-            {error && (
-              <Alert severity="error">{error}</Alert>
-            )}
+          </Stack>
+        </Paper>
+
+        {/* Subscription Section */}
+        <Paper variant="outlined" sx={{ p: 3 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+            <Typography variant="h6">Subscription</Typography>
+            <Button variant="outlined" disabled size="small">
+              Manage Subscription
+            </Button>
           </Box>
-        </Stack>
-      </Paper>
+
+          <Box sx={{
+            p: 4,
+            bgcolor: 'action.hover',
+            borderRadius: 1,
+            textAlign: 'center'
+          }}>
+            <Typography variant="body1" color="text.secondary" paragraph>
+              Subscription management features will be available soon.
+            </Typography>
+          </Box>
+        </Paper>
+      </Stack>
     </Container>
   );
 };

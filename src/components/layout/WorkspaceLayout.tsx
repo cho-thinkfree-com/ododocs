@@ -1,4 +1,4 @@
-import { Box, Drawer, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Divider, useTheme, useMediaQuery, alpha } from '@mui/material';
+import { Box, Drawer, List, ListItem, ListItemButton, ListItemIcon, ListItemText, useTheme, useMediaQuery, alpha } from '@mui/material';
 import { Outlet, useNavigate, useLocation, useParams } from 'react-router-dom';
 import FolderIcon from '@mui/icons-material/Folder';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -7,10 +7,10 @@ import GroupIcon from '@mui/icons-material/Group';
 import FolderSharedIcon from '@mui/icons-material/FolderShared';
 import HistoryIcon from '@mui/icons-material/History';
 import StarIcon from '@mui/icons-material/Star';
-import InsertDriveFileIcon from '@mui/icons-material/InsertDriveFile';
+
 import { useI18n } from '../../lib/i18n';
-import { useState } from 'react';
-import WorkspaceSettingsDialog from '../workspace/WorkspaceSettingsDialog';
+
+
 
 const DRAWER_WIDTH = 240;
 
@@ -21,7 +21,7 @@ const WorkspaceLayout = () => {
     const location = useLocation();
     const { workspaceId } = useParams<{ workspaceId: string }>();
     const { strings } = useI18n();
-    const [settingsDialogOpen, setSettingsDialogOpen] = useState(false);
+
 
     if (!workspaceId) return null;
 
@@ -67,7 +67,7 @@ const WorkspaceLayout = () => {
             text: strings.workspace.settingsTitle || 'Settings',
             icon: <SettingsIcon />,
             path: `/workspace/${workspaceId}/settings`,
-            onClick: () => setSettingsDialogOpen(true)
+            onClick: () => navigate(`/workspace/${workspaceId}/settings`)
         }
     ];
 
@@ -145,16 +145,7 @@ const WorkspaceLayout = () => {
             >
                 <Outlet />
             </Box>
-            <WorkspaceSettingsDialog
-                open={settingsDialogOpen}
-                onClose={() => setSettingsDialogOpen(false)}
-                workspaceId={workspaceId}
-                initialTab="general"
-                onWorkspaceUpdated={() => {
-                    // Dispatch custom event to notify DashboardLayout to refresh workspace data
-                    window.dispatchEvent(new CustomEvent('workspace-updated', { detail: { workspaceId } }));
-                }}
-            />
+
         </Box>
     );
 };

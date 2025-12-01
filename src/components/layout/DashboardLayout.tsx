@@ -54,19 +54,19 @@ const DashboardLayout = () => {
 
     useEffect(() => {
         fetchWorkspaceData();
-    }, [fetchWorkspaceData]);
 
-    // Listen for workspace updates
-    useEffect(() => {
-        const handleWorkspaceUpdate = () => {
-            fetchWorkspaceData();
+        const handleWorkspaceUpdate = (event: Event) => {
+            const customEvent = event as CustomEvent;
+            if (customEvent.detail?.workspaceId === workspaceId) {
+                fetchWorkspaceData();
+            }
         };
 
         window.addEventListener('workspace-updated', handleWorkspaceUpdate);
         return () => {
             window.removeEventListener('workspace-updated', handleWorkspaceUpdate);
         };
-    }, [fetchWorkspaceData]);
+    }, [fetchWorkspaceData, workspaceId]);
 
 
 
