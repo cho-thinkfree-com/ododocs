@@ -177,7 +177,12 @@ export interface FileSystemEntry {
 }
 
 // Backwards compatibility aliases
-export type DocumentSummary = FileSystemEntry & { type: 'file'; mimeType: 'application/x-odocs' }
+export type DocumentSummary = FileSystemEntry & {
+  type: 'file';
+  mimeType: 'application/x-odocs';
+  title?: string;
+  documentNumber?: number;
+}
 export type FolderSummary = FileSystemEntry & { type: 'folder' }
 export type FileSummary = FileSystemEntry & { type: 'file' }
 
@@ -620,6 +625,10 @@ export async function getBlogByHandle(handle: string, page = 1, limit = 10) {
 
 export async function checkBlogHandleAvailability(handle: string) {
   return requestJSON<{ available: boolean }>(`/api/v1/blog/check/${handle}`)
+}
+
+export async function getBlogDocument(handle: string, documentNumber: string) {
+  return requestJSON<any>(`/api/v1/blog/${handle}/documents/${documentNumber}`)
 }
 
 // Trash

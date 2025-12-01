@@ -27,6 +27,7 @@ const AuthorInfoButton = ({ token, handle, authorName, document, accessType }: A
 
     // Construct currentDocInfo from document prop
     const currentDocInfo = document ? {
+        id: document.id,
         title: document.name,
         viewCount: (document as any).viewCount,
         createdAt: document.createdAt,

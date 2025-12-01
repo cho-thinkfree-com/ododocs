@@ -157,7 +157,7 @@ async function buildServer() {
   const { BlogRepository } = await import('./modules/blog/blogRepository.js')
   const { BlogService } = await import('./modules/blog/blogService.js')
   const blogRepository = new BlogRepository(db)
-  const blogService = new BlogService(blogRepository)
+  const blogService = new BlogService(blogRepository, storageService)
 
   // Register routes AFTER authenticate is defined
   const createUnauthorized = (message: string) => {
@@ -554,6 +554,23 @@ async function buildServer() {
     const { handle } = request.params as { handle: string }
     const available = await blogService.checkHandleAvailability(handle)
     return { available }
+  })
+
+  // Get single blog document by index
+  app.get('/api/v1/blog/:handle/documents/:documentNumber', async (request, reply) => {
+    const { handle, documentNumber } = request.params as { handle: string; documentNumber: string }
+    const docNumber = parseInt(documentNumber, 10)
+
+    if (isNaN(docNumber)) {
+      return reply.status(400).send({ error: 'Invalid document number' })
+    }
+
+    const result = await blogService.getDocumentByHandleAndIndex(handle, docNumber)
+    if (!result) {
+      return reply.status(404).send({ error: 'Document not found' })
+    }
+
+    return result
   })
 
   // Get author documents by share token

@@ -16,9 +16,8 @@ export interface CreateFileSystemEntryInput {
     mimeType?: string;
     extension?: string;
     size?: bigint;
+    fileIndex?: number;
     createdBy: string;
-    description?: string;
-    tags?: string[];
 }
 
 export interface UpdateFileSystemEntryInput {
@@ -37,20 +36,14 @@ export interface UpdateFileSystemEntryInput {
 export class FileSystemRepository {
     constructor(private db: PrismaClient) { }
 
-    async create(input: CreateFileSystemEntryInput): Promise<FileSystemEntry> {
+    async create(data: CreateFileSystemEntryInput): Promise<FileSystemEntry> {
         return this.db.fileSystemEntry.create({
             data: {
-                name: input.name,
-                displayName: input.name, // Initialize displayName with name
-                type: input.type,
-                parentId: input.parentId,
-                workspaceId: input.workspaceId,
-                mimeType: input.mimeType,
-                extension: input.extension,
-                size: input.size,
-                createdBy: input.createdBy,
-                description: input.description,
-                tags: input.tags || [],
+                ...data,
+                // Ensure parentId is null if undefined
+                parentId: data.parentId || null,
+                displayName: data.name, // Initialize displayName with name
+                // description and tags are not part of CreateFileSystemEntryInput anymore
                 // isShared defaults to false in schema
             },
         });
@@ -441,5 +434,20 @@ export class FileSystemRepository {
         });
 
         console.log(`[incrementViewCount] View count incremented for file: ${entry.name} (new: ${entry.viewCount + 1})`);
+    }
+
+
+
+    async getNextFileIndexAtomic(workspaceId: string): Promise<number> {
+        const workspace = await this.db.workspace.update({
+            where: { id: workspaceId },
+            data: {
+                lastFileIndex: {
+                    increment: 1
+                }
+            },
+            select: { lastFileIndex: true }
+        });
+        return workspace.lastFileIndex;
     }
 }

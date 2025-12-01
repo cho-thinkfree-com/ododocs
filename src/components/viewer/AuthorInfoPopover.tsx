@@ -11,6 +11,7 @@ import { useI18n } from '../../lib/i18n';
 import React from 'react';
 
 export interface CurrentDocInfo {
+    id?: string;
     title: string;
     viewCount?: number;
     createdAt: string | Date;
@@ -111,13 +112,16 @@ const AuthorInfoPopover = ({ open, anchorEl, onClose, token, handle, authorName,
             return dateB - dateA; // Most recent first
         });
 
-    // Find current document based on token match
-    let currentDocument = publicDocuments.find((doc: any) => doc.publicToken === token);
+    // Find current document based on token match OR ID match
+    let currentDocument = publicDocuments.find((doc: any) =>
+        doc.publicToken === token || (currentDocInfo?.id && doc.id === currentDocInfo.id)
+    );
 
     // Fallback to currentDocInfo if not found in list (e.g. link-only shared doc)
     if (!currentDocument && currentDocInfo) {
         currentDocument = {
             isCurrentDocument: true,
+            id: currentDocInfo.id,
             title: currentDocInfo.title,
             viewCount: currentDocInfo.viewCount,
             createdAt: currentDocInfo.createdAt,
@@ -247,7 +251,7 @@ const AuthorInfoPopover = ({ open, anchorEl, onClose, token, handle, authorName,
                                 </Typography>
                                 <List dense disablePadding>
                                     {publicDocuments.slice(0, 5).map((doc: any) => {
-                                        const isCurrentDoc = doc.publicToken === token;
+                                        const isCurrentDoc = doc.publicToken === token || (currentDocInfo?.id && doc.id === currentDocInfo.id);
                                         return (
                                             <ListItem
                                                 key={doc.id}

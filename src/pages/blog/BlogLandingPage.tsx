@@ -88,11 +88,14 @@ const BlogLandingPage = () => {
     const handleDocumentClick = (doc: DocumentSummary) => {
         // Use publicToken if available (from new API or legacy)
         const token = (doc as any).publicToken;
-        const titleSlug = slugify(doc.title);
+        const titleSlug = slugify(doc.title || '');
 
-        if (token) {
+        if (handle && doc.documentNumber) {
+            // New standard blog URL with sequential index
+            window.open(`/blog/${handle}/documents/${doc.documentNumber}/${titleSlug}`, '_blank');
+        } else if (token) {
             if (handle) {
-                // New standard blog URL
+                // Fallback to token if no document number (shouldn't happen for new files)
                 window.open(`/blog/${handle}/documents/${token}/${titleSlug}`, '_blank');
             } else if (workspaceId && profileId) {
                 // Legacy blog URL structure
@@ -101,9 +104,6 @@ const BlogLandingPage = () => {
                 // Fallback to generic public viewer
                 window.open(`/public/${token}/${titleSlug}`, '_blank');
             }
-        } else if (handle && doc.documentNumber) {
-            // Fallback to legacy document number route if no token
-            window.open(`/blog/${handle}/documents/${doc.documentNumber}/${titleSlug}`, '_blank');
         } else {
             console.warn('Cannot navigate: no public token available');
         }
@@ -166,7 +166,7 @@ const BlogLandingPage = () => {
 
             <ThemeSelector
                 currentThemeId={activeThemeId}
-                ownerDefaultThemeId={profile.blogTheme}
+                ownerDefaultThemeId={profile.blogTheme || undefined}
                 onThemeChange={(newThemeId) => {
                     setActiveThemeId(newThemeId);
                     if (handle) {

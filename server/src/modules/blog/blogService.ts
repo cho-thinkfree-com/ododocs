@@ -1,7 +1,12 @@
+
 import { BlogRepository, type BlogProfile, type BlogDocument } from './blogRepository.js';
+import { StorageService } from '../storage/storageService.js';
 
 export class BlogService {
-    constructor(private blogRepository: BlogRepository) { }
+    constructor(
+        private blogRepository: BlogRepository,
+        private storageService: StorageService
+    ) { }
 
     async getProfileByHandle(handle: string): Promise<BlogProfile | null> {
         return this.blogRepository.findProfileByHandle(handle);
@@ -36,6 +41,37 @@ export class BlogService {
                 totalPages: Math.ceil(result.total / limit),
             },
         };
+    }
+
+    async getDocumentByHandleAndIndex(handle: string, documentNumber: number) {
+        const profile = await this.blogRepository.findProfileByHandle(handle);
+        if (!profile) return null;
+
+        const result = await this.blogRepository.findDocumentByIndex(profile.membershipId, documentNumber);
+        if (!result || !result.revision) return result;
+
+        // Fetch content from storage
+        if (result.revision.storageKey) {
+            try {
+                const buffer = await this.storageService.getObject(result.revision.storageKey);
+                const contentJson = buffer.toString('utf-8');
+                const content = JSON.parse(contentJson);
+
+                return {
+                    ...result,
+                    revision: {
+                        ...result.revision,
+                        content
+                    }
+                };
+            } catch (err) {
+                console.error('Failed to load blog document content:', err);
+                // Return result without content if fetch fails
+                return result;
+            }
+        }
+
+        return result;
     }
 
     async getProfileByMembershipId(membershipId: string): Promise<BlogProfile | null> {

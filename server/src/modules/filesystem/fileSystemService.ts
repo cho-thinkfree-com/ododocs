@@ -20,6 +20,10 @@ export class FileSystemService {
     // CREATE OPERATIONS
     // ============================================================================
 
+    private async getNextFileIndex(workspaceId: string): Promise<number> {
+        return this.fileSystemRepo.getNextFileIndexAtomic(workspaceId);
+    }
+
     async createFolder(
         membershipId: string,
         workspaceId: string,
@@ -27,8 +31,8 @@ export class FileSystemService {
         parentId?: string
     ): Promise<FileSystemEntry> {
         // Membership already validated by resolveMembership middleware
-        // This is a defensive check to ensure membershipId is valid
-        // Note: In production, consider adding membership cache to avoid redundant DB calls
+
+        const fileIndex = await this.getNextFileIndex(workspaceId);
 
         return this.fileSystemRepo.create({
             name,
@@ -36,6 +40,7 @@ export class FileSystemService {
             workspaceId,
             parentId,
             createdBy: membershipId,
+            fileIndex,
         });
     }
 
@@ -48,6 +53,8 @@ export class FileSystemService {
     ): Promise<FileSystemEntry> {
         // Membership already validated by resolveMembership middleware
 
+        const fileIndex = await this.getNextFileIndex(workspaceId);
+
         // Create file entry
         const file = await this.fileSystemRepo.create({
             name: title,
@@ -57,6 +64,7 @@ export class FileSystemService {
             workspaceId,
             parentId,
             createdBy: membershipId,
+            fileIndex,
         });
 
         // Save content as revision
@@ -102,6 +110,7 @@ export class FileSystemService {
         // Membership already validated by resolveMembership middleware
 
         const size = BigInt(buffer.length);
+        const fileIndex = await this.getNextFileIndex(workspaceId);
 
         // Create file entry
         const file = await this.fileSystemRepo.create({
@@ -113,6 +122,7 @@ export class FileSystemService {
             workspaceId,
             parentId,
             createdBy: membershipId,
+            fileIndex,
         });
 
         // Upload to S3

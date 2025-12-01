@@ -1,6 +1,7 @@
 import { FastifyInstance } from 'fastify'
 import { DatabaseClient } from '../lib/prismaClient.js'
 import { isReservedHandle } from '../lib/reservedHandles.js'
+import { ShareLinkAccessType } from '@prisma/client'
 
 export default async function blogRoutes(app: FastifyInstance) {
     app.get<{ Querystring: { handle: string } }>('/check-handle', async (request) => {
@@ -35,9 +36,15 @@ export default async function blogRoutes(app: FastifyInstance) {
                     select: {
                         id: true,
                         name: true,
-                        slug: true,
+                        // slug: true, // Workspace slug removed from schema?
                     },
                 },
+                account: {
+                    select: {
+                        legalName: true,
+                        preferredLocale: true,
+                    }
+                }
             },
         })
 
@@ -52,29 +59,30 @@ export default async function blogRoutes(app: FastifyInstance) {
 
         const where = {
             workspaceId: membership.workspaceId,
-            ownerMembershipId: membership.id,
-            OR: [{ visibility: 'public' }, { shareLinks: { some: { accessType: 'public' } } }],
+            createdBy: membership.id,
+            type: 'file' as const,
+            OR: [
+                { shareLinks: { some: { accessType: ShareLinkAccessType.public, revokedAt: null } } }
+            ],
             deletedAt: null,
         }
 
         const [total, documents] = await Promise.all([
-            db.document.count({ where }),
-            db.document.findMany({
+            db.fileSystemEntry.count({ where }),
+            db.fileSystemEntry.findMany({
                 where,
                 select: {
                     id: true,
-                    title: true,
-                    slug: true,
-                    documentNumber: true,
-                    status: true,
-                    visibility: true,
-                    summary: true,
+                    name: true,
+                    displayName: true,
+                    fileIndex: true,
+                    description: true,
                     createdAt: true,
                     updatedAt: true,
-                    contentSize: true,
+                    size: true,
                     viewCount: true,
                     shareLinks: {
-                        where: { accessType: 'public' },
+                        where: { accessType: 'public', revokedAt: null },
                         take: 1,
                     },
                 },
@@ -91,10 +99,10 @@ export default async function blogRoutes(app: FastifyInstance) {
             accountId: membership.accountId,
             role: membership.role,
             status: membership.status,
-            displayName: membership.displayName,
-            avatarUrl: membership.avatarUrl,
+            displayName: membership.displayName || membership.account.legalName,
+            // avatarUrl: membership.avatarUrl, // Not in schema
             timezone: membership.timezone,
-            preferredLocale: membership.preferredLocale,
+            preferredLocale: membership.locale || membership.account.preferredLocale,
             blogTheme: membership.blogTheme,
             blogHandle: membership.blogHandle,
             blogDescription: membership.blogDescription,
@@ -102,8 +110,10 @@ export default async function blogRoutes(app: FastifyInstance) {
 
         const documentSummaries = documents.map((doc: any) => ({
             ...doc,
+            title: doc.displayName || doc.name, // Map displayName/name to title
             shareLinks: undefined, // Don't expose share links array
             publicToken: doc.shareLinks?.[0]?.token, // Expose one public token if available
+            documentNumber: doc.fileIndex, // Map fileIndex to documentNumber
         }))
 
         return {
@@ -138,18 +148,31 @@ export default async function blogRoutes(app: FastifyInstance) {
             return reply.status(400).send({ message: 'Invalid document number' })
         }
 
-        const document = await db.document.findFirst({
+        // Find file by index and workspace
+        const document = await db.fileSystemEntry.findFirst({
             where: {
                 workspaceId: membership.workspaceId,
-                ownerMembershipId: membership.id,
-                documentNumber: docNumber,
-                OR: [{ visibility: 'public' }, { shareLinks: { some: { accessType: 'public' } } }],
+                fileIndex: docNumber,
+                type: 'file' as const,
+                OR: [
+                    { shareLinks: { some: { accessType: ShareLinkAccessType.public, revokedAt: null } } }
+                ],
                 deletedAt: null,
             },
             include: {
+                currentRevision: true,
                 shareLinks: {
-                    where: { accessType: 'public' },
+                    where: { accessType: 'public', revokedAt: null },
                     take: 1,
+                },
+                creator: {
+                    include: {
+                        account: {
+                            select: {
+                                legalName: true,
+                            },
+                        },
+                    },
                 },
             },
         })
@@ -158,14 +181,8 @@ export default async function blogRoutes(app: FastifyInstance) {
             return reply.status(404).send({ message: 'Document not found' })
         }
 
-        // Get latest revision
-        const revision = await db.documentRevision.findFirst({
-            where: { documentId: document.id },
-            orderBy: { createdAt: 'desc' },
-        })
-
         // Increment view count (async)
-        db.document.update({
+        db.fileSystemEntry.update({
             where: { id: document.id },
             data: { viewCount: { increment: 1 } },
         }).catch(console.error)
@@ -176,9 +193,9 @@ export default async function blogRoutes(app: FastifyInstance) {
                 shareLinks: undefined,
                 publicToken: document.shareLinks?.[0]?.token,
             },
-            revision,
+            revision: document.currentRevision,
             accessLevel: 'viewer',
-            createdByMembershipId: document.ownerMembershipId,
+            createdByMembershipId: document.createdBy,
         }
     })
 }

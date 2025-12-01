@@ -15,6 +15,7 @@ export interface BlogDocument {
     excerpt?: string;
     createdAt: Date;
     updatedAt: Date;
+    documentNumber?: number;
 }
 
 export class BlogRepository {
@@ -112,6 +113,7 @@ export class BlogRepository {
                     createdAt: true,
                     updatedAt: true,
                     viewCount: true,
+                    fileIndex: true,
                     shareLinks: {
                         where: {
                             revokedAt: null,
@@ -156,6 +158,7 @@ export class BlogRepository {
                 createdAt: doc.createdAt,
                 updatedAt: doc.updatedAt,
                 viewCount: doc.viewCount,
+                documentNumber: doc.fileIndex,
                 publicToken: doc.shareLinks[0]?.token,
                 shareLink: doc.shareLinks[0] ? {
                     accessType: doc.shareLinks[0].accessType,
@@ -163,6 +166,67 @@ export class BlogRepository {
                 } : undefined,
             })),
             total,
+        };
+    }
+
+    async findDocumentByIndex(membershipId: string, fileIndex: number) {
+        const document = await this.db.fileSystemEntry.findFirst({
+            where: {
+                workspace: {
+                    memberships: {
+                        some: { id: membershipId }
+                    }
+                },
+                fileIndex,
+                type: 'file',
+                deletedAt: null,
+                OR: [
+                    { shareLinks: { some: { accessType: 'public', revokedAt: null } } }
+                ]
+            },
+            include: {
+                currentRevision: true,
+                shareLinks: {
+                    where: { accessType: 'public', revokedAt: null },
+                    take: 1,
+                },
+                creator: {
+                    include: {
+                        account: {
+                            select: {
+                                legalName: true,
+                            },
+                        },
+                    },
+                },
+            },
+        });
+
+        if (!document) return null;
+
+        // Increment view count
+        this.db.fileSystemEntry.update({
+            where: { id: document.id },
+            data: { viewCount: { increment: 1 } },
+        }).catch(console.error);
+
+        return {
+            document: {
+                id: document.id,
+                name: document.name,
+                title: document.displayName || document.name,
+                fileIndex: document.fileIndex,
+                documentNumber: document.fileIndex,
+                createdAt: document.createdAt,
+                updatedAt: document.updatedAt,
+                viewCount: document.viewCount + 1,
+                creator: document.creator,
+                shareLinks: undefined,
+                publicToken: document.shareLinks?.[0]?.token,
+            },
+            revision: document.currentRevision,
+            accessLevel: 'viewer',
+            createdByMembershipId: document.createdBy,
         };
     }
 

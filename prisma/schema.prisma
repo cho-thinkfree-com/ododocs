@@ -126,6 +126,9 @@ model Workspace {
   blogDescription String?              @map("blog_description")
   blogTheme       String?              @map("blog_theme")
   
+  // Atomic counter for file index
+  lastFileIndex   Int                  @default(0) @map("last_file_index")
+  
   createdAt       DateTime             @default(now()) @map("created_at")
   updatedAt       DateTime             @updatedAt @map("updated_at")
   memberships     WorkspaceMembership[]
@@ -205,6 +208,7 @@ model FileSystemEntry {
   description String?
   tags        String[]
   viewCount   Int             @default(0) @map("view_count") // type='file' only - tracks document views
+  fileIndex   Int?            @map("file_index") // Sequential index per workspace
   
   // Soft delete
   deletedAt   DateTime?       @map("deleted_at")
@@ -228,6 +232,7 @@ model FileSystemEntry {
   @@index([type])
   @@index([mimeType])
   @@index([isStarred])
+  @@unique([workspaceId, fileIndex])
   @@map("file_system")
 }
 

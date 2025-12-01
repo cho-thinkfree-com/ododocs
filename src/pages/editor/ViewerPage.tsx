@@ -110,6 +110,9 @@ const ViewerPage = ({ documentNumber: propDocNum, token: propToken }: ViewerPage
                 const doc = result.document || result.file;
                 const rev = result.revision || result.file?.currentRevision;
 
+                console.log('[ViewerPage] Parsed doc:', doc);
+                console.log('[ViewerPage] Parsed rev:', rev);
+
                 // Add shareLink information to document if available
                 if (result.shareLink && doc) {
                     doc.shareLinks = [{
