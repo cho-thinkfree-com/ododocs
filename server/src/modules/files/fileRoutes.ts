@@ -99,24 +99,24 @@ export async function fileRoutes(
             body: z.object({
                 password: z.string().optional(),
                 expiresAt: z.string().datetime().optional(),
-                isPublic: z.boolean().optional(),
+                accessType: z.enum(['private', 'link', 'public']).optional(),
             }),
         },
         handler: async (req, reply) => {
             const { fileId } = req.params as { fileId: string }
-            const body = req.body as { password?: string; expiresAt?: string; isPublic?: boolean }
+            const body = req.body as { password?: string; expiresAt?: string; accessType?: 'private' | 'link' | 'public' }
             const accountId = req.accountId!
 
             const shareLink = await fileService.createShareLink(accountId, fileId, {
                 password: body.password,
                 expiresAt: body.expiresAt ? new Date(body.expiresAt) : undefined,
-                isPublic: body.isPublic,
+                accessType: body.accessType,
             })
 
             return {
                 token: shareLink.token,
                 url: `/share/${shareLink.token}`,
-                isPublic: shareLink.isPublic,
+                accessType: shareLink.accessType,
                 expiresAt: shareLink.expiresAt,
             }
         },
@@ -146,7 +146,7 @@ export async function fileRoutes(
                         createdAt: file.createdAt,
                     },
                     shareLink: {
-                        isPublic: shareLink.isPublic,
+                        accessType: shareLink.accessType,
                         requiresPassword: !!shareLink.passwordHash,
                         expiresAt: shareLink.expiresAt,
                     },

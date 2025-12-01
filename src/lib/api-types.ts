@@ -4,6 +4,7 @@
 export interface FileSystemEntry {
     id: string
     name: string
+    displayName: string | null
     type: 'file' | 'folder'
     workspaceId: string
     parentId: string | null
@@ -11,7 +12,7 @@ export interface FileSystemEntry {
     extension: string | null
     size: bigint | null
     isStarred: boolean
-    isPublic: boolean
+    isShared: boolean
     description: string | null
     tags: string[]
     deletedAt: Date | null
@@ -39,6 +40,9 @@ export interface Workspace {
     description: string | null
     visibility: 'public' | 'private'
     ownerAccountId: string
+    blogHandle: string | null
+    blogDescription: string | null
+    blogTheme: string | null
     createdAt: Date
     updatedAt: Date
 }
@@ -51,6 +55,7 @@ export interface WorkspaceMembership {
     status: 'active' | 'suspended'
     displayName: string | null
     locale: string | null
+    timezone: string | null
     blogHandle: string | null
     blogDescription: string | null
     blogTheme: string | null
@@ -58,12 +63,15 @@ export interface WorkspaceMembership {
     updatedAt: Date
 }
 
+export type ShareLinkAccessType = 'private' | 'link' | 'public'
+
 export interface ShareLink {
     id: string
     token: string
     fileId: string
     workspaceId: string
     access: 'view' | 'edit'
+    accessType: ShareLinkAccessType
     expiresAt: Date | null
     passwordHash: string | null
     createdBy: string

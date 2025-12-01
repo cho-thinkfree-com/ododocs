@@ -16,7 +16,7 @@ interface FileShareIndicatorProps {
 
 interface ShareStatus {
     hasActiveLink: boolean;
-    isPublic: boolean;
+    accessType: 'private' | 'link' | 'public';
     isExpired: boolean;
     hasPassword: boolean;
     hasExpiration: boolean;
@@ -54,7 +54,7 @@ export default function FileShareIndicator({ fileId, shareLinks: initialShareLin
 
                 setStatus({
                     hasActiveLink: true,
-                    isPublic: activeLink.isPublic,
+                    accessType: activeLink.accessType || 'link',
                     isExpired: !!isExpired,
                     hasPassword: !!activeLink.requiresPassword,
                     hasExpiration: !!activeLink.expiresAt,
@@ -79,7 +79,7 @@ export default function FileShareIndicator({ fileId, shareLinks: initialShareLin
 
     const getTooltip = () => {
         const parts = [];
-        if (status.isPublic) {
+        if (status.accessType === 'public') {
             parts.push('Published to web');
         } else {
             parts.push('Link shared');
@@ -104,7 +104,7 @@ export default function FileShareIndicator({ fileId, shareLinks: initialShareLin
         <Tooltip title={getTooltip()}>
             <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', ml: 1, verticalAlign: 'middle', gap: 0.5 }}>
                 {/* Main Share Icon */}
-                {status.isPublic ? (
+                {status.accessType === 'public' ? (
                     status.isExpired ? (
                         <PublicOffIcon fontSize="small" color="action" />
                     ) : (

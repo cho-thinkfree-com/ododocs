@@ -13,7 +13,7 @@ export type ShareLinkEntity = {
   revokedAt: Date | null
   createdByMembershipId: string
   allowExternalEdit: boolean
-  isPublic: boolean
+  accessType: 'private' | 'link' | 'public'
   createdAt: Date
 }
 
@@ -26,7 +26,7 @@ export type ShareLinkCreateInput = {
   expiresAt?: Date
   createdByMembershipId: string
   allowExternalEdit?: boolean
-  isPublic?: boolean
+  accessType?: 'private' | 'link' | 'public'
   workspaceId: string
 }
 
@@ -42,7 +42,7 @@ export class DocumentShareLinkRepository {
         passwordHash: input.passwordHash,
         expiresAt: input.expiresAt,
         createdBy: input.createdByMembershipId, // Map createdByMembershipId to createdBy
-        isPublic: input.isPublic ?? false,
+        accessType: input.accessType ?? 'link',
         workspaceId: input.workspaceId,
       },
     })
@@ -97,7 +97,7 @@ export class DocumentShareLinkRepository {
     accessLevel: ShareLinkAccess
     passwordHash?: string | null
     expiresAt?: Date
-    isPublic?: boolean
+    accessType?: 'private' | 'link' | 'public'
     createdByMembershipId: string
     workspaceId: string // Added workspaceId requirement
   }): Promise<ShareLinkEntity> {
@@ -108,7 +108,7 @@ export class DocumentShareLinkRepository {
         accessLevel: params.accessLevel,
         passwordHash: params.passwordHash,
         expiresAt: params.expiresAt,
-        isPublic: params.isPublic ?? false,
+        accessType: params.accessType ?? 'link',
         createdBy: params.createdByMembershipId,
         workspaceId: params.workspaceId,
       },
@@ -123,12 +123,12 @@ export class DocumentShareLinkRepository {
     })
   }
 
-  async updateOptions(id: string, options: { allowExternalEdit?: boolean; isPublic?: boolean }): Promise<ShareLinkEntity> {
+  async updateOptions(id: string, options: { allowExternalEdit?: boolean; accessType?: 'private' | 'link' | 'public' }): Promise<ShareLinkEntity> {
     const shareLink = await this.prisma.shareLink.update({
       where: { id },
       data: {
         // allowExternalEdit: options.allowExternalEdit, // Not in schema
-        isPublic: options.isPublic,
+        accessType: options.accessType,
       },
     })
     return toEntity(shareLink)
@@ -143,7 +143,7 @@ export class DocumentShareLinkRepository {
         passwordHash: input.passwordHash,
         expiresAt: input.expiresAt,
         // allowExternalEdit: input.allowExternalEdit ?? false, // Not in schema
-        isPublic: input.isPublic ?? false,
+        accessType: input.accessType ?? 'link',
       },
     })
     return toEntity(shareLink)
@@ -153,7 +153,7 @@ export class DocumentShareLinkRepository {
     const shareLinks = await this.prisma.shareLink.findMany({
       where: {
         createdBy: membershipId,
-        isPublic: true,
+        accessType: 'public',
         passwordHash: null,
         revokedAt: null,
         OR: [
@@ -179,6 +179,6 @@ const toEntity = (shareLink: ShareLinkModel): ShareLinkEntity => ({
   revokedAt: shareLink.revokedAt,
   createdByMembershipId: shareLink.createdBy, // Map createdBy to createdByMembershipId
   allowExternalEdit: false, // Default to false as it's missing in schema
-  isPublic: shareLink.isPublic,
+  accessType: shareLink.accessType,
   createdAt: shareLink.createdAt,
 })

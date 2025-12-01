@@ -249,8 +249,9 @@ export class FileSystemService {
         fileId: string,
         updates: {
             name?: string;
+            displayName?: string;
             description?: string;
-            isPublic?: boolean;
+            isShared?: boolean;
             isStarred?: boolean;
         }
     ): Promise<FileSystemEntry> {
@@ -360,7 +361,7 @@ export class FileSystemService {
         options: {
             password?: string;
             expiresAt?: Date;
-            isPublic?: boolean;
+            accessType?: 'private' | 'link' | 'public';
         }
     ): Promise<any> {
         const file = await this.getById(membershipId, fileId);
@@ -373,7 +374,7 @@ export class FileSystemService {
         if (existingLink) {
             const updates: any = {
                 revokedAt: null, // Reactivate
-                isPublic: options.isPublic,
+                accessType: options.accessType || 'link',
                 expiresAt: options.expiresAt,
             };
 
@@ -398,7 +399,7 @@ export class FileSystemService {
             fileId: file.id,
             workspaceId: file.workspaceId,
             createdBy: membershipId,
-            isPublic: options.isPublic,
+            accessType: options.accessType || 'link',
             passwordHash,
             expiresAt: options.expiresAt,
         });
@@ -471,7 +472,7 @@ export class FileSystemService {
                 } : null
             },
             shareLink: {
-                isPublic: shareLink.isPublic,
+                accessType: shareLink.accessType,
                 requiresPassword: !!shareLink.passwordHash,
                 expiresAt: shareLink.expiresAt,
                 accessLevel: shareLink.accessLevel,
@@ -548,7 +549,7 @@ export class FileSystemService {
         }
 
         // If making public, clear password protection
-        if (body.isPublic === true) {
+        if (body.accessType === 'public') {
             updates.passwordHash = null;
         }
 

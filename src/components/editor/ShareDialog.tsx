@@ -61,6 +61,7 @@ export default function ShareDialog({ open, onClose, documentId, document, onVis
     // Expiration state
     const [expirationEnabled, setExpirationEnabled] = useState(false)
     const [expiresAt, setExpiresAt] = useState('')
+    const [hasChanges, setHasChanges] = useState(false)
     const [expanded, setExpanded] = useState(false)
 
     const DUMMY_PASSWORD = '●●●●●●●●●●●●'
@@ -114,12 +115,12 @@ export default function ShareDialog({ open, onClose, documentId, document, onVis
         if (!isAuthenticated) return
         setLoading(true)
         try {
-            // Create with default link-only access (isPublic=false)
-            const result = await createShareLink(documentId, { isPublic: false })
+            // Create with default link-only access
+            const result = await createShareLink(documentId, { accessType: 'link' })
             setShareLink(result)
             setPasswordEnabled(false)
-            // Sync document metadata - default to private (link-only)
-            await updateFileSystemEntry(documentId, { isPublic: false })
+            // Sync document metadata - default to not shared
+            await updateFileSystemEntry(documentId, { isShared: false })
             onVisibilityChange?.('private')
         } catch (err) {
             setError('Failed to create share link')
@@ -136,8 +137,8 @@ export default function ShareDialog({ open, onClose, documentId, document, onVis
             setShareLink(null)
             setPasswordEnabled(false)
             setPassword('')
-            // Revert to private when unpublishing
-            await updateFileSystemEntry(documentId, { isPublic: false })
+            // Revert to not shared when unpublishing
+            await updateFileSystemEntry(documentId, { isShared: false })
             onVisibilityChange?.('private')
         } catch (err) {
             setError('Failed to revoke link')
@@ -146,25 +147,25 @@ export default function ShareDialog({ open, onClose, documentId, document, onVis
         }
     }
 
-    const handlePublicLevelChange = async (newIsPublic: boolean) => {
+    const handlePublicLevelChange = async (newAccessType: 'public' | 'link') => {
         if (!shareLink || updating) return
         setUpdating(true)
         try {
-            const updates: any = { isPublic: newIsPublic }
-            if (newIsPublic) {
+            const updates: any = { accessType: newAccessType }
+            if (newAccessType === 'public') {
                 updates.passwordHash = null // Clear password when making public
             }
 
             const updated = await updateShareLink(shareLink.id, updates)
             setShareLink(updated)
 
-            if (newIsPublic) {
+            if (newAccessType === 'public') {
                 setPasswordEnabled(false)
                 setPassword('')
             }
 
-            // Sync document metadata
-            await updateFileSystemEntry(documentId, { isPublic: newIsPublic })
+            // Sync document metadata - mark as shared if link exists
+            await updateFileSystemEntry(documentId, { isShared: true })
         } catch (err) {
             setError('Failed to update public level')
         } finally {
@@ -178,7 +179,7 @@ export default function ShareDialog({ open, onClose, documentId, document, onVis
         // If disabling, we can just update immediately (assuming backend supports clearing password via update, 
         // but currently updateOptions doesn't support password update. 
         // Wait, the requirement says "Allow users to set a password".
-        // My backend `updateOptions` ONLY supports `allowExternalEdit` and `isPublic`.
+        // My backend `updateOptions` ONLY supports `allowExternalEdit` and `accessType`.
         // To update password, I need to use `create` (which reactivates/updates if exists).
         // So I should call `createShareLink` again with the new password settings?
         // Yes, `ShareLinkService.create` handles reactivation/update.
@@ -205,28 +206,51 @@ export default function ShareDialog({ open, onClose, documentId, document, onVis
         setPasswordEnabled(true)
     }
 
-    const handleSavePassword = async () => {
-        if (!passwordEnabled) return
-
-        const validationError = validatePassword(password)
-        if (validationError) {
-            setPasswordError(validationError)
-            return
-        }
+    const handleUpdateSettings = async () => {
+        if (!shareLink || updating) return
 
         setUpdating(true)
         try {
-            // Use updateShareLink to set password on existing link
-            const resultWithPassword = await updateShareLink(shareLink.id, {
-                password: password
-            })
+            const updates: any = {}
 
-            setShareLink(resultWithPassword)
+            // Handle password
+            if (passwordEnabled) {
+                const validationError = validatePassword(password)
+                if (validationError) {
+                    setPasswordError(validationError)
+                    setUpdating(false)
+                    return
+                }
+                if (password && password !== DUMMY_PASSWORD) {
+                    updates.password = password
+                }
+            } else {
+                // Password disabled - clear it
+                updates.password = null
+            }
+
+            // Handle expiration
+            if (expirationEnabled && expiresAt) {
+                const userTimezone = user?.preferredTimezone || Intl.DateTimeFormat().resolvedOptions().timeZone
+                const utcDate = fromZonedTime(expiresAt, userTimezone)
+                updates.expiresAt = utcDate
+            } else if (!expirationEnabled) {
+                // Expiration disabled - clear it
+                updates.expiresAt = null
+            }
+
+            const updated = await updateShareLink(shareLink.id, updates)
+            setShareLink(updated)
             setPasswordError(null)
-            setSuccessMessage('Password updated. It is now hidden for security.')
+            setSuccessMessage('Settings updated successfully.')
             setTimeout(() => setSuccessMessage(null), 5000)
+
+            // If password was set, replace with dummy
+            if (passwordEnabled && password && password !== DUMMY_PASSWORD) {
+                setPassword(DUMMY_PASSWORD)
+            }
         } catch (err) {
-            setError('Failed to set password')
+            setError('Failed to update settings')
         } finally {
             setUpdating(false)
         }
@@ -234,7 +258,7 @@ export default function ShareDialog({ open, onClose, documentId, document, onVis
 
     const handleCopy = () => {
         if (!shareLink || !document) return
-        const url = generateShareUrl(shareLink.token, document.name, shareLink.isPublic)
+        const url = generateShareUrl(shareLink.token, document.name, shareLink.accessType)
         navigator.clipboard.writeText(url)
         setCopied(true)
         setTimeout(() => setCopied(false), 2000)
@@ -249,18 +273,8 @@ export default function ShareDialog({ open, onClose, documentId, document, onVis
         setExpirationEnabled(enabled)
 
         if (!enabled) {
-            // Disable expiration immediately
-            setUpdating(true)
-            try {
-                const updated = await updateShareLink(shareLink.id, { expiresAt: null })
-                setShareLink(updated)
-                setExpiresAt('')
-            } catch (err) {
-                setError('Failed to update expiration')
-                setExpirationEnabled(true) // Revert
-            } finally {
-                setUpdating(false)
-            }
+            // Just disable in UI, will be cleared when Update Settings is clicked
+            setExpiresAt('')
         } else {
             // Enable: Set default to 1 week from now
             const nextWeek = new Date()
@@ -271,23 +285,7 @@ export default function ShareDialog({ open, onClose, documentId, document, onVis
         }
     }
 
-    const handleSaveExpiration = async () => {
-        if (!expirationEnabled || !expiresAt) return
-        setUpdating(true)
-        try {
-            const userTimezone = user?.preferredTimezone || Intl.DateTimeFormat().resolvedOptions().timeZone
-            const utcDate = fromZonedTime(expiresAt, userTimezone)
 
-            const updated = await updateShareLink(shareLink.id, { expiresAt: utcDate })
-            setShareLink(updated)
-            setSuccessMessage('Expiration date updated.')
-            setTimeout(() => setSuccessMessage(null), 5000)
-        } catch (err) {
-            setError('Failed to set expiration date')
-        } finally {
-            setUpdating(false)
-        }
-    }
 
     useEffect(() => {
         if (shareLink) {
@@ -310,7 +308,54 @@ export default function ShareDialog({ open, onClose, documentId, document, onVis
         }
     }, [shareLink, user])
 
-    const shareUrl = shareLink && document ? generateShareUrl(shareLink.token, document.name, shareLink.isPublic) : ''
+    // Track changes
+    useEffect(() => {
+        if (!shareLink) {
+            setHasChanges(false)
+            return
+        }
+
+        const originalHasPassword = !!shareLink.passwordHash || !!shareLink.requiresPassword
+        const originalHasExpiration = !!shareLink.expiresAt
+
+        console.log('[ShareDialog] Change detection:', {
+            passwordEnabled,
+            originalHasPassword,
+            expirationEnabled,
+            originalHasExpiration,
+            expiresAt,
+            shareLink_expiresAt: shareLink.expiresAt
+        })
+
+        // Check if password state changed
+        const passwordChanged = passwordEnabled !== originalHasPassword ||
+            (passwordEnabled && password && password !== DUMMY_PASSWORD)
+
+        // Check if expiration state changed (simplified - just check if enabled state differs)
+        let expirationChanged = expirationEnabled !== originalHasExpiration
+
+        // If both are enabled, also check if the date changed
+        if (expirationEnabled && originalHasExpiration && expiresAt && shareLink.expiresAt) {
+            const userTimezone = user?.preferredTimezone || Intl.DateTimeFormat().resolvedOptions().timeZone
+            const currentDate = new Date(expiresAt)
+            const originalDate = new Date(shareLink.expiresAt)
+
+            // Compare dates (allow small differences due to timezone conversion)
+            if (Math.abs(currentDate.getTime() - originalDate.getTime()) > 60000) { // 1 minute tolerance
+                expirationChanged = true
+            }
+        }
+
+        console.log('[ShareDialog] Changes detected:', {
+            passwordChanged,
+            expirationChanged,
+            hasChanges: passwordChanged || expirationChanged
+        })
+
+        setHasChanges(passwordChanged || expirationChanged)
+    }, [shareLink, passwordEnabled, password, expirationEnabled, expiresAt, user])
+
+    const shareUrl = shareLink && document ? generateShareUrl(shareLink.token, document.name, shareLink.accessType) : ''
 
     return (
         <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
@@ -336,23 +381,23 @@ export default function ShareDialog({ open, onClose, documentId, document, onVis
                         {/* View Count */}
 
                         <RadioGroup
-                            value={shareLink.isPublic ? 'public' : 'link-only'}
-                            onChange={(e) => handlePublicLevelChange(e.target.value === 'public')}
+                            value={shareLink.accessType === 'public' ? 'public' : 'link'}
+                            onChange={(e) => handlePublicLevelChange(e.target.value as 'public' | 'link')}
                         >
                             <Box
                                 sx={{
                                     border: '1px solid',
-                                    borderColor: shareLink.isPublic ? 'primary.main' : 'divider',
+                                    borderColor: shareLink.accessType === 'public' ? 'primary.main' : 'divider',
                                     borderRadius: 1,
                                     p: 2,
                                     mb: 2,
                                     cursor: 'pointer',
-                                    bgcolor: shareLink.isPublic ? 'action.hover' : 'transparent',
+                                    bgcolor: shareLink.accessType === 'public' ? 'action.hover' : 'transparent',
                                     '&:hover': {
                                         bgcolor: 'action.hover',
                                     }
                                 }}
-                                onClick={() => !shareLink.isPublic && handlePublicLevelChange(true)}
+                                onClick={() => shareLink.accessType !== 'public' && handlePublicLevelChange('public')}
                             >
                                 <FormControlLabel
                                     value="public"
@@ -370,9 +415,9 @@ export default function ShareDialog({ open, onClose, documentId, document, onVis
                                     }
                                     sx={{ m: 0, width: '100%', alignItems: 'flex-start' }}
                                 />
-                                {!shareLink.isPublic && passwordEnabled && (
+                                {shareLink.accessType !== 'public' && (passwordEnabled || expirationEnabled) && (
                                     <Alert severity="warning" sx={{ mt: 1, ml: 4 }}>
-                                        '완전 공개'로 변경하면 설정된 비밀번호가 삭제됩니다.
+                                        '완전 공개'로 변경하면 기존 설정(비밀번호, 만료일)이 모두 삭제됩니다.
                                     </Alert>
                                 )}
                             </Box>
@@ -380,23 +425,23 @@ export default function ShareDialog({ open, onClose, documentId, document, onVis
                             <Box
                                 sx={{
                                     border: '1px solid',
-                                    borderColor: !shareLink.isPublic ? 'primary.main' : 'divider',
+                                    borderColor: shareLink.accessType !== 'public' ? 'primary.main' : 'divider',
                                     borderRadius: 1,
                                     p: 2,
                                     cursor: 'pointer',
-                                    bgcolor: !shareLink.isPublic ? 'action.hover' : 'transparent',
+                                    bgcolor: shareLink.accessType !== 'public' ? 'action.hover' : 'transparent',
                                     '&:hover': {
                                         bgcolor: 'action.hover',
                                     }
                                 }}
                                 onClick={() => {
-                                    if (shareLink.isPublic) {
-                                        handlePublicLevelChange(false);
+                                    if (shareLink.accessType === 'public') {
+                                        handlePublicLevelChange('link');
                                     }
                                 }}
                             >
                                 <FormControlLabel
-                                    value="link-only"
+                                    value="link"
                                     control={<Radio />}
                                     disabled={updating}
                                     label={
@@ -412,7 +457,7 @@ export default function ShareDialog({ open, onClose, documentId, document, onVis
                                     sx={{ m: 0, width: '100%', alignItems: 'flex-start' }}
                                 />
 
-                                {!shareLink.isPublic && (
+                                {shareLink.accessType !== 'public' && (
                                     <Box
                                         sx={{ mt: 2, pl: 4 }}
                                         onClick={(e) => e.stopPropagation()}
@@ -435,7 +480,7 @@ export default function ShareDialog({ open, onClose, documentId, document, onVis
                                                         <Switch
                                                             checked={passwordEnabled}
                                                             onChange={(e) => handlePasswordToggle(e.target.checked)}
-                                                            disabled={updating || (shareLink && shareLink.isPublic)}
+                                                            disabled={updating || (shareLink && shareLink.accessType === 'public')}
                                                         />
                                                     </Box>
                                                     {passwordEnabled && (
@@ -470,14 +515,6 @@ export default function ShareDialog({ open, onClose, documentId, document, onVis
                                                                     ),
                                                                 }}
                                                             />
-                                                            <Button
-                                                                variant="contained"
-                                                                onClick={handleSavePassword}
-                                                                disabled={updating || !password || !!validatePassword(password) || password === DUMMY_PASSWORD}
-                                                                sx={{ mt: 0.5 }}
-                                                            >
-                                                                Set
-                                                            </Button>
                                                         </Box>
                                                     )}
                                                     {successMessage && (
@@ -515,16 +552,23 @@ export default function ShareDialog({ open, onClose, documentId, document, onVis
                                                                 disabled={updating}
                                                                 helperText={`Timezone: ${user?.preferredTimezone || Intl.DateTimeFormat().resolvedOptions().timeZone}`}
                                                             />
-                                                            <Button
-                                                                variant="contained"
-                                                                onClick={handleSaveExpiration}
-                                                                disabled={updating || !expiresAt}
-                                                                sx={{ alignSelf: 'flex-end' }}
-                                                            >
-                                                                Update Expiration
-                                                            </Button>
                                                         </Box>
                                                     )}
+                                                </Box>
+
+                                                {/* Update Settings Button */}
+                                                <Box sx={{ mt: 2, display: 'flex', justifyContent: 'flex-end' }}>
+                                                    <Button
+                                                        variant="contained"
+                                                        onClick={handleUpdateSettings}
+                                                        disabled={
+                                                            updating ||
+                                                            !hasChanges ||
+                                                            (passwordEnabled && password && password !== DUMMY_PASSWORD && !!validatePassword(password))
+                                                        }
+                                                    >
+                                                        Update Settings
+                                                    </Button>
                                                 </Box>
                                             </Box>
                                         </Collapse>
@@ -534,13 +578,8 @@ export default function ShareDialog({ open, onClose, documentId, document, onVis
                         </RadioGroup>
 
                         {/* Share URL */}
-                        <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                            {shareLink.isPublic
-                                ? '이 링크는 검색엔진에 노출되며 누구나 접근할 수 있습니다.'
-                                : '이 링크를 아는 사람만 문서를 볼 수 있습니다.'}
-                        </Typography>
 
-                        <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
+                        <Box sx={{ display: 'flex', gap: 1, mb: 2, mt: 3 }}>
                             <TextField
                                 fullWidth
                                 value={shareUrl}

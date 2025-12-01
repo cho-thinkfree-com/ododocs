@@ -30,7 +30,7 @@ const BlogDocumentDispatcher = () => {
   const isNumeric = /^\d+$/.test(tokenOrId || '');
 
   if (isNumeric) {
-    return <ViewerPage isPublic={true} documentNumber={tokenOrId} />;
+    return <ViewerPage documentNumber={tokenOrId} />;
   } else {
     return <SharePage token={tokenOrId} />;
   }
@@ -85,7 +85,7 @@ const AppRoutes = () => {
       />
 
       {/* Unified share route - handles both public and link-only shares */}
-      {/* Token determines if it's searchable (isPublic=true) or link-only (isPublic=false) */}
+      {/* Token determines if it's searchable (accessType='public') or link-only (accessType='link') */}
       <Route path="/share/:token/:title?" element={<SharePage />} />
       <Route path="/public/:token/:title?" element={<SharePage />} />
 

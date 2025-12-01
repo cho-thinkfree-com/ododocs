@@ -14,7 +14,7 @@ export interface CurrentDocInfo {
     title: string;
     viewCount?: number;
     createdAt: string | Date;
-    isPublic: boolean;
+    accessType: 'private' | 'link' | 'public';
     authorName?: string;
 }
 
@@ -123,7 +123,7 @@ const AuthorInfoPopover = ({ open, anchorEl, onClose, token, handle, authorName,
             createdAt: currentDocInfo.createdAt,
             publicToken: token,
             shareLink: {
-                isPublic: currentDocInfo.isPublic,
+                accessType: currentDocInfo.accessType,
                 token: token
             },
             authorName: currentDocInfo.authorName
@@ -196,7 +196,7 @@ const AuthorInfoPopover = ({ open, anchorEl, onClose, token, handle, authorName,
                         {currentDocument && (
                             <Box sx={{ mb: 1.5, pb: 1.5, borderBottom: 1, borderColor: 'divider' }}>
                                 <Typography variant="caption" color="text.secondary" sx={{ mb: 0.75, display: 'flex', alignItems: 'center', gap: 0.5, textTransform: 'uppercase', fontWeight: 600, letterSpacing: 0.5 }}>
-                                    {(currentDocument as any).shareLink?.isPublic ? (
+                                    {(currentDocument as any).shareLink?.accessType === 'public' ? (
                                         <PublicIcon sx={{ fontSize: 14 }} />
                                     ) : (
                                         <LinkIcon sx={{ fontSize: 14 }} />

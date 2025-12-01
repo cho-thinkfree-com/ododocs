@@ -1,11 +1,11 @@
-import { PrismaClient, ShareLink, ShareLinkAccess } from '@prisma/client';
+import { PrismaClient, ShareLink, ShareLinkAccess, ShareLinkAccessType } from '@prisma/client';
 
 export interface CreateShareLinkInput {
     fileId: string;
     workspaceId: string;
     createdBy: string;
     accessLevel?: ShareLinkAccess;
-    isPublic?: boolean;
+    accessType?: ShareLinkAccessType;
     passwordHash?: string;
     expiresAt?: Date;
 }
@@ -30,7 +30,7 @@ export class ShareLinkRepository {
                         workspaceId: input.workspaceId,
                         createdBy: input.createdBy,
                         accessLevel: input.accessLevel || 'viewer',
-                        isPublic: input.isPublic !== undefined ? input.isPublic : false,
+                        accessType: input.accessType || 'link',
                         passwordHash: input.passwordHash,
                         expiresAt: input.expiresAt,
                     },
@@ -92,7 +92,7 @@ export class ShareLinkRepository {
         });
     }
 
-    async update(id: string, data: Partial<{ isPublic: boolean; expiresAt: Date | null; passwordHash: string | null; revokedAt: Date | null }>): Promise<ShareLink> {
+    async update(id: string, data: Partial<{ accessType: ShareLinkAccessType; expiresAt: Date | null; passwordHash: string | null; revokedAt: Date | null }>): Promise<ShareLink> {
         return this.db.shareLink.update({
             where: { id },
             data,

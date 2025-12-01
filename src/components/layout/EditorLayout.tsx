@@ -29,7 +29,7 @@ interface EditorLayoutProps {
     shareToken?: string;
     authorHandle?: string;
     authorName?: string;
-    isPublic?: boolean;
+    accessType?: 'private' | 'link' | 'public';
 }
 
 // Adaptive title component that reduces font size when overflowing
@@ -122,7 +122,7 @@ const AdaptiveTitle = ({ title }: { title: string }) => {
     );
 };
 
-const EditorLayout = ({ editor, document, onContentChange, onTitleChange, onClose, saveStatus, readOnly = false, initialWidth = '950px', shareToken, authorHandle, authorName, isPublic = false }: EditorLayoutProps) => {
+const EditorLayout = ({ editor, document, onContentChange, onTitleChange, onClose, saveStatus, readOnly = false, initialWidth = '950px', shareToken, authorHandle, authorName, accessType = 'link' }: EditorLayoutProps) => {
     const [tocOpen, setTocOpen] = useState(false);
     const [localTitle, setLocalTitle] = useState(document.name);
     const [shareOpen, setShareOpen] = useState(false);
@@ -339,7 +339,7 @@ const EditorLayout = ({ editor, document, onContentChange, onTitleChange, onClos
                                                 handle={authorHandle}
                                                 authorName={authorName || document.lastModifiedBy || undefined}
                                                 document={document}
-                                                isPublic={isPublic}
+                                                accessType={accessType}
                                             />
                                         )}
                                     </Box>

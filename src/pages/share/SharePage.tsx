@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useParams, useLocation } from 'react-router-dom';
+import { useLocation, useParams, useNavigate } from 'react-router-dom';
 import { CircularProgress, Box } from '@mui/material';
 import SharedFilePage from './SharedFilePage';
 import ViewerPage from '../editor/ViewerPage';
@@ -9,16 +9,17 @@ import { resolveShareLink } from '../../lib/api';
  * Universal share page that detects whether the token is for a Document or File
  * and renders the appropriate component.
  * 
- * Also handles isPublic distinction:
- * - isPublic=true: Searchable by search engines (open graph, etc)
- * - isPublic=false: Link-only, not searchable
+ * Also handles accessType distinction:
+ * - accessType='public': Searchable by search engines (open graph, etc)
+ * - accessType='link': Link-only, not searchable
+ * - accessType='private': Requires password
  */
 const SharePage = ({ token: propToken }: { token?: string }) => {
     const params = useParams<{ token: string }>();
     const token = propToken || params.token;
     const location = useLocation();
+    const navigate = useNavigate();
     const [contentType, setContentType] = useState<'document' | 'file' | null>(null);
-    const [isPublic, setIsPublic] = useState(false);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
@@ -26,7 +27,7 @@ const SharePage = ({ token: propToken }: { token?: string }) => {
         const detectContentType = async () => {
             if (!token) return;
 
-            const isPublicUrl = location.pathname.startsWith('/public');
+            const publicUrlPath = location.pathname.startsWith('/public');
             const isBlogUrl = location.pathname.startsWith('/blog');
 
             try {
@@ -34,23 +35,25 @@ const SharePage = ({ token: propToken }: { token?: string }) => {
                 const result = await resolveShareLink(token);
 
                 if (result.shareLink) {
-                    const linkIsPublic = result.shareLink.isPublic;
+                    const linkAccessType = result.shareLink.accessType;
+
+                    // Redirect to correct URL if path doesn't match accessType
+                    const publicUrlPath = location.pathname.startsWith('/public');
+                    if (linkAccessType === 'public' && !publicUrlPath) {
+                        // Link is public but accessed via /share - redirect to /public
+                        const title = result.file?.name || 'document';
+                        navigate(`/public/${token}/${encodeURIComponent(title)}`, { replace: true });
+                        return;
+                    } else if (linkAccessType !== 'public' && publicUrlPath) {
+                        // Link is not public but accessed via /public - redirect to /share
+                        const title = result.file?.name || 'document';
+                        navigate(`/share/${token}/${encodeURIComponent(title)}`, { replace: true });
+                        return;
+                    }
 
                     // Skip strict check for blog routes as they are always considered public view
                     if (!isBlogUrl) {
-                        if (isPublicUrl && !linkIsPublic) {
-                            setError('This link is not public. Please use the private share link.');
-                            setLoading(false);
-                            return;
-                        }
-                        if (!isPublicUrl && linkIsPublic) {
-                            setError('This link is public. Please use the public link.');
-                            setLoading(false);
-                            return;
-                        }
                     }
-
-                    setIsPublic(linkIsPublic);
                 }
 
                 // Determine content type based on file info
@@ -64,12 +67,11 @@ const SharePage = ({ token: propToken }: { token?: string }) => {
             } catch (err: any) {
                 // If password required, it's definitely not public (since public has no password)
                 if (err.message === 'Share link password required or incorrect' || err.message?.includes('password')) {
-                    if (isPublicUrl) {
+                    if (publicUrlPath) {
                         setError('This link is not public. Please use the private share link.');
                         setLoading(false);
                         return;
                     }
-                    setIsPublic(false);
                     setContentType('document'); // Allow viewer to handle password
                     setLoading(false);
                     return;
@@ -109,8 +111,7 @@ const SharePage = ({ token: propToken }: { token?: string }) => {
     }
 
     // Document sharing - use existing ViewerPage
-    // Pass isPublic flag (though ViewerPage might determine it independently)
-    return <ViewerPage isPublic={isPublic} token={token} />;
+    return <ViewerPage token={token} />;
 };
 
 export default SharePage;

@@ -1,10 +1,10 @@
 import { PrismaClient } from '@prisma/client';
 
 export interface BlogProfile {
-    handle: string;
-    name: string;
-    bio?: string;
-    theme?: string;
+    blogHandle: string;
+    displayName: string;
+    blogDescription?: string;
+    blogTheme?: string;
     membershipId: string;
 }
 
@@ -36,10 +36,10 @@ export class BlogRepository {
         }
 
         return {
-            handle: membership.blogHandle!,
-            name: membership.displayName || handle,
-            bio: membership.blogDescription || undefined,
-            theme: membership.blogTheme || undefined,
+            blogHandle: membership.blogHandle!,
+            displayName: membership.displayName || handle,
+            blogDescription: membership.blogDescription || undefined,
+            blogTheme: membership.blogTheme || undefined,
             membershipId: membership.id,
         };
     }
@@ -59,10 +59,10 @@ export class BlogRepository {
         }
 
         return {
-            handle: membership.blogHandle || '',
-            name: membership.displayName || 'Unknown',
-            bio: membership.blogDescription || undefined,
-            theme: membership.blogTheme || undefined,
+            blogHandle: membership.blogHandle || '',
+            displayName: membership.displayName || 'Unknown',
+            blogDescription: membership.blogDescription || undefined,
+            blogTheme: membership.blogTheme || undefined,
             membershipId: membership.id,
         };
     }
@@ -97,7 +97,13 @@ export class BlogRepository {
                     type: 'file',
                     mimeType: 'application/x-odocs',
                     deletedAt: null,
-                    isPublic: true,
+                    isShared: true,
+                    shareLinks: {
+                        some: {
+                            revokedAt: null,
+                            accessType: 'public'
+                        }
+                    }
                 },
                 select: {
                     id: true,
@@ -107,11 +113,14 @@ export class BlogRepository {
                     updatedAt: true,
                     viewCount: true,
                     shareLinks: {
-                        where: { revokedAt: null },
+                        where: {
+                            revokedAt: null,
+                            accessType: 'public'
+                        },
                         take: 1,
                         select: {
                             token: true,
-                            isPublic: true,
+                            accessType: true,
                         },
                     },
                 },
@@ -127,13 +136,19 @@ export class BlogRepository {
                     type: 'file',
                     mimeType: 'application/x-odocs',
                     deletedAt: null,
-                    isPublic: true,
+                    isShared: true,
+                    shareLinks: {
+                        some: {
+                            revokedAt: null,
+                            accessType: 'public'
+                        }
+                    }
                 },
             }),
         ]);
 
         return {
-            documents: documents.map((doc) => ({
+            documents: documents.map((doc: any) => ({
                 id: doc.id,
                 title: doc.name,
                 slug: doc.name.toLowerCase().replace(/\s+/g, '-'),
@@ -143,7 +158,7 @@ export class BlogRepository {
                 viewCount: doc.viewCount,
                 publicToken: doc.shareLinks[0]?.token,
                 shareLink: doc.shareLinks[0] ? {
-                    isPublic: doc.shareLinks[0].isPublic,
+                    accessType: doc.shareLinks[0].accessType,
                     token: doc.shareLinks[0].token,
                 } : undefined,
             })),

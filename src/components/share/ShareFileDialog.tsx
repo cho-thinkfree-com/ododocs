@@ -25,14 +25,14 @@ interface ShareFileDialogProps {
     onShare: (options: {
         password?: string;
         expiresAt?: string;
-        isPublic?: boolean;
+        accessType?: 'private' | 'link' | 'public';
     }) => Promise<{ url: string; token: string }>;
 }
 
 const ShareFileDialog = ({ open, onClose, fileName, onShare }: ShareFileDialogProps) => {
     const [password, setPassword] = useState('');
     const [expiresAt, setExpiresAt] = useState('');
-    const [isPublic, setIsPublic] = useState(false);
+    const [accessType, setAccessType] = useState<'link' | 'public'>('link');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [shareUrl, setShareUrl] = useState<string | null>(null);
@@ -46,7 +46,7 @@ const ShareFileDialog = ({ open, onClose, fileName, onShare }: ShareFileDialogPr
             const result = await onShare({
                 password: password || undefined,
                 expiresAt: expiresAt || undefined,
-                isPublic,
+                accessType,
             });
 
             const fullUrl = `${window.location.origin}${result.url}`;
@@ -73,7 +73,7 @@ const ShareFileDialog = ({ open, onClose, fileName, onShare }: ShareFileDialogPr
     const handleClose = () => {
         setPassword('');
         setExpiresAt('');
-        setIsPublic(false);
+        setAccessType('link');
         setShareUrl(null);
         setError(null);
         setCopied(false);
@@ -89,8 +89,8 @@ const ShareFileDialog = ({ open, onClose, fileName, onShare }: ShareFileDialogPr
                         <FormControlLabel
                             control={
                                 <Switch
-                                    checked={isPublic}
-                                    onChange={(e) => setIsPublic(e.target.checked)}
+                                    checked={accessType === 'public'}
+                                    onChange={(e) => setAccessType(e.target.checked ? 'public' : 'link')}
                                 />
                             }
                             label={
@@ -155,7 +155,7 @@ const ShareFileDialog = ({ open, onClose, fileName, onShare }: ShareFileDialogPr
                         />
 
                         <Typography variant="caption" color="text.secondary">
-                            Anyone with this link can {isPublic ? 'access (public)' : 'access'} this file
+                            Anyone with this link can {accessType === 'public' ? 'access (public)' : 'access'} this file
                             {password && ' with the password you set'}
                             {expiresAt && ` until ${new Date(expiresAt).toLocaleString()}`}.
                         </Typography>

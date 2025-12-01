@@ -15,7 +15,7 @@ interface SharedFileInfo {
         createdAt: string;
     };
     shareLink: {
-        isPublic: boolean;
+        accessType: 'private' | 'link' | 'public';
         requiresPassword: boolean;
         expiresAt: string | null;
     };
@@ -185,7 +185,7 @@ const SharedFilePage = () => {
                             <Typography variant="body2" color="text.secondary">
                                 {formatRelativeDate(fileInfo.file.createdAt)}
                             </Typography>
-                            {fileInfo.shareLink.isPublic && (
+                            {fileInfo.shareLink.accessType === 'public' && (
                                 <Chip label="Public" size="small" color="success" />
                             )}
                         </Box>

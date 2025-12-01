@@ -9,10 +9,10 @@ interface AuthorInfoButtonProps {
     handle?: string;
     authorName?: string;
     document?: FileSystemEntry;
-    isPublic?: boolean;
+    accessType?: 'private' | 'link' | 'public';
 }
 
-const AuthorInfoButton = ({ token, handle, authorName, document, isPublic }: AuthorInfoButtonProps) => {
+const AuthorInfoButton = ({ token, handle, authorName, document, accessType }: AuthorInfoButtonProps) => {
     const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
 
     const handleClick = (event: React.MouseEvent<HTMLElement>) => {
@@ -30,7 +30,7 @@ const AuthorInfoButton = ({ token, handle, authorName, document, isPublic }: Aut
         title: document.name,
         viewCount: (document as any).viewCount,
         createdAt: document.createdAt,
-        isPublic: isPublic ?? (document.shareLinks?.some(l => l.token === token && l.isPublic) ?? false),
+        accessType: accessType || (document.shareLinks?.find(l => l.token === token)?.accessType ?? 'link'),
         authorName: authorName
     } : undefined;
 

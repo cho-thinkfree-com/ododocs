@@ -105,6 +105,12 @@ export interface MembershipSummary {
   role: 'owner' | 'admin' | 'member'
   status: 'active' | 'invited' | 'pending' | 'removed'
   displayName?: string | null
+  avatarUrl?: string | null
+  timezone?: string | null
+  preferredLocale?: string | null
+  blogHandle?: string | null
+  blogDescription?: string | null
+  blogTheme?: string | null
   createdAt: string
   updatedAt: string
 }
@@ -179,7 +185,7 @@ export interface ShareLinkResponse {
   id: string
   token: string
   url: string
-  isPublic: boolean
+  accessType: 'private' | 'link' | 'public'
   expiresAt?: string | null
   requiresPassword?: boolean
 }
@@ -312,8 +318,9 @@ export async function updateFileSystemEntry(
   fileId: string,
   updates: {
     name?: string;
+    displayName?: string;
     description?: string;
-    isPublic?: boolean;
+    isShared?: boolean;
     isStarred?: boolean;
   }
 ) {
@@ -379,7 +386,7 @@ export async function searchFiles(workspaceId: string, query: string) {
 // Create share link
 export async function createShareLink(
   fileId: string,
-  options?: { password?: string; expiresAt?: string; isPublic?: boolean }
+  options?: { password?: string; expiresAt?: string; accessType?: 'private' | 'link' | 'public' }
 ) {
   return requestJSON<ShareLinkResponse>(`/api/filesystem/${fileId}/share`, {
     method: 'POST',

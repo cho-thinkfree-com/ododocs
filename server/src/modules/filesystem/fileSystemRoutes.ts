@@ -377,8 +377,9 @@ export async function fileSystemRoutes(
             const { fileId } = req.params as { fileId: string };
             const body = req.body as {
                 name?: string;
+                displayName?: string;
                 description?: string;
-                isPublic?: boolean;
+                isShared?: boolean;
                 isStarred?: boolean;
             };
             const membershipId = (req as any).membershipId;
@@ -459,26 +460,26 @@ export async function fileSystemRoutes(
         preHandler: [authenticate, resolveMembershipByFileId],
         handler: async (req, reply) => {
             const { fileId } = req.params as { fileId: string };
-            const { password, expiresAt, isPublic } = req.body as {
+            const { password, expiresAt, accessType } = req.body as {
                 password?: string;
                 expiresAt?: string;
-                isPublic?: boolean;
+                accessType?: 'private' | 'link' | 'public';
             };
             const membershipId = (req as any).membershipId;
 
             const shareLink = await fileSystemService.createShareLink(membershipId, fileId, {
                 password,
                 expiresAt: expiresAt ? new Date(expiresAt) : undefined,
-                isPublic,
+                accessType,
             });
 
-            const urlPrefix = shareLink.isPublic ? '/public' : '/share';
+            const urlPrefix = shareLink.accessType === 'public' ? '/public' : '/share';
 
             return {
                 id: shareLink.id,
                 token: shareLink.token,
                 url: `${urlPrefix}/${shareLink.token}`,
-                isPublic: shareLink.isPublic,
+                accessType: shareLink.accessType,
                 expiresAt: shareLink.expiresAt,
                 requiresPassword: !!shareLink.passwordHash,
             };

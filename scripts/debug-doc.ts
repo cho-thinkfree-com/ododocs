@@ -24,7 +24,7 @@ async function main() {
     console.log(`  Status: ${doc.status}`)
     console.log(`  Visibility: ${doc.visibility}`)
     console.log(`  DeletedAt: ${doc.deletedAt}`)
-    console.log(`  ShareLink Public?: ${shareLink.isPublic}`)
+    console.log(`  ShareLink Access Type: ${shareLink.accessType}`)
 
     console.log('--- Checking Blog Owner ---')
     const blogOwner = await prisma.workspaceMembership.findUnique({

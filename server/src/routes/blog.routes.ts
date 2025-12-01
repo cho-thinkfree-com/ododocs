@@ -53,7 +53,7 @@ export default async function blogRoutes(app: FastifyInstance) {
         const where = {
             workspaceId: membership.workspaceId,
             ownerMembershipId: membership.id,
-            OR: [{ visibility: 'public' }, { shareLinks: { some: { isPublic: true } } }],
+            OR: [{ visibility: 'public' }, { shareLinks: { some: { accessType: 'public' } } }],
             deletedAt: null,
         }
 
@@ -74,7 +74,7 @@ export default async function blogRoutes(app: FastifyInstance) {
                     contentSize: true,
                     viewCount: true,
                     shareLinks: {
-                        where: { isPublic: true },
+                        where: { accessType: 'public' },
                         take: 1,
                     },
                 },
@@ -143,12 +143,12 @@ export default async function blogRoutes(app: FastifyInstance) {
                 workspaceId: membership.workspaceId,
                 ownerMembershipId: membership.id,
                 documentNumber: docNumber,
-                OR: [{ visibility: 'public' }, { shareLinks: { some: { isPublic: true } } }],
+                OR: [{ visibility: 'public' }, { shareLinks: { some: { accessType: 'public' } } }],
                 deletedAt: null,
             },
             include: {
                 shareLinks: {
-                    where: { isPublic: true },
+                    where: { accessType: 'public' },
                     take: 1,
                 },
             },

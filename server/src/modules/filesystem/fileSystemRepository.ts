@@ -23,6 +23,7 @@ export interface CreateFileSystemEntryInput {
 
 export interface UpdateFileSystemEntryInput {
     name?: string;
+    displayName?: string;
     parentId?: string | null;
     currentRevisionId?: string;
     size?: bigint;
@@ -30,7 +31,7 @@ export interface UpdateFileSystemEntryInput {
     description?: string;
     tags?: string[];
     isStarred?: boolean;
-    isPublic?: boolean;
+    isShared?: boolean;
 }
 
 export class FileSystemRepository {
@@ -40,6 +41,7 @@ export class FileSystemRepository {
         return this.db.fileSystemEntry.create({
             data: {
                 name: input.name,
+                displayName: input.name, // Initialize displayName with name
                 type: input.type,
                 parentId: input.parentId,
                 workspaceId: input.workspaceId,
@@ -49,7 +51,7 @@ export class FileSystemRepository {
                 createdBy: input.createdBy,
                 description: input.description,
                 tags: input.tags || [],
-                // isPublic defaults to false in schema usually
+                // isShared defaults to false in schema
             },
         });
     }
@@ -77,7 +79,7 @@ export class FileSystemRepository {
                         id: true,
                         token: true,
                         accessLevel: true,
-                        isPublic: true,
+                        accessType: true,
                         expiresAt: true,
                         createdAt: true,
                         passwordHash: true,
@@ -130,7 +132,7 @@ export class FileSystemRepository {
                         id: true,
                         token: true,
                         accessLevel: true,
-                        isPublic: true,
+                        accessType: true,
                         expiresAt: true,
                         createdAt: true,
                         passwordHash: true,
@@ -164,6 +166,7 @@ export class FileSystemRepository {
         const data: any = {};
 
         if (input.name !== undefined) data.name = input.name;
+        if (input.displayName !== undefined) data.displayName = input.displayName;
         if (input.parentId !== undefined) data.parentId = input.parentId;
         if (input.currentRevisionId !== undefined) data.currentRevisionId = input.currentRevisionId;
         if (input.size !== undefined) data.size = input.size;
@@ -171,7 +174,7 @@ export class FileSystemRepository {
         if (input.description !== undefined) data.description = input.description;
         if (input.tags !== undefined) data.tags = input.tags;
         if (input.isStarred !== undefined) data.isStarred = input.isStarred;
-        if (input.isPublic !== undefined) data.isPublic = input.isPublic;
+        if (input.isShared !== undefined) data.isShared = input.isShared;
 
         data.updatedAt = new Date();
 
@@ -263,7 +266,7 @@ export class FileSystemRepository {
                         id: true,
                         token: true,
                         accessLevel: true,
-                        isPublic: true,
+                        accessType: true,
                         expiresAt: true,
                         createdAt: true,
                         passwordHash: true,
@@ -291,7 +294,7 @@ export class FileSystemRepository {
                         id: true,
                         token: true,
                         accessLevel: true,
-                        isPublic: true,
+                        accessType: true,
                         expiresAt: true,
                         createdAt: true,
                         passwordHash: true,
@@ -323,7 +326,7 @@ export class FileSystemRepository {
                         id: true,
                         token: true,
                         accessLevel: true,
-                        isPublic: true,
+                        accessType: true,
                         expiresAt: true,
                         createdAt: true,
                         passwordHash: true,
@@ -352,7 +355,7 @@ export class FileSystemRepository {
                         id: true,
                         token: true,
                         accessLevel: true,
-                        isPublic: true,
+                        accessType: true,
                         expiresAt: true,
                         createdAt: true,
                         passwordHash: true,
@@ -400,7 +403,7 @@ export class FileSystemRepository {
                         id: true,
                         token: true,
                         accessLevel: true,
-                        isPublic: true,
+                        accessType: true,
                         expiresAt: true,
                         createdAt: true,
                         passwordHash: true,

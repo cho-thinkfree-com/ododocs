@@ -1,18 +1,19 @@
-import { Alert, Box, Button, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, TextField, Typography } from '@mui/material';
+import { Alert, Box, Button, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, InputAdornment, TextField, Typography } from '@mui/material';
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { resolveShareLink, type DocumentSummary, type DocumentRevision } from '../../lib/api';
 import EditorLayout from '../../components/layout/EditorLayout';
 import useEditorInstance from '../../editor/useEditorInstance';
 import { useSEO } from '../../hooks/useSEO';
+import Visibility from '@mui/icons-material/Visibility';
+import VisibilityOff from '@mui/icons-material/VisibilityOff';
 
 interface ViewerPageProps {
-    isPublic?: boolean;
     documentNumber?: string;
     token?: string;
 }
 
-const ViewerPage = ({ isPublic = false, documentNumber: propDocNum, token: propToken }: ViewerPageProps) => {
+const ViewerPage = ({ documentNumber: propDocNum, token: propToken }: ViewerPageProps) => {
     const params = useParams<{ token?: string; handle?: string; documentNumber?: string }>();
     const token = propToken || params.token;
     const documentNumber = propDocNum || params.documentNumber;
@@ -21,8 +22,10 @@ const ViewerPage = ({ isPublic = false, documentNumber: propDocNum, token: propT
     const [error, setError] = useState<string | null>(null);
     const [passwordRequired, setPasswordRequired] = useState(false);
     const [password, setPassword] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
     const [document, setDocument] = useState<DocumentSummary | null>(null);
     const [revision, setRevision] = useState<DocumentRevision | null>(null);
+    const [accessType, setAccessType] = useState<'private' | 'link' | 'public'>('link');
 
     const editor = useEditorInstance({
         content: revision?.content,
@@ -79,7 +82,7 @@ const ViewerPage = ({ isPublic = false, documentNumber: propDocNum, token: propT
         modifiedTime: revision?.createdAt,
         url: typeof window !== 'undefined' ? window.location.href : undefined,
         type: 'article',
-        robots: isPublic ? 'index, follow' : 'noindex, nofollow',
+        robots: accessType === 'public' ? 'index, follow' : 'noindex, nofollow',
     });
 
 
@@ -111,11 +114,12 @@ const ViewerPage = ({ isPublic = false, documentNumber: propDocNum, token: propT
                 if (result.shareLink && doc) {
                     doc.shareLinks = [{
                         token: token,
-                        isPublic: result.shareLink.isPublic,
+                        accessType: result.shareLink.accessType,
                         requiresPassword: result.shareLink.requiresPassword,
                         expiresAt: result.shareLink.expiresAt,
                         accessLevel: result.shareLink.accessLevel,
                     }];
+                    setAccessType(result.shareLink.accessType);
                 }
 
                 setDocument(doc);
@@ -129,7 +133,12 @@ const ViewerPage = ({ isPublic = false, documentNumber: propDocNum, token: propT
             console.error('[ViewerPage] Error stack:', err.stack);
             if (err.message === 'Share link password required or incorrect' || err.message?.includes('password')) {
                 setPasswordRequired(true);
-                setError('Password required');
+                // If password was provided but failed, show "incorrect password" error
+                if (pwd) {
+                    setError('Incorrect password. Please try again.');
+                } else {
+                    setError('Password required');
+                }
             } else {
                 setError(err.message || 'Failed to load document');
             }
@@ -169,13 +178,29 @@ const ViewerPage = ({ isPublic = false, documentNumber: propDocNum, token: propT
                         <TextField
                             autoFocus
                             fullWidth
-                            type="password"
+                            type={showPassword ? 'text' : 'password'}
                             label="Password"
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
+                            InputProps={{
+                                endAdornment: (
+                                    <InputAdornment position="end">
+                                        <IconButton
+                                            aria-label="toggle password visibility"
+                                            onClick={() => setShowPassword(!showPassword)}
+                                            onMouseDown={(e) => e.preventDefault()}
+                                            edge="end"
+                                        >
+                                            {showPassword ? <VisibilityOff /> : <Visibility />}
+                                        </IconButton>
+                                    </InputAdornment>
+                                )
+                            }}
                         />
                         {error && error !== 'Password required' && (
-                            <Alert severity="error" sx={{ mt: 2 }}>{error}</Alert>
+                            <Alert severity="error" sx={{ mt: 2 }}>
+                                {error}
+                            </Alert>
                         )}
                     </DialogContent>
                     <DialogActions>
@@ -217,7 +242,7 @@ const ViewerPage = ({ isPublic = false, documentNumber: propDocNum, token: propT
                 shareToken={token}
                 authorHandle={handle || (document as any).creator?.blogHandle}
                 authorName={(document as any).creator?.displayName || (document as any).creator?.account?.legalName || document.lastModifiedBy || undefined}
-                isPublic={isPublic}
+                accessType={accessType}
             />
         </Box>
     );

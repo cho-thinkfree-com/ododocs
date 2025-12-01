@@ -47,6 +47,12 @@ enum ShareLinkAccess {
   editor
 }
 
+enum ShareLinkAccessType {
+  private      // Only accessible with password or specific permissions
+  link         // Anyone with the link can access
+  public       // Publicly discoverable and accessible
+}
+
 enum ExternalCollaboratorStatus {
   active
   suspended
@@ -92,6 +98,14 @@ model Session {
   accountId  String    @map("account_id")
   expiresAt  DateTime  @map("expires_at")
   revokedAt  DateTime? @map("revoked_at")
+  
+  // Session metadata
+  ipAddress  String?   @map("ip_address")
+  userAgent  String?   @map("user_agent")
+  browser    String?   // e.g., "Chrome", "Firefox", "Safari"
+  os         String?   // e.g., "Windows", "macOS", "Linux"
+  device     String?   // e.g., "Desktop", "Mobile", "Tablet"
+  
   createdAt  DateTime  @default(now()) @map("created_at")
 
   @@index([accountId])
@@ -106,6 +120,12 @@ model Workspace {
   owner           Account              @relation(fields: [ownerId], references: [id])
   ownerId         String               @map("owner_id")
   defaultLanguage String?              @map("default_language")
+  
+  // Workspace-level blog settings
+  blogHandle      String?              @unique @map("blog_handle")
+  blogDescription String?              @map("blog_description")
+  blogTheme       String?              @map("blog_theme")
+  
   createdAt       DateTime             @default(now()) @map("created_at")
   updatedAt       DateTime             @updatedAt @map("updated_at")
   memberships     WorkspaceMembership[]
@@ -126,7 +146,11 @@ model WorkspaceMembership {
   role            WorkspaceMembershipRole
   status          WorkspaceMembershipStatus @default(active)
   displayName     String?                   @map("display_name")
+  
+  // Member-specific settings per workspace
   locale          String?
+  timezone        String?
+  
   invitedBy       String?                   @map("invited_by")
   joinedAt        DateTime?                 @map("joined_at")
   
@@ -153,7 +177,8 @@ model WorkspaceMembership {
 
 model FileSystemEntry {
   id          String          @id @default(uuid())
-  name        String
+  name        String          // Actual filename with extension
+  displayName String?         @map("display_name") // User-facing name
   type        FileSystemType
   
   // Hierarchy
@@ -167,7 +192,7 @@ model FileSystemEntry {
   
   // File metadata (type='file' only)
   mimeType    String?         @map("mime_type")
-  extension   String?
+  extension   String?         // Stored separately for sorting/filtering
   size        BigInt?
   
   // Current version
@@ -176,7 +201,7 @@ model FileSystemEntry {
   
   // Metadata
   isStarred   Boolean         @default(false) @map("is_starred")
-  isPublic    Boolean         @default(false) @map("is_public") // type='file' only
+  isShared    Boolean         @default(false) @map("is_shared") // Indicates if file has any share links
   description String?
   tags        String[]
   viewCount   Int             @default(0) @map("view_count") // type='file' only - tracks document views
@@ -241,23 +266,23 @@ model Revision {
 // ============================================================================
 
 model ShareLink {
-  id            String          @id @default(uuid())
-  token         String          @unique
+  id            String              @id @default(uuid())
+  token         String              @unique
   
-  fileId        String          @map("file_id")
-  file          FileSystemEntry @relation(fields: [fileId], references: [id], onDelete: Cascade)
+  fileId        String              @map("file_id")
+  file          FileSystemEntry     @relation(fields: [fileId], references: [id], onDelete: Cascade)
   
-  workspaceId   String          @map("workspace_id")
-  workspace     Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  workspaceId   String              @map("workspace_id")
+  workspace     Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   
-  accessLevel   ShareLinkAccess @map("access_level") @default(viewer)
-  isPublic      Boolean         @map("is_public") @default(false)
-  passwordHash  String?         @map("password_hash")
-  expiresAt     DateTime?       @map("expires_at")
-  revokedAt     DateTime?       @map("revoked_at")
+  accessLevel   ShareLinkAccess     @map("access_level") @default(viewer)
+  accessType    ShareLinkAccessType @map("access_type") @default(link)
+  passwordHash  String?             @map("password_hash")
+  expiresAt     DateTime?           @map("expires_at")
+  revokedAt     DateTime?           @map("revoked_at")
   
-  createdAt     DateTime        @default(now()) @map("created_at")
-  createdBy     String          @map("created_by")
+  createdAt     DateTime            @default(now()) @map("created_at")
+  createdBy     String              @map("created_by")
   creator       WorkspaceMembership @relation(fields: [createdBy], references: [id])
   
   sessions      ShareLinkSession[]

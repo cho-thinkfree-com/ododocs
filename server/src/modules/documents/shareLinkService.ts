@@ -19,7 +19,7 @@ const createSchema = z.object({
   accessLevel: z.enum(['viewer', 'commenter']),
   expiresAt: z.string().datetime().optional(),
   password: z.string().min(4).max(32).optional(),
-  isPublic: z.boolean().optional(),
+  accessType: z.enum(['private', 'link', 'public']).optional(),
 })
 
 const resolveSchema = z.object({
@@ -28,7 +28,7 @@ const resolveSchema = z.object({
 
 const updateOptionsSchema = z.object({
   allowExternalEdit: z.boolean().optional(),
-  isPublic: z.boolean().optional(),
+  accessType: z.enum(['private', 'link', 'public']).optional(),
 })
 
 const acceptSchema = z.object({
@@ -79,7 +79,7 @@ export class ShareLinkService {
         expiresAt: input.expiresAt ? new Date(input.expiresAt) : undefined,
         createdByMembershipId: membership.id,
         allowExternalEdit: existingShareLink.allowExternalEdit, // Preserve existing setting or take from input if we supported it here
-        isPublic: input.isPublic ?? false,
+        accessType: input.accessType ?? 'link',
         workspaceId,
       })
 
@@ -107,7 +107,7 @@ export class ShareLinkService {
       passwordHash,
       expiresAt: input.expiresAt ? new Date(input.expiresAt) : undefined,
       createdByMembershipId: membership.id,
-      isPublic: input.isPublic ?? false,
+      accessType: input.accessType ?? 'link',
       workspaceId,
     })
     await this.auditLogService.record({
@@ -146,7 +146,7 @@ export class ShareLinkService {
     const input = updateOptionsSchema.parse(payload)
     const updated = await this.shareLinkRepository.updateOptions(shareLinkId, {
       allowExternalEdit: input.allowExternalEdit,
-      isPublic: input.isPublic,
+      accessType: input.accessType,
     })
     await this.auditLogService.record({
       workspaceId,
@@ -154,7 +154,7 @@ export class ShareLinkService {
       action: 'share_link.updated',
       entityType: 'share_link',
       entityId: shareLinkId,
-      metadata: { allowExternalEdit: updated.allowExternalEdit, isPublic: updated.isPublic },
+      metadata: { allowExternalEdit: updated.allowExternalEdit, accessType: updated.accessType },
     })
     return updated
   }

@@ -90,7 +90,7 @@ export class FileService {
             accessLevel?: 'view' | 'comment' | 'edit'
             password?: string
             expiresAt?: Date
-            isPublic?: boolean
+            accessType?: 'private' | 'link' | 'public'
         }
     ) {
         const file = await this.fileRepository.findById(fileId)
@@ -111,7 +111,7 @@ export class FileService {
             accessLevel: options.accessLevel || 'view',
             passwordHash,
             expiresAt: options.expiresAt,
-            isPublic: options.isPublic || false,
+            accessType: options.accessType || 'link',
             createdByMembershipId: membership.id,
         })
     }

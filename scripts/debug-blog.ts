@@ -24,7 +24,7 @@ async function main() {
             ownerMembershipId: membership.id,
             OR: [
                 { visibility: 'public' },
-                { shareLinks: { some: { isPublic: true } } }
+                { shareLinks: { some: { accessType: 'public' } } }
             ],
             deletedAt: null,
         },

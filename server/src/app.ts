@@ -501,7 +501,10 @@ async function buildServer() {
     if (!profile) {
       return reply.status(404).send({ error: 'Blog not found' })
     }
-    return profile
+    return {
+      id: profile.membershipId,
+      ...profile,
+    }
   })
 
   app.get('/api/v1/blog/:handle/documents', async (request, reply) => {
@@ -517,7 +520,10 @@ async function buildServer() {
     if (!profile) {
       return reply.status(404).send({ error: 'Blog not found' })
     }
-    return profile
+    return {
+      id: profile.membershipId,
+      ...profile,
+    }
   })
 
   app.get('/api/v1/blog/:workspaceId/:membershipId/documents', async (request, reply) => {
@@ -537,7 +543,11 @@ async function buildServer() {
     if (!profile) {
       return reply.status(404).send({ error: 'Blog not found' })
     }
-    return { profile, documents: docs.documents, pagination: docs.pagination }
+    return {
+      profile: { id: profile.membershipId, ...profile },
+      documents: docs.documents,
+      pagination: docs.pagination
+    }
   })
 
   app.get('/api/v1/blog/check/:handle', async (request, reply) => {
@@ -569,7 +579,12 @@ async function buildServer() {
       blogService.getProfileByMembershipId(membershipId)
     ])
 
-    return { ...result, profile }
+    const transformedProfile = profile ? {
+      id: profile.membershipId,
+      ...profile,
+    } : null
+
+    return { ...result, profile: transformedProfile }
   })
 
   // Recent documents (legacy route)
@@ -623,7 +638,7 @@ async function buildServer() {
             id: true,
             token: true,
             accessLevel: true,
-            isPublic: true,
+            accessType: 'public',
             expiresAt: true,
             createdAt: true,
             passwordHash: true,
