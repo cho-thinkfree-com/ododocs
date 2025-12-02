@@ -37,6 +37,7 @@ import {
     Error as ErrorIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../../context/AuthContext';
+import { useUpload } from '../../context/UploadContext';
 import { useI18n } from '../../lib/i18n';
 import CollapsibleBreadcrumbs from '../../components/workspace/CollapsibleBreadcrumbs';
 import {
@@ -60,7 +61,6 @@ import FileShareIndicator from '../../components/workspace/FileShareIndicator';
 import SelectionToolbar from '../../components/workspace/SelectionToolbar';
 import { useFileEvents } from '../../hooks/useFileEvents';
 import { useDragAndDrop } from '../../hooks/useDragAndDrop';
-import { validateOdocsFile } from '../../lib/odocsValidator';
 
 const WorkspaceFilesPage = () => {
     const { strings } = useI18n();
@@ -70,6 +70,8 @@ const WorkspaceFilesPage = () => {
     const folderId = paramFolderId || queryFolderId;
     const navigate = useNavigate();
     const { isAuthenticated } = useAuth();
+    const { uploadFiles } = useUpload();
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
 
     const [items, setItems] = useState<FileSystemEntry[]>([]);
@@ -94,14 +96,7 @@ const WorkspaceFilesPage = () => {
     // Drag and drop state for upload
     const [dragOver, setDragOver] = useState<string | null>(null);
 
-    // Upload tasks tracking
-    interface UploadTask {
-        id: string;
-        fileName: string;
-        status: 'uploading' | 'success' | 'error';
-        error?: string;
-    }
-    const [uploadTasks, setUploadTasks] = useState<UploadTask[]>([]);
+
 
     // Context menu
     const [contextMenu, setContextMenu] = useState<{
@@ -154,7 +149,6 @@ const WorkspaceFilesPage = () => {
         handleDragLeave,
         handleDrop,
     } = useDragAndDrop({
-        onMoveComplete: fetchData,
         onMoveError: (error) => alert('Failed to move: ' + error.message),
     });
 
@@ -194,6 +188,14 @@ const WorkspaceFilesPage = () => {
 
                     // File moved OUT of current folder
                     if (event.oldParentId === currentFolderId && event.newParentId !== currentFolderId) {
+                        // Remove from selection if selected
+                        if (selectedIds.has(event.fileId)) {
+                            setSelectedIds(prev => {
+                                const newSet = new Set(prev);
+                                newSet.delete(event.fileId);
+                                return newSet;
+                            });
+                        }
                         return prevItems.filter((item) => item.id !== event.fileId);
                     }
 
@@ -220,6 +222,14 @@ const WorkspaceFilesPage = () => {
         },
         onFileDeleted: (event) => {
             setItems((prevItems) => prevItems.filter((item) => item.id !== event.fileId));
+            // Remove from selection if selected
+            if (selectedIds.has(event.fileId)) {
+                setSelectedIds(prev => {
+                    const newSet = new Set(prev);
+                    newSet.delete(event.fileId);
+                    return newSet;
+                });
+            }
         },
         onFileRestored: (event) => {
             // If restored to current folder, add it
@@ -642,137 +652,28 @@ const WorkspaceFilesPage = () => {
         e.stopPropagation();
         setDragOver(null);
 
-        const odocsFiles = Array.from(files).filter(f => f.name.endsWith('.odocs'));
-
-        if (odocsFiles.length === 0) {
-            alert('Please drop .odocs files only');
-            return;
-        }
-
-        // Add all files to the upload queue first
-        const taskIds = odocsFiles.map(file => {
-            const taskId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-            setUploadTasks(prev => [...prev, {
-                id: taskId,
-                fileName: file.name,
-                status: 'uploading',
-            }]);
-            return { taskId, file };
-        });
-
-        // Then process all files in parallel
-        await Promise.all(
-            taskIds.map(({ taskId, file }) =>
-                uploadOdocsFile(file, targetFolderId, taskId)
-            )
-        );
-
-        // Don't refresh entire list - files are added individually in uploadOdocsFile
-    };
-
-    const uploadOdocsFile = async (file: File, targetFolderId?: string, taskId?: string) => {
         if (!workspaceId) return;
 
-        // Use provided taskId or generate new one
-        const uploadTaskId = taskId || `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        // Pass all files to global upload context - it handles validation and error reporting
+        uploadFiles(Array.from(files), workspaceId, targetFolderId || folderId || undefined);
+    };
 
-        // Add upload task only if not already added
-        if (!taskId) {
-            setUploadTasks(prev => [...prev, {
-                id: uploadTaskId,
-                fileName: file.name,
-                status: 'uploading',
-            }]);
+    const handleUploadClick = () => {
+        fileInputRef.current?.click();
+    };
+
+    const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const files = event.target.files;
+        if (files && files.length > 0 && workspaceId) {
+            uploadFiles(Array.from(files), workspaceId, folderId || undefined);
         }
-
-        try {
-            // Validate format on frontend first
-            const validation = await validateOdocsFile(file);
-            if (!validation.valid) {
-                setUploadTasks(prev => prev.map(t =>
-                    t.id === uploadTaskId ? { ...t, status: 'error', error: validation.error } : t
-                ));
-                return;
-            }
-
-            const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:9920';
-
-            // Step 1: Request presigned URL
-            const initResponse = await fetch(`${API_BASE_URL}/api/workspaces/${workspaceId}/files/upload`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                credentials: 'include',
-                body: JSON.stringify({
-                    name: file.name,
-                    mimeType: 'application/x-odocs',
-                    size: file.size,
-                    folderId: targetFolderId || folderId || null,
-                }),
-            });
-
-            if (!initResponse.ok) {
-                throw new Error('Failed to initialize upload');
-            }
-
-            const { uploadUrl, uploadKey } = await initResponse.json();
-
-            // Step 2: Upload to S3
-            const uploadResponse = await fetch(uploadUrl, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/x-odocs' },
-                body: file,
-            });
-
-            if (!uploadResponse.ok) {
-                throw new Error('Failed to upload file to S3');
-            }
-
-            // Step 3: Confirm upload (backend will validate here too)
-            const confirmResponse = await fetch(`${API_BASE_URL}/api/workspaces/${workspaceId}/files/confirm`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                credentials: 'include',
-                body: JSON.stringify({
-                    uploadKey,
-                    name: file.name,
-                    mimeType: 'application/x-odocs',
-                    size: file.size,
-                    folderId: targetFolderId || folderId || null,
-                }),
-            });
-
-            if (!confirmResponse.ok) {
-                const error = await confirmResponse.json();
-                throw new Error(error.details || error.error || 'Upload confirmation failed');
-            }
-
-            const createdFile = await confirmResponse.json();
-
-            // Mark as success
-            setUploadTasks(prev => prev.map(t =>
-                t.id === uploadTaskId ? { ...t, status: 'success' } : t
-            ));
-
-            // Add the new file to the items list
-            setItems(prev => [...prev, createdFile]);
-
-            // Remove success notification after 5 seconds
-            setTimeout(() => {
-                setUploadTasks(prev => prev.filter(t => t.id !== uploadTaskId));
-            }, 5000);
-
-            // No need to refresh - file added directly
-        } catch (error) {
-            console.error('Upload error:', error);
-            setUploadTasks(prev => prev.map(t =>
-                t.id === uploadTaskId ? {
-                    ...t,
-                    status: 'error',
-                    error: error instanceof Error ? error.message : 'Unknown error'
-                } : t
-            ));
+        // Reset input
+        if (event.target) {
+            event.target.value = '';
         }
     };
+
+
 
     const formatBytes = (bytes?: string | null) => {
         if (!bytes) return '-';
@@ -860,9 +761,26 @@ const WorkspaceFilesPage = () => {
                         }
                     }}
                     dragOverId={dragOverId}
-                    onDragOver={handleDragOver}
+                    onDragOver={(e, folderId) => {
+                        const hasFiles = e.dataTransfer.types.includes('Files');
+                        if (hasFiles) {
+                            // Prevent drop for external files
+                            e.stopPropagation();
+                            return;
+                        }
+                        handleDragOver(e, folderId);
+                    }}
                     onDragLeave={handleDragLeave}
-                    onDrop={handleDrop}
+                    onDrop={(e, targetFolderId, items, selectedIds) => {
+                        const hasFiles = e.dataTransfer.files.length > 0;
+                        if (hasFiles) {
+                            // Prevent drop for external files
+                            e.preventDefault();
+                            e.stopPropagation();
+                            return;
+                        }
+                        handleDrop(e, targetFolderId, items, selectedIds);
+                    }}
                     items={items as Array<{ id: string; type: string; parentId: string | null }>}
                     selectedIds={selectedIds}
                 />
@@ -888,11 +806,19 @@ const WorkspaceFilesPage = () => {
                     <Button
                         variant="outlined"
                         startIcon={<UploadFileIcon />}
-                        onClick={() => alert('File upload not implemented yet')}
+                        onClick={handleUploadClick}
                         size="small"
                     >
                         Upload
                     </Button>
+                    <input
+                        type="file"
+                        ref={fileInputRef}
+                        style={{ display: 'none' }}
+                        multiple
+                        accept=".odocs"
+                        onChange={handleFileChange}
+                    />
                 </Box>
             </Box>
 
@@ -950,53 +876,58 @@ const WorkspaceFilesPage = () => {
                     ) : null}
                 </Box>
 
-                {/* Files Table */}
-                {items.length === 0 ? (
-                    <Paper sx={{ p: 6, textAlign: 'center', borderStyle: 'dashed', bgcolor: 'transparent' }}>
-                        <Typography color="text.secondary">
-                            This folder is empty. Create a document or folder to get started.
-                        </Typography>
-                    </Paper>
-                ) : (
-                    <Box
-                        onDragOver={(e) => {
-                            // Support both external file upload and internal file move
-                            const types = e.dataTransfer.types;
-                            const hasFiles = types.includes('Files');
+                {/* Drop Zone Container */}
+                <Box
+                    onDragOver={(e) => {
+                        // Support both external file upload and internal file move
+                        const types = e.dataTransfer.types;
+                        const hasFiles = types.includes('Files');
 
-                            if (hasFiles) {
-                                // External file drag
-                                handleDragOverUpload(e, 'main');
-                            } else {
-                                // Internal file move
-                                handleDragOver(e);
-                            }
-                        }}
-                        onDragLeave={(e) => {
-                            handleDragLeaveUpload(e);
-                            handleDragLeave(e);
-                        }}
-                        onDrop={async (e) => {
-                            const files = e.dataTransfer.files;
+                        if (hasFiles) {
+                            // External file drag
+                            handleDragOverUpload(e, 'main');
+                        } else {
+                            // Internal file move
+                            handleDragOver(e);
+                        }
+                    }}
+                    onDragLeave={(e) => {
+                        handleDragLeaveUpload(e);
+                        handleDragLeave(e);
+                    }}
+                    onDrop={async (e) => {
+                        const files = e.dataTransfer.files;
 
-                            if (files.length > 0) {
-                                // External file upload
-                                await handleDropUpload(e, folderId || undefined);
-                            } else {
-                                // Internal file move
-                                await handleDrop(e, folderId || null, items as Array<{ id: string; type: string; parentId: string | null }>, selectedIds);
-                            }
-                        }}
-                        sx={{
-                            position: 'relative',
-                            backgroundColor: dragOver === 'main' ? 'action.hover' : 'transparent',
-                            border: dragOver === 'main' ? '2px dashed' : '2px dashed transparent',
-                            borderColor: dragOver === 'main' ? 'primary.main' : 'transparent',
-                            transition: 'all 0.2s',
-                            borderRadius: 1,
-                        }}
-                    >
-                        <TableContainer component={Paper} variant="outlined" sx={{ border: 'none' }}>
+                        if (files.length > 0) {
+                            // External file upload
+                            await handleDropUpload(e, folderId || undefined);
+                        } else {
+                            // Internal file move
+                            await handleDrop(e, folderId || null, items as Array<{ id: string; type: string; parentId: string | null }>, selectedIds);
+                        }
+                    }}
+                    sx={{
+                        position: 'relative',
+                        backgroundColor: dragOver === 'main' ? 'action.hover' : 'transparent',
+                        border: dragOver === 'main' ? '2px dashed' : '2px dashed transparent',
+                        borderColor: dragOver === 'main' ? 'primary.main' : 'transparent',
+                        transition: 'all 0.2s',
+                        borderRadius: 1,
+                        flexGrow: 1,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        minHeight: 200,
+                    }}
+                >
+                    {/* Files Table */}
+                    {items.length === 0 ? (
+                        <Paper sx={{ p: 6, textAlign: 'center', borderStyle: 'dashed', bgcolor: 'transparent', flexGrow: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                            <Typography color="text.secondary">
+                                This folder is empty. Create a document or folder to get started.
+                            </Typography>
+                        </Paper>
+                    ) : (
+                        <TableContainer component={Paper} variant="outlined" sx={{ border: 'none', flexGrow: 1 }}>
                             <Table>
                                 <TableHead>
                                     <TableRow>
@@ -1178,8 +1109,8 @@ const WorkspaceFilesPage = () => {
                                 </TableBody>
                             </Table>
                         </TableContainer>
-                    </Box>
-                )}
+                    )}
+                </Box>
             </Box>
 
             {/* Context Menu */}
@@ -1248,93 +1179,7 @@ const WorkspaceFilesPage = () => {
                 file={selectedItem}
             />
 
-            {/* Upload Status Panel - Bottom Right */}
-            {uploadTasks.length > 0 && (
-                <Box
-                    sx={{
-                        position: 'fixed',
-                        bottom: 24,
-                        right: 24,
-                        maxWidth: 400,
-                        zIndex: 1300,
-                    }}
-                >
-                    <Paper
-                        elevation={8}
-                        sx={{
-                            bgcolor: 'background.paper',
-                            borderRadius: 2,
-                            overflow: 'hidden',
-                        }}
-                    >
-                        <Box sx={{ bgcolor: '#1a1a1a', color: '#ffffff', px: 2.5, py: 1.5, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                            <Typography variant="subtitle1" fontWeight="600" sx={{ color: '#ffffff' }}>
-                                File Uploads
-                            </Typography>
-                            <Typography variant="body2" sx={{ bgcolor: '#333333', color: '#ffffff', px: 1.5, py: 0.5, borderRadius: 1, fontWeight: '500' }}>
-                                {uploadTasks.filter(t => t.status === 'uploading').length} / {uploadTasks.length}
-                            </Typography>
-                        </Box>
-                        <Box sx={{ maxHeight: 300, overflow: 'auto' }}>
-                            {uploadTasks.map((task) => (
-                                <Box
-                                    key={task.id}
-                                    sx={{
-                                        px: 2,
-                                        py: 1.5,
-                                        borderBottom: '1px solid',
-                                        borderColor: 'divider',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: 1.5,
-                                        bgcolor: task.status === 'success' ? 'success.50' :
-                                            task.status === 'error' ? 'error.50' : 'transparent',
-                                        '&:last-child': {
-                                            borderBottom: 'none',
-                                        },
-                                    }}
-                                >
-                                    {task.status === 'uploading' && (
-                                        <CircularProgress size={24} thickness={4} />
-                                    )}
-                                    {task.status === 'success' && (
-                                        <CheckCircleIcon sx={{ color: 'success.main', fontSize: 28 }} />
-                                    )}
-                                    {task.status === 'error' && (
-                                        <ErrorIcon sx={{ color: 'error.main', fontSize: 28 }} />
-                                    )}
-                                    <Box sx={{ flex: 1, minWidth: 0 }}>
-                                        <Typography
-                                            variant="body2"
-                                            noWrap
-                                            sx={{
-                                                fontWeight: task.status === 'uploading' ? '500' : 'normal',
-                                            }}
-                                        >
-                                            {task.fileName}
-                                        </Typography>
-                                        {task.status === 'uploading' && (
-                                            <Typography variant="caption" color="text.secondary">
-                                                업로드 중...
-                                            </Typography>
-                                        )}
-                                        {task.status === 'success' && (
-                                            <Typography variant="caption" sx={{ color: 'success.main', fontWeight: '500' }}>
-                                                ✓ 업로드 완료
-                                            </Typography>
-                                        )}
-                                        {task.status === 'error' && (
-                                            <Typography variant="caption" sx={{ color: 'error.main', fontWeight: '500' }}>
-                                                ✗ {task.error || '업로드 실패'}
-                                            </Typography>
-                                        )}
-                                    </Box>
-                                </Box>
-                            ))}
-                        </Box>
-                    </Paper>
-                </Box>
-            )}
+
 
             {/* Dialogs */}
             <CreateFolderDialog

@@ -96,11 +96,12 @@ export const UploadProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                 });
             }, 200);
 
-            const createdDoc = await createDocument(item.workspaceId, {
-                folderId: item.targetFolderId,
+            const createdDoc = await createDocument(
+                item.workspaceId,
                 title,
-                initialRevision: { content }
-            });
+                content,
+                item.targetFolderId
+            );
 
             clearInterval(progressInterval);
             updateUpload(item.id, { status: 'success', progress: 100 });
