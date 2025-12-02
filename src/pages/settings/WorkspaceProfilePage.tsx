@@ -232,7 +232,7 @@ const WorkspaceProfilePage = () => {
             await updateWorkspaceMemberProfile(workspaceId, {
                 blogTheme,
                 blogHandle: blogHandle.trim() || undefined,
-                blogDescription: blogDescription.trim() || undefined
+                blogDescription: blogDescription.trim()
             });
 
             setBlogSuccess('Blog settings saved successfully');
