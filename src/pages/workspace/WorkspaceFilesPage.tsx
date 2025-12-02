@@ -12,8 +12,6 @@ import {
     TableHead,
     TableRow,
     Paper,
-    Breadcrumbs,
-    Link,
     CircularProgress,
     Alert,
     Menu,
@@ -28,8 +26,6 @@ import {
     InsertDriveFile as FileIcon,
     CreateNewFolder as CreateNewFolderIcon,
     UploadFile as UploadFileIcon,
-    NavigateNext as NavigateNextIcon,
-    Home as HomeIcon,
     Star as StarIcon,
     StarBorder as StarBorderIcon,
     Share as ShareIcon,
@@ -38,6 +34,7 @@ import {
 } from '@mui/icons-material';
 import { useAuth } from '../../context/AuthContext';
 import { useI18n } from '../../lib/i18n';
+import CollapsibleBreadcrumbs from '../../components/workspace/CollapsibleBreadcrumbs';
 import {
     getWorkspace,
     getWorkspaceFiles,
@@ -48,7 +45,6 @@ import {
     renameFileSystemEntry,
     toggleFileStar,
     restoreFileSystemEntry,
-    moveFileSystemEntry,
     getFileAncestors,
     type FileSystemEntry,
     type WorkspaceSummary,
@@ -60,6 +56,7 @@ import ShareDialog from '../../components/editor/ShareDialog';
 import FileShareIndicator from '../../components/workspace/FileShareIndicator';
 import SelectionToolbar from '../../components/workspace/SelectionToolbar';
 import { useFileEvents } from '../../hooks/useFileEvents';
+import { useDragAndDrop } from '../../hooks/useDragAndDrop';
 
 const WorkspaceFilesPage = () => {
     const { strings } = useI18n();
@@ -126,6 +123,20 @@ const WorkspaceFilesPage = () => {
             setLoading(false);
         }
     }, [isAuthenticated, workspaceId, folderId]);
+
+    // Drag and drop
+    const {
+        draggedItemIds,
+        dragOverId,
+        handleDragStart,
+        handleDragEnd,
+        handleDragOver,
+        handleDragLeave,
+        handleDrop,
+    } = useDragAndDrop({
+        onMoveComplete: fetchData,
+        onMoveError: (error) => alert('Failed to move: ' + error.message),
+    });
 
     useEffect(() => {
         fetchData();
@@ -525,35 +536,23 @@ const WorkspaceFilesPage = () => {
             {/* Header */}
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 4 }}>
                 {/* Breadcrumbs */}
-                <Breadcrumbs separator={<NavigateNextIcon fontSize="small" />} aria-label="breadcrumb">
-                    <Link
-                        component="button"
-                        underline="hover"
-                        color="inherit"
-                        onClick={() => navigate(`/workspace/${workspaceId}/files`)}
-                        sx={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}
-                    >
-                        <HomeIcon sx={{ mr: 0.5 }} fontSize="inherit" />
-                        Files
-                    </Link>
-                    {ancestors.map((ancestor) => (
-                        <Link
-                            key={ancestor.id}
-                            component="button"
-                            underline="hover"
-                            color="inherit"
-                            onClick={() => navigate(`/workspace/${workspaceId}/folder/${ancestor.id}`)}
-                            sx={{ cursor: 'pointer' }}
-                        >
-                            {ancestor.name}
-                        </Link>
-                    ))}
-                    {currentFolder && (
-                        <Typography color="text.primary" fontWeight="600" sx={{ display: 'flex', alignItems: 'center' }}>
-                            {currentFolder.name}
-                        </Typography>
-                    )}
-                </Breadcrumbs>
+                <CollapsibleBreadcrumbs
+                    ancestors={ancestors}
+                    currentFolder={currentFolder}
+                    onNavigate={(folderId) => {
+                        if (folderId) {
+                            navigate(`/workspace/${workspaceId}/folder/${folderId}`);
+                        } else {
+                            navigate(`/workspace/${workspaceId}/files`);
+                        }
+                    }}
+                    dragOverId={dragOverId}
+                    onDragOver={handleDragOver}
+                    onDragLeave={handleDragLeave}
+                    onDrop={handleDrop}
+                    items={items as Array<{ id: string; type: string; parentId: string | null }>}
+                    selectedIds={selectedIds}
+                />
 
                 {/* Actions */}
                 <Box sx={{ display: 'flex', gap: 1 }}>
@@ -680,7 +679,21 @@ const WorkspaceFilesPage = () => {
                                         key={item.id}
                                         hover
                                         selected={selectedIds.has(item.id)}
-                                        sx={{ cursor: 'pointer', userSelect: 'none' }}
+                                        draggable
+                                        onDragStart={(e) => handleDragStart(e, item.id, selectedIds)}
+                                        onDragEnd={handleDragEnd}
+                                        onDragOver={(e) => handleDragOver(e, item.id)}
+                                        onDragLeave={handleDragLeave}
+                                        onDrop={(e) => handleDrop(e, item.id, items as Array<{ id: string; type: string; parentId: string | null }>, selectedIds)}
+                                        sx={{
+                                            cursor: 'pointer',
+                                            userSelect: 'none',
+                                            opacity: draggedItemIds.includes(item.id) ? 0.5 : 1,
+                                            bgcolor: dragOverId === item.id ? 'action.hover' : 'inherit',
+                                            borderLeft: dragOverId === item.id ? '3px solid' : '3px solid transparent',
+                                            borderColor: dragOverId === item.id ? 'primary.main' : 'transparent',
+                                            transition: 'all 0.2s',
+                                        }}
                                         onClick={(e) => handleRowClick(e, item)}
                                         onDoubleClick={() => handleRowDoubleClick(item)}
                                         onContextMenu={(e) => handleContextMenu(e, item)}
@@ -711,7 +724,15 @@ const WorkspaceFilesPage = () => {
                                         key={item.id}
                                         hover
                                         selected={selectedIds.has(item.id)}
-                                        sx={{ cursor: 'pointer', userSelect: 'none' }}
+                                        draggable
+                                        onDragStart={(e) => handleDragStart(e, item.id, selectedIds)}
+                                        onDragEnd={handleDragEnd}
+                                        sx={{
+                                            cursor: 'pointer',
+                                            userSelect: 'none',
+                                            opacity: draggedItemIds.includes(item.id) ? 0.5 : 1,
+                                            transition: 'opacity 0.2s',
+                                        }}
                                         onClick={(e) => handleRowClick(e, item)}
                                         onDoubleClick={() => handleRowDoubleClick(item)}
                                         onContextMenu={(e) => handleContextMenu(e, item)}
@@ -743,7 +764,15 @@ const WorkspaceFilesPage = () => {
                                         key={item.id}
                                         hover
                                         selected={selectedIds.has(item.id)}
-                                        sx={{ cursor: 'pointer', userSelect: 'none' }}
+                                        draggable
+                                        onDragStart={(e) => handleDragStart(e, item.id, selectedIds)}
+                                        onDragEnd={handleDragEnd}
+                                        sx={{
+                                            cursor: 'pointer',
+                                            userSelect: 'none',
+                                            opacity: draggedItemIds.includes(item.id) ? 0.5 : 1,
+                                            transition: 'opacity 0.2s',
+                                        }}
                                         onClick={(e) => handleRowClick(e, item)}
                                         onDoubleClick={() => handleRowDoubleClick(item)}
                                         onContextMenu={(e) => handleContextMenu(e, item)}

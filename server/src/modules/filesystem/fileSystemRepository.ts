@@ -219,28 +219,44 @@ export class FileSystemRepository {
     }
 
     async getAncestors(id: string): Promise<FileSystemEntry[]> {
+        console.log(`[getAncestors] Starting for id: ${id}`);
         const ancestors: FileSystemEntry[] = [];
         let currentId: string | null = id;
 
+        // First, get the starting entry to find its parent
+        const startEntry = await this.db.fileSystemEntry.findUnique({
+            where: { id: currentId },
+        });
+
+        if (!startEntry) {
+            console.log(`[getAncestors] Start entry not found`);
+            return ancestors;
+        }
+
+        // Start from the parent of the current file/folder
+        currentId = startEntry.parentId;
+
+        // Traverse up the parent chain
         while (currentId) {
-            const entry: FileSystemEntry | null = await this.db.fileSystemEntry.findUnique({
+            const parent: FileSystemEntry | null = await this.db.fileSystemEntry.findUnique({
                 where: { id: currentId },
             });
 
-            if (!entry || !entry.parentId) break;
+            console.log(`[getAncestors] Fetched parent:`, parent ? { id: parent.id, name: parent.name, parentId: parent.parentId } : 'NULL');
 
-            const parent: FileSystemEntry | null = await this.db.fileSystemEntry.findUnique({
-                where: { id: entry.parentId },
-            });
-
-            if (parent) {
-                ancestors.unshift(parent);
-                currentId = parent.parentId;
-            } else {
+            if (!parent) {
+                console.log(`[getAncestors] Parent not found, breaking`);
                 break;
             }
+
+            // Add this parent to ancestors
+            ancestors.unshift(parent);
+
+            // Move to the next parent up
+            currentId = parent.parentId;
         }
 
+        console.log(`[getAncestors] Final ancestors (${ancestors.length}):`, ancestors.map(a => a.name));
         return ancestors;
     }
 
