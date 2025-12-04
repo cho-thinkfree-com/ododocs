@@ -240,7 +240,7 @@ const WorkspaceDashboardPage = () => {
                   hover
                   selected={selectedId === doc.id}
                   onClick={() => setSelectedId(doc.id)}
-                  onDoubleClick={() => window.open(`/document/${doc.id}`, '_blank')}
+                  onDoubleClick={() => window.open(`/workspace/${doc.workspaceId}/files/${doc.id}/edit`, '_blank')}
                   sx={{ cursor: 'pointer', userSelect: 'none' }}
                 >
                   <TableCell>

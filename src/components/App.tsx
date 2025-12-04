@@ -129,7 +129,7 @@ const AppRoutes = () => {
           </Route>
         </Route>
         {/* Editor route is outside DashboardLayout to have its own full-screen layout */}
-        <Route path="/document/:documentId" element={<EditorPage />} />
+        <Route path="/workspace/:workspaceId/files/:fileId/edit" element={<EditorPage />} />
       </Route>
 
       {/* Auth Routes - Redirect to dashboard if already logged in */}

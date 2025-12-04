@@ -120,7 +120,7 @@ const RecentFilesPage = () => {
     };
 
     const handleRowDoubleClick = (item: FileSystemEntry) => {
-        window.open(`/document/${item.id}`, '_blank');
+        window.open(`/workspace/${item.workspaceId}/files/${item.id}/edit`, '_blank');
     };
 
     const handleBulkDelete = async () => {

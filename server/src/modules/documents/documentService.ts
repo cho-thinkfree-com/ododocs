@@ -295,28 +295,24 @@ export class DocumentService {
     await this.workspaceAccess.assertMember(accountId, document.workspaceId)
 
     const assetId = uuidv4()
-    // Path: workspaces/{ws}/documents/{doc}/asset-drafts/{uuid}
-    const key = `workspaces/${document.workspaceId}/documents/${documentId}/asset-drafts/${assetId}`
+    // Path: workspaces/{ws}/files/{fid}/assets/{uuid}
+    const key = `workspaces/${document.workspaceId}/files/${documentId}/assets/${assetId}`
 
     const uploadUrl = await this.storageService.getPresignedPutUrl(key, mimeType)
-    const odocsUrl = `odocs://workspaces/${document.workspaceId}/documents/${documentId}/asset-drafts/${assetId}`
+    const odocsUrl = `odocs://workspaces/${document.workspaceId}/files/${documentId}/assets/${assetId}`
 
     return { uploadUrl, odocsUrl }
   }
 
   async getAssetViewUrl(accountId: string, workspaceId: string, documentId: string, assetId: string) {
-    // 1. Check permissions (User must be able to view the document)
-    // Note: We can optimize this by caching permissions or using a lightweight check
     const document = await this.ensureDocument(documentId, workspaceId)
     await this.workspaceAccess.assertMember(accountId, workspaceId)
-    // TODO: Add finer-grained document permission check (e.g. is this user allowed to view THIS private doc?)
-    // For now, workspace membership is the baseline.
 
-    // 2. Generate S3 URL
-    // Path: workspaces/{ws}/documents/{doc}/assets/{uuid}
-    const key = `workspaces/${workspaceId}/documents/${documentId}/assets/${assetId}`
+    // Construct S3 key with new path structure
+    const key = `workspaces/${workspaceId}/files/${documentId}/assets/${assetId}`
 
-    return this.storageService.getPresignedGetUrl(key)
+    const url = await this.storageService.getPresignedGetUrl(key)
+    return url
   }
 
   async resolveAssetUrls(accountId: string, workspaceId: string, documentId: string, assetUrls: string[]) {
@@ -326,14 +322,13 @@ export class DocumentService {
     const resolved: Record<string, string> = {}
 
     await Promise.all(assetUrls.map(async (url) => {
-      // Parse URL: odocs://workspaces/{ws}/documents/{doc}/assets/{uuid}
-      // We support both 'assets' and 'asset-drafts' for flexibility, though mostly 'assets' will be requested on load.
-      const match = url.match(/odocs:\/\/workspaces\/([^\/]+)\/documents\/([^\/]+)\/(assets|asset-drafts)\/([^\/]+)/)
+      // Parse URL: odocs://workspaces/{ws}/files/{fid}/assets/{uuid}
+      const match = url.match(/odocs:\/\/workspaces\/([^\/]+)\/files\/([^\/]+)\/assets\/([^\/]+)/)
       if (match) {
-        const [, wsId, docId, type, assetId] = match
+        const [, wsId, fileId, assetId] = match
         // Security check: ensure the asset belongs to the requested document/workspace
-        if (wsId === workspaceId && docId === documentId) {
-          const key = `workspaces/${workspaceId}/documents/${documentId}/${type}/${assetId}`
+        if (wsId === workspaceId && fileId === documentId) {
+          const key = `workspaces/${workspaceId}/files/${documentId}/assets/${assetId}`
           resolved[url] = await this.storageService.getPresignedGetUrl(key)
         }
       }

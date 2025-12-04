@@ -97,7 +97,7 @@ const SharedFilesPage = () => {
 
     const handleRowDoubleClick = (itemId: string) => {
         setSelectedItems(new Set());
-        window.open(`/document/${itemId}`, '_blank');
+        window.open(`/workspace/${workspaceId}/files/${itemId}/edit`, '_blank');
     };
 
 

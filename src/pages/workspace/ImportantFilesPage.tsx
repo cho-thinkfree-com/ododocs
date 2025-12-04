@@ -131,7 +131,7 @@ const ImportantFilesPage = () => {
         if (item.type === 'folder') {
             navigate(`/workspace/${workspaceId}?folderId=${item.id}`);
         } else if (item.mimeType === 'application/x-odocs') {
-            window.open(`/document/${item.id}`, '_blank');
+            window.open(`/workspace/${item.workspaceId}/files/${item.id}/edit`, '_blank');
         }
     };
 

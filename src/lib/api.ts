@@ -651,15 +651,21 @@ export async function permanentlyDeleteFolder(folderId: string) {
 }
 
 // Assets
-export async function resolveAssetUrls(content: any, workspaceId: string, documentId: string) {
-  // Just return content as-is for now
-  return content
+export async function resolveAssetUrls(workspaceId: string, documentId: string, urls: string[], shareToken?: string) {
+  const { resolved } = await requestJSON<{ resolved: Record<string, string> }>(
+    `/api/workspaces/${workspaceId}/files/${documentId}/assets/resolve`,
+    {
+      method: 'POST',
+      body: { urls, shareToken },
+    }
+  )
+  return resolved
 }
 
-export async function getAssetUploadUrl(workspaceId: string, documentId: string, filename: string) {
-  return requestJSON<{ uploadUrl: string; assetKey: string }>(`/api/v1/workspaces/${workspaceId}/documents/${documentId}/assets/upload`, {
+export async function getAssetUploadUrl(workspaceId: string, documentId: string, mimeType: string) {
+  return requestJSON<{ uploadUrl: string; odocsUrl: string }>(`/api/workspaces/${workspaceId}/files/${documentId}/assets/upload`, {
     method: 'POST',
-    body: { filename },
+    body: { mimeType },
   })
 }
 

@@ -3,7 +3,7 @@ import { useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useI18n, type Locale } from '../../lib/i18n';
 
-const isWorkspacePath = (pathname: string) => pathname.startsWith('/workspace/') || pathname.startsWith('/document/');
+const isWorkspacePath = (pathname: string) => pathname.startsWith('/workspace/');
 
 const LanguageSync = () => {
   const { user } = useAuth();

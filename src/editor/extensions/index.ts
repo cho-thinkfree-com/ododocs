@@ -28,8 +28,6 @@ import StarterKit from '@tiptap/starter-kit'
 import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight'
 import { FontSize, LinkBubbleMenuHandler, ResizableImage, TableImproved } from 'mui-tiptap'
 import type { AppStrings } from '../../lib/i18n'
-import { SlashHeadingExtension } from './slashHeading'
-import { SlashHelpExtension, type SlashHelpOptions } from './slashHelp'
 import { CalloutExtension } from './callout'
 import { ReactNodeViewRenderer } from '@tiptap/react'
 import CalloutNodeView from './CalloutNodeView.tsx'
@@ -51,10 +49,9 @@ lowlight.registerAlias({
 const HEADING_LEVELS = [1, 2, 3, 4, 5, 6] as const
 
 export type BaseExtensionOptions = {
-  slashHelp?: SlashHelpOptions
 }
 
-export const createBaseExtensions = (strings: AppStrings, options?: BaseExtensionOptions): Extension[] => {
+export const createBaseExtensions = (strings: AppStrings, _options?: BaseExtensionOptions): Extension[] => {
   const ExclusiveSubscript = Subscript.extend({
     addCommands() {
       const parent = this.parent?.()
@@ -166,8 +163,6 @@ export const createBaseExtensions = (strings: AppStrings, options?: BaseExtensio
     }),
     Gapcursor,
     LinkBubbleMenuHandler,
-    SlashHeadingExtension,
-    SlashHelpExtension.configure(options?.slashHelp ?? {}),
     CalloutExtension.configure({
       addNodeView: () => ReactNodeViewRenderer(CalloutNodeView),
     }),

@@ -24,7 +24,8 @@ export const processContentForSave = (content: any): any => {
 export const processContentForLoad = async (
     content: any,
     workspaceId: string,
-    documentId: string
+    documentId: string,
+    shareToken?: string
 ): Promise<any> => {
     const cloned = JSON.parse(JSON.stringify(content))
     const urlsToResolve: string[] = []
@@ -32,8 +33,18 @@ export const processContentForLoad = async (
     // 1. Collect URLs
     traverseNodes(cloned, (node) => {
         if (node.type === 'image' || node.type === 'resizableImage') {
-            if (node.attrs && node.attrs.src && node.attrs.src.startsWith('odocs://')) {
-                urlsToResolve.push(node.attrs.src)
+            if (node.attrs && node.attrs.src) {
+                // Remote assets: Need API resolution to presigned URLs
+                if (node.attrs.src.startsWith('odocsassets://remote/')) {
+                    urlsToResolve.push(node.attrs.src)
+                }
+                // TODO: Future support for embedded assets
+                // Embedded assets: Already have data in base64 format
+                // else if (node.attrs.src.startsWith('odocsassets://embedded/')) {
+                //   // Look up embedded asset data in document metadata
+                //   // Replace with data:image/...;base64,... URL
+                //   // No API call needed
+                // }
             }
         }
     })
@@ -42,7 +53,7 @@ export const processContentForLoad = async (
 
     // 2. Resolve URLs
     try {
-        const resolvedMap = await resolveAssetUrls(workspaceId, documentId, urlsToResolve)
+        const resolvedMap = await resolveAssetUrls(workspaceId, documentId, urlsToResolve, shareToken)
 
         // 3. Replace URLs
         traverseNodes(cloned, (node) => {

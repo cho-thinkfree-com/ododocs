@@ -284,7 +284,7 @@ const WorkspaceFilesPage = () => {
                 folderId || undefined
             );
             // Open the document in editor
-            window.open(`/document/${doc.id}`, '_blank');
+            window.open(`/workspace/${workspaceId}/files/${doc.id}/edit`, '_blank');
         } catch (err: any) {
             alert('Failed to create document: ' + err.message);
         }
@@ -354,7 +354,7 @@ const WorkspaceFilesPage = () => {
         if (item.type === 'folder') {
             navigate(`/workspace/${workspaceId}/folder/${item.id}`);
         } else if (item.mimeType === 'application/x-odocs') {
-            window.open(`/document/${item.id}`, '_blank');
+            window.open(`/workspace/${workspaceId}/files/${item.id}/edit`, '_blank');
         } else {
             // Download file
             window.open(`/api/files/${item.id}/download`, '_blank');

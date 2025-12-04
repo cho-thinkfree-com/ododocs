@@ -7,6 +7,7 @@ import useEditorInstance from '../../editor/useEditorInstance';
 import { useSEO } from '../../hooks/useSEO';
 import Visibility from '@mui/icons-material/Visibility';
 import VisibilityOff from '@mui/icons-material/VisibilityOff';
+import { processContentForLoad } from '../../lib/editorUtils';
 
 interface ViewerPageProps {
     documentNumber?: string;
@@ -26,32 +27,38 @@ const ViewerPage = ({ documentNumber: propDocNum, token: propToken }: ViewerPage
     const [document, setDocument] = useState<DocumentSummary | null>(null);
     const [revision, setRevision] = useState<DocumentRevision | null>(null);
     const [accessType, setAccessType] = useState<'private' | 'link' | 'public'>('link');
+    const [resolvedContent, setResolvedContent] = useState<any>(null);
+    const [isResolvingContent, setIsResolvingContent] = useState(false);
 
     const editor = useEditorInstance({
-        content: revision?.content,
+        content: resolvedContent,
         editable: false, // Read-only for now
+        waitForContent: true,
     });
 
+    // Resolve asset URLs when revision changes
     useEffect(() => {
-        if (editor && revision?.content) {
-            editor.commands.setContent(revision.content);
-
-            // Restore doc attributes if needed
-            if (
-                typeof revision.content === 'object' &&
-                revision.content !== null &&
-                'attrs' in revision.content &&
-                (revision.content as any).attrs
-            ) {
-                const attrs = (revision.content as any).attrs;
-                if (attrs['x-odocs-layoutWidth']) {
-                    editor.commands.updateAttributes('doc', {
-                        'x-odocs-layoutWidth': attrs['x-odocs-layoutWidth']
-                    });
+        const resolveAssets = async () => {
+            if (revision?.content && document) {
+                setIsResolvingContent(true);
+                try {
+                    const resolved = await processContentForLoad(
+                        revision.content,
+                        document.workspaceId,
+                        document.id,
+                        token // Pass share token for asset resolution
+                    );
+                    setResolvedContent(resolved);
+                } catch (err) {
+                    console.error('Failed to resolve assets:', err);
+                    setResolvedContent(revision.content); // Fallback to unresolved content
+                } finally {
+                    setIsResolvingContent(false);
                 }
             }
-        }
-    }, [editor, revision]);
+        };
+        resolveAssets();
+    }, [revision, document, token]);
 
     // Extract text content for description
     const getTextContent = (content: any): string => {

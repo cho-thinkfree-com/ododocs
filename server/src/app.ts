@@ -160,6 +160,9 @@ async function buildServer() {
   const blogRepository = new BlogRepository(db)
   const blogService = new BlogService(blogRepository, storageService)
 
+  // Document asset routes
+  const { documentAssetRoutes } = await import('./modules/documents/documentAssetRoutes.js')
+
   // Register routes AFTER authenticate is defined
   const createUnauthorized = (message: string) => {
     const error = new Error(message) as Error & { statusCode?: number }
@@ -187,6 +190,9 @@ async function buildServer() {
 
   // Register unified file system routes
   app.register(fileSystemRoutes, { fileSystemService, authenticate, db })
+
+  // Register document asset routes (uses fileSystemService for asset management)
+  app.register(documentAssetRoutes, { fileSystemService, storageService, workspaceAccess, shareLinkRepository, authenticate })
 
   app.addHook('onRequest', async (request) => {
     request.db = db

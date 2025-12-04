@@ -6,7 +6,7 @@ import { getFileSystemEntry, getDocumentContent, type FileSystemEntry } from '..
 import ConnectedEditor from './ConnectedEditor';
 
 const EditorPage = () => {
-  const { documentId } = useParams<{ documentId: string }>();
+  const { workspaceId, fileId } = useParams<{ workspaceId: string; fileId: string }>();
   const { isAuthenticated } = useAuth();
   const [document, setDocument] = useState<FileSystemEntry | null>(null);
   const [content, setContent] = useState<any>(null);
@@ -30,11 +30,11 @@ const EditorPage = () => {
   }, []);
 
   useEffect(() => {
-    if (isAuthenticated && documentId) {
+    if (isAuthenticated && fileId) {
       setLoading(true);
       Promise.all([
-        getFileSystemEntry(documentId),
-        getDocumentContent(documentId),
+        getFileSystemEntry(fileId),
+        getDocumentContent(fileId),
       ])
         .then(([docData, contentData]) => {
           setDocument(docData);
@@ -47,7 +47,7 @@ const EditorPage = () => {
           setLoading(false);
         });
     }
-  }, [isAuthenticated, documentId]);
+  }, [isAuthenticated, fileId]);
 
   const fullPageBox = (child: React.ReactNode) => (
     <Box sx={{ height: '100dvh', minHeight: '100dvh', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
