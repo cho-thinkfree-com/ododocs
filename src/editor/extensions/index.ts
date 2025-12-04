@@ -26,7 +26,7 @@ import TextAlign from '@tiptap/extension-text-align'
 import { TextStyle } from '@tiptap/extension-text-style'
 import StarterKit from '@tiptap/starter-kit'
 import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight'
-import { FontSize, LinkBubbleMenuHandler, ResizableImage, TableImproved } from 'mui-tiptap'
+import { FontSize, ResizableImage, TableImproved } from 'mui-tiptap'
 import type { AppStrings } from '../../lib/i18n'
 import { CalloutExtension } from './callout'
 import { ReactNodeViewRenderer } from '@tiptap/react'
@@ -178,7 +178,7 @@ export const createBaseExtensions = (strings: AppStrings, _options?: BaseExtensi
       color: '#1976d2',
     }),
     Gapcursor,
-    LinkBubbleMenuHandler,
+
     CalloutExtension.configure({
       addNodeView: () => ReactNodeViewRenderer(CalloutNodeView),
     }),

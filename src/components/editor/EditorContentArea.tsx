@@ -1,5 +1,5 @@
 import { Box } from '@mui/material'
-import { LinkBubbleMenu, RichTextField, TableBubbleMenu, useRichTextEditorContext } from 'mui-tiptap'
+import { RichTextField, useRichTextEditorContext } from 'mui-tiptap'
 import BlockDragHandle from './BlockDragHandle'
 import TableFloatingToolbar from './TableFloatingToolbar'
 import { useEffect, useState } from 'react'
@@ -145,8 +145,6 @@ const EditorContentArea = ({ readOnly, initialWidth = '950px', overrideWidth, vi
       {!readOnly && (
         <>
           <BlockDragHandle />
-          <LinkBubbleMenu />
-          <TableBubbleMenu />
           <TableFloatingToolbar />
         </>
       )}
