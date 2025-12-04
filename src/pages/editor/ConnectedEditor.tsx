@@ -1,4 +1,4 @@
-import { Snackbar, Alert, Box, Button, CircularProgress } from '@mui/material';
+import { Alert, Box, Button, CircularProgress } from '@mui/material';
 import { useCallback, useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { updateDocumentContent, renameFileSystemEntry, type FileSystemEntry } from '../../lib/api';
@@ -22,7 +22,7 @@ const ConnectedEditor = ({ document, initialContent }: ConnectedEditorProps) => 
     const { isAuthenticated } = useAuth();
     const { strings } = useI18n();
     const [saveStatus, setSaveStatus] = useState<'saved' | 'unsaved' | 'saving'>('saved');
-    const [snackbarOpen, setSnackbarOpen] = useState(false);
+
     const [currentDocument, setCurrentDocument] = useState(document);
     const [editorError, setEditorError] = useState<string | null>(null);
     const [closeFlowState, setCloseFlowState] = useState<CloseFlowState>(null);
@@ -71,7 +71,7 @@ const ConnectedEditor = ({ document, initialContent }: ConnectedEditorProps) => 
 
             setSaveStatus('saved');
             if (!isImmediateSave) {
-                setSnackbarOpen(true);
+                // setSnackbarOpen(true);
             }
 
             // Broadcast document update so lists (size/modified) refresh
@@ -102,7 +102,6 @@ const ConnectedEditor = ({ document, initialContent }: ConnectedEditorProps) => 
             await renameFileSystemEntry(currentDocument.id, newTitle);
             setCurrentDocument({ ...currentDocument, name: newTitle });
             setSaveStatus('saved');
-            setSnackbarOpen(true);
 
             // Broadcast document update to other tabs
             broadcastSync({
@@ -213,12 +212,7 @@ const ConnectedEditor = ({ document, initialContent }: ConnectedEditorProps) => 
                 saveStatus={saveStatus}
                 initialWidth={initialWidth}
             />
-            <Snackbar
-                open={snackbarOpen}
-                autoHideDuration={3000}
-                onClose={() => setSnackbarOpen(false)}
-                message="Document saved"
-            />
+
             <CloseOverlay
                 open={closeFlowState !== null}
                 state={closeFlowState || 'saving'}
