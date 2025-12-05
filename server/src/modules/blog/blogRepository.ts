@@ -213,6 +213,7 @@ export class BlogRepository {
         return {
             document: {
                 id: document.id,
+                workspaceId: document.workspaceId,
                 name: document.name,
                 title: document.displayName || document.name,
                 fileIndex: document.fileIndex,

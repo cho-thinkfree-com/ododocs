@@ -83,6 +83,16 @@ export class ShareLinkRepository {
         });
     }
 
+    async findPublicByFileId(fileId: string): Promise<ShareLink | null> {
+        return this.db.shareLink.findFirst({
+            where: {
+                fileId,
+                accessType: 'public',
+                revokedAt: null,
+            },
+        });
+    }
+
     async revoke(id: string): Promise<ShareLink> {
         return this.db.shareLink.update({
             where: { id },

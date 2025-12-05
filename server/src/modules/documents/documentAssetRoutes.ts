@@ -77,7 +77,7 @@ export async function documentAssetRoutes(
                 await workspaceAccess.assertMember(accountId!, workspaceId)
                 hasAccess = true
             } catch (authError) {
-                // Authentication failed, check for share token
+                // Authentication failed, check for share token or public access
                 if (body.shareToken) {
                     const shareLink = await shareLinkRepository.findByToken(body.shareToken)
 
@@ -96,8 +96,17 @@ export async function documentAssetRoutes(
                     // Share token is valid
                     hasAccess = true
                 } else {
-                    // No valid authentication method
-                    throw new Error('Authentication required')
+                    // No share token provided - check if document has a public share link
+                    const publicShareLink = await shareLinkRepository.findPublicByFileId(documentId)
+
+                    if (publicShareLink && !publicShareLink.revokedAt &&
+                        (!publicShareLink.expiresAt || publicShareLink.expiresAt > new Date())) {
+                        // Document has valid public share link
+                        hasAccess = true
+                    } else {
+                        // No valid authentication method
+                        throw new Error('Authentication required')
+                    }
                 }
             }
 
