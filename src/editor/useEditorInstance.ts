@@ -78,39 +78,46 @@ const useEditorInstance = (options?: UseEditorInstanceOptions) => {
 
     const initialContent = content ?? defaultContent
 
-    try {
-      // Validate JSON content against the schema before setting it
-      // This prevents the editor from entering an invalid state or logging warnings
-      if (typeof initialContent === 'object' && initialContent !== null) {
-        editor.schema.nodeFromJSON(initialContent)
+    // Defer content setting to avoid flushSync warning during React render phase
+    queueMicrotask(() => {
+      if (!editor || hasInitialized.current) {
+        return
       }
 
-      editor.commands.setContent(initialContent, { emitUpdate: false })
+      try {
+        // Validate JSON content against the schema before setting it
+        // This prevents the editor from entering an invalid state or logging warnings
+        if (typeof initialContent === 'object' && initialContent !== null) {
+          editor.schema.nodeFromJSON(initialContent)
+        }
 
-      // Explicitly restore doc attributes if they were lost during setContent
-      // This fixes an issue where global attributes on the doc node might be stripped
-      if (
-        typeof initialContent === 'object' &&
-        initialContent !== null &&
-        'attrs' in initialContent &&
-        (initialContent as any).attrs
-      ) {
-        const attrs = (initialContent as any).attrs;
-        if (attrs['x-odocs-layoutWidth']) {
-          editor.commands.updateAttributes('doc', {
-            'x-odocs-layoutWidth': attrs['x-odocs-layoutWidth']
-          });
+        editor.commands.setContent(initialContent, { emitUpdate: false })
+
+        // Explicitly restore doc attributes if they were lost during setContent
+        // This fixes an issue where global attributes on the doc node might be stripped
+        if (
+          typeof initialContent === 'object' &&
+          initialContent !== null &&
+          'attrs' in initialContent &&
+          (initialContent as any).attrs
+        ) {
+          const attrs = (initialContent as any).attrs;
+          if (attrs['x-odocs-layoutWidth']) {
+            editor.commands.updateAttributes('doc', {
+              'x-odocs-layoutWidth': attrs['x-odocs-layoutWidth']
+            });
+          }
+        }
+      } catch (error) {
+        console.warn('Editor content validation failed:', error)
+        if (onError) {
+          onError(error as Error)
         }
       }
-    } catch (error) {
-      console.warn('Editor content validation failed:', error)
-      if (onError) {
-        onError(error as Error)
-      }
-    }
 
-    hasInitialized.current = true
-  }, [editor, content, onError])
+      hasInitialized.current = true
+    })
+  }, [editor, content, onError, waitForContent])
 
   return editor
 }
