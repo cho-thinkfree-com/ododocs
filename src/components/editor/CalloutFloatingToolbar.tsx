@@ -99,29 +99,29 @@ const CalloutFloatingToolbar = () => {
             modifiers={[{ name: 'offset', options: { offset: [0, 8] } }]}
             style={{ zIndex: 10 }} // Ensure it's above other elements
         >
-            <Paper elevation={3} sx={{ p: 0.5, display: 'inline-flex', alignItems: 'center', gap: 0.5, border: '1px solid', borderColor: 'divider', borderRadius: 2 }}>
+            <Paper elevation={3} sx={{ p: 1, display: 'inline-flex', alignItems: 'center', gap: 0.5, border: '1px solid', borderColor: 'divider' }}>
                 <Tooltip title="Info">
-                    <IconButton size="small" onClick={() => handleTypeChange('info')} color={calloutType === 'info' ? 'primary' : 'default'}>
+                    <IconButton size="small" onClick={() => handleTypeChange('info')} sx={{ color: '#1565c0' }}>
                         <InfoIcon fontSize="small" />
                     </IconButton>
                 </Tooltip>
                 <Tooltip title="Memo">
-                    <IconButton size="small" onClick={() => handleTypeChange('memo')} sx={{ color: calloutType === 'memo' ? '#757575' : 'inherit' }}>
+                    <IconButton size="small" onClick={() => handleTypeChange('memo')} sx={{ color: '#757575' }}>
                         <ArticleIcon fontSize="small" />
                     </IconButton>
                 </Tooltip>
                 <Tooltip title="Success">
-                    <IconButton size="small" onClick={() => handleTypeChange('success')} color={calloutType === 'success' ? 'success' : 'default'}>
+                    <IconButton size="small" onClick={() => handleTypeChange('success')} sx={{ color: '#2e7d32' }}>
                         <CheckCircleIcon fontSize="small" />
                     </IconButton>
                 </Tooltip>
                 <Tooltip title="Warning">
-                    <IconButton size="small" onClick={() => handleTypeChange('warning')} color={calloutType === 'warning' ? 'warning' : 'default'}>
+                    <IconButton size="small" onClick={() => handleTypeChange('warning')} sx={{ color: '#f57c00' }}>
                         <WarningIcon fontSize="small" />
                     </IconButton>
                 </Tooltip>
                 <Tooltip title="Error">
-                    <IconButton size="small" onClick={() => handleTypeChange('error')} color={calloutType === 'error' ? 'error' : 'default'}>
+                    <IconButton size="small" onClick={() => handleTypeChange('error')} sx={{ color: '#c62828' }}>
                         <ReportIcon fontSize="small" />
                     </IconButton>
                 </Tooltip>
@@ -129,7 +129,7 @@ const CalloutFloatingToolbar = () => {
                 <Divider orientation="vertical" flexItem variant="middle" sx={{ mx: 0.5 }} />
 
                 <Tooltip title="Delete Callout">
-                    <IconButton size="small" onClick={handleDelete} color="error">
+                    <IconButton size="small" onClick={handleDelete}>
                         <DeleteIcon fontSize="small" />
                     </IconButton>
                 </Tooltip>

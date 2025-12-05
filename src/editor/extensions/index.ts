@@ -5,6 +5,17 @@ import css from 'highlight.js/lib/languages/css'
 import json from 'highlight.js/lib/languages/json'
 import xml from 'highlight.js/lib/languages/xml'
 import markdown from 'highlight.js/lib/languages/markdown'
+import python from 'highlight.js/lib/languages/python'
+import java from 'highlight.js/lib/languages/java'
+import c from 'highlight.js/lib/languages/c'
+import cpp from 'highlight.js/lib/languages/cpp'
+import csharp from 'highlight.js/lib/languages/csharp'
+import go from 'highlight.js/lib/languages/go'
+import rust from 'highlight.js/lib/languages/rust'
+import sql from 'highlight.js/lib/languages/sql'
+import bash from 'highlight.js/lib/languages/bash'
+import yaml from 'highlight.js/lib/languages/yaml'
+import dockerfile from 'highlight.js/lib/languages/dockerfile'
 import type { Extension } from '@tiptap/core'
 import Color from '@tiptap/extension-color'
 import Dropcursor from '@tiptap/extension-dropcursor'
@@ -49,10 +60,22 @@ lowlight.register('css', css)
 lowlight.register('json', json)
 lowlight.register('xml', xml)
 lowlight.register('markdown', markdown)
+lowlight.register('python', python)
+lowlight.register('java', java)
+lowlight.register('c', c)
+lowlight.register('cpp', cpp)
+lowlight.register('csharp', csharp)
+lowlight.register('go', go)
+lowlight.register('rust', rust)
+lowlight.register('sql', sql)
+lowlight.register('bash', bash)
+lowlight.register('yaml', yaml)
+lowlight.register('dockerfile', dockerfile)
 lowlight.registerAlias({
   javascript: ['js'],
   typescript: ['ts'],
   xml: ['html'],
+  bash: ['shell'],
 })
 
 const HEADING_LEVELS = [1, 2, 3, 4, 5, 6] as const

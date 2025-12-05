@@ -1,11 +1,11 @@
 import React, { useCallback, useState } from 'react'
-import { IconButton, Popover, Tooltip, Box } from '@mui/material'
+import { IconButton, Popover, Tooltip, Box, Divider } from '@mui/material'
 import InfoIcon from '@mui/icons-material/Info'
 import WarningIcon from '@mui/icons-material/Warning'
 import ReportIcon from '@mui/icons-material/Report'
 import CheckCircleIcon from '@mui/icons-material/CheckCircle'
 import ArticleIcon from '@mui/icons-material/Article'
-import CloseIcon from '@mui/icons-material/Close'
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline'
 import { useRichTextEditorContext } from 'mui-tiptap'
 import { useI18n } from '../../lib/i18n'
 
@@ -85,11 +85,14 @@ const MenuButtonCallout: React.FC = () => {
             </IconButton>
           </Tooltip>
           {isCalloutActive && (
-            <Tooltip title={toolbarStrings.removeCallout}>
-              <IconButton size='small' onClick={() => { editor?.commands.unsetCallout(); handleClose(); }}>
-                <CloseIcon fontSize='small' />
-              </IconButton>
-            </Tooltip>
+            <>
+              <Divider orientation="vertical" flexItem variant="middle" sx={{ mx: 0.5 }} />
+              <Tooltip title={toolbarStrings.removeCallout}>
+                <IconButton size='small' onClick={() => { editor?.commands.unsetCallout(); handleClose(); }}>
+                  <DeleteOutlineIcon fontSize='small' />
+                </IconButton>
+              </Tooltip>
+            </>
           )}
         </Box>
       </Popover>

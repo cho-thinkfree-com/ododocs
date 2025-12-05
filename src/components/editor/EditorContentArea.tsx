@@ -4,6 +4,7 @@ import BlockDragHandle from './BlockDragHandle'
 import TableFloatingToolbar from './TableFloatingToolbar'
 import ImageFloatingToolbar from './ImageFloatingToolbar'
 import CalloutFloatingToolbar from './CalloutFloatingToolbar'
+import CodeBlockFloatingToolbar from './CodeBlockFloatingToolbar'
 import { memo, useEffect, useState } from 'react'
 import type { ViewerTemplate } from '../../lib/viewerTemplates'
 import { getTemplateStyles } from '../../lib/viewerTemplates'
@@ -150,6 +151,7 @@ const EditorContentArea = ({ readOnly, initialWidth = '950px', overrideWidth, vi
           <TableFloatingToolbar />
           <ImageFloatingToolbar />
           <CalloutFloatingToolbar />
+          <CodeBlockFloatingToolbar />
         </>
       )}
     </Box>
