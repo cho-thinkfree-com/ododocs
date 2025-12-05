@@ -45,7 +45,6 @@ const MenuButtonCallout: React.FC = () => {
             size='small'
             aria-label={toolbarStrings.calloutLabel}
             onClick={handleOpen}
-            color={isCalloutActive ? 'primary' : 'default'}
           >
             <InfoIcon fontSize='small' />
           </IconButton>
