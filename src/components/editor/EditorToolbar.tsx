@@ -11,6 +11,8 @@ import FormatListNumberedIcon from '@mui/icons-material/FormatListNumbered'
 import MoreHorizIcon from '@mui/icons-material/MoreHoriz'
 import SubscriptIcon from '@mui/icons-material/Subscript'
 import SuperscriptIcon from '@mui/icons-material/Superscript'
+import TableChartIcon from '@mui/icons-material/TableChart'
+import TableViewIcon from '@mui/icons-material/TableView'
 import { Box, IconButton, Popover, Tooltip, Typography } from '@mui/material'
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import {
@@ -50,6 +52,7 @@ import {
 import { filesToImageAttributes } from '../../lib/imageUpload'
 import { useI18n } from '../../lib/i18n'
 import MenuButtonCallout from './MenuButtonCallout'
+import GridOnIcon from '@mui/icons-material/GridOn'
 
 const COLOR_SWATCHES = ['#000000', '#5f6368', '#1a73e8', '#d93025', '#188038', '#673ab7', '#e37400']
 const HIGHLIGHT_SWATCHES = ['#fff59d', '#fbcfe8', '#bbdefb', '#c8e6c9', '#ffe0b2']
@@ -235,7 +238,17 @@ const EditorToolbar = ({
         case 'upload-image':
           return <MenuButtonImageUpload onUploadFiles={handleUpload} inputProps={{ accept: 'image/*', multiple: true }} />
         case 'add-table':
-          return <MenuButtonAddTable />
+          return (
+            <Tooltip title="표 삽입 (5×4)">
+              <IconButton
+                size="small"
+                onClick={() => editor?.chain().focus().insertTable({ rows: 5, cols: 4, withHeaderRow: true }).toggleHeaderColumn().run()}
+                disabled={!editor?.can().insertTable()}
+              >
+                <GridOnIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          )
         case 'undo':
           return <MenuButtonUndo />
         case 'redo':

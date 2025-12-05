@@ -3,8 +3,8 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 
 type HandlePosition = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right'
 
-const SNAP_POINTS = [50, 75, 100, 150]
-const SNAP_THRESHOLD = 5 // Snap when within 5% of a snap point
+const SNAP_POINTS = [10, 25, 50, 75, 100, 125, 150, 175, 200]
+const SNAP_THRESHOLD = 2 // Snap when within ±2% of a snap point
 
 const ResizableImageView = ({ node, updateAttributes, selected }: NodeViewProps) => {
     const containerRef = useRef<HTMLDivElement>(null)
@@ -56,7 +56,12 @@ const ResizableImageView = ({ node, updateAttributes, selected }: NodeViewProps)
             // Work with pixels for smooth resizing
             let newWidth = Math.max(50, startWidthRef.current + adjustedDelta)
 
-            // Calculate percentage for snap detection only
+            // Clamp to min 10% and max 200% first
+            const maxWidth = Math.floor(naturalWidth * 2)
+            const minWidth = Math.floor(naturalWidth * 0.1)
+            newWidth = Math.max(minWidth, Math.min(maxWidth, newWidth))
+
+            // Calculate percentage after clamping
             const percentWidth = (newWidth / naturalWidth) * 100
 
             // Check for snap points
@@ -70,11 +75,6 @@ const ResizableImageView = ({ node, updateAttributes, selected }: NodeViewProps)
                 }
             }
             setSnapIndicator(snappedTo)
-
-            // Clamp to max 200% of original
-            const maxWidth = naturalWidth * 2
-            const minWidth = naturalWidth * 0.1
-            newWidth = Math.max(minWidth, Math.min(maxWidth, newWidth))
 
             // Update current percentage for display
             const displayPercent = snappedTo !== null ? snappedTo : Math.floor((newWidth / naturalWidth) * 100)

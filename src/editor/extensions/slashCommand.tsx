@@ -169,7 +169,7 @@ export const getSuggestionItems = (query: string): CommandItem[] => {
             description: 'Insert a 4x4 table.',
             icon: <TableChart />,
             command: ({ editor, range }) => {
-                editor.chain().focus().deleteRange(range).insertTable({ rows: 4, cols: 4, withHeaderRow: true }).run()
+                editor.chain().focus().deleteRange(range).insertTable({ rows: 5, cols: 4, withHeaderRow: true }).toggleHeaderColumn().run()
             },
         },
     ]

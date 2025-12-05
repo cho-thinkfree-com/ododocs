@@ -34,6 +34,12 @@ import { ReactNodeViewRenderer } from '@tiptap/react'
 import CalloutNodeView from './CalloutNodeView.tsx'
 import ResizableImageView from './ResizableImageView'
 import { DocumentLayout } from './DocumentLayout'
+import {
+  addRowBeforeWithAttrs,
+  addRowAfterWithAttrs,
+  addColumnBeforeWithAttrs,
+  addColumnAfterWithAttrs
+} from './tableCommands'
 
 const lowlight = createLowlight()
 lowlight.register('javascript', javascript)
@@ -194,6 +200,20 @@ export const createBaseExtensions = (strings: AppStrings, _options?: BaseExtensi
     }),
     TableImproved.configure({
       resizable: true,
+    }).extend({
+      addCommands() {
+        return {
+          ...this.parent?.(),
+          addRowBeforeWithAttrs: () => ({ state, dispatch }: { state: any, dispatch: any }) =>
+            addRowBeforeWithAttrs(state, dispatch),
+          addRowAfterWithAttrs: () => ({ state, dispatch }: { state: any, dispatch: any }) =>
+            addRowAfterWithAttrs(state, dispatch),
+          addColumnBeforeWithAttrs: () => ({ state, dispatch }: { state: any, dispatch: any }) =>
+            addColumnBeforeWithAttrs(state, dispatch),
+          addColumnAfterWithAttrs: () => ({ state, dispatch }: { state: any, dispatch: any }) =>
+            addColumnAfterWithAttrs(state, dispatch),
+        }
+      }
     }),
     TableRow,
     TableHeader,

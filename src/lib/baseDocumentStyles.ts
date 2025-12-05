@@ -37,6 +37,11 @@ export const baseDocumentStyles: SxProps<Theme> = {
         // borderRadius: '4px',
     },
 
+    // Table cell styles - minimum width for better usability
+    '& table td, & table th': {
+        minWidth: '120px',
+    },
+
     // Image border styles (thin: 얇은 테두리, medium: 굵은 테두리)
     '& img[data-border="thin"]': {
         border: '1px solid #ccc',

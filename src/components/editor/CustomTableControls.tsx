@@ -12,6 +12,8 @@ import {
     SplitCellsHorizontal,
 } from 'mui-tiptap/icons'
 import GridOffIcon from '@mui/icons-material/GridOff'
+import BorderTopIcon from '@mui/icons-material/BorderTop'
+import BorderLeftIcon from '@mui/icons-material/BorderLeft'
 import TableCellColorPicker from './TableCellColorPicker'
 
 const CustomTableControls = () => {
@@ -74,7 +76,7 @@ const CustomTableControls = () => {
                     <IconButton
                         size="small"
                         disabled={!canAddColumn}
-                        onClick={() => editor.chain().focus().addColumnBefore().run()}
+                        onClick={() => editor.chain().focus().addColumnBeforeWithAttrs().run()}
                     >
                         <InsertColumnLeft fontSize="small" />
                     </IconButton>
@@ -85,7 +87,7 @@ const CustomTableControls = () => {
                     <IconButton
                         size="small"
                         disabled={!canAddColumn}
-                        onClick={() => editor.chain().focus().addColumnAfter().run()}
+                        onClick={() => editor.chain().focus().addColumnAfterWithAttrs().run()}
                     >
                         <InsertColumnRight fontSize="small" />
                     </IconButton>
@@ -111,7 +113,7 @@ const CustomTableControls = () => {
                     <IconButton
                         size="small"
                         disabled={!canAddRow}
-                        onClick={() => editor.chain().focus().addRowBefore().run()}
+                        onClick={() => editor.chain().focus().addRowBeforeWithAttrs().run()}
                     >
                         <InsertRowTop fontSize="small" />
                     </IconButton>
@@ -122,7 +124,7 @@ const CustomTableControls = () => {
                     <IconButton
                         size="small"
                         disabled={!canAddRow}
-                        onClick={() => editor.chain().focus().addRowAfter().run()}
+                        onClick={() => editor.chain().focus().addRowAfterWithAttrs().run()}
                     >
                         <InsertRowBottom fontSize="small" />
                     </IconButton>
@@ -173,6 +175,30 @@ const CustomTableControls = () => {
                         }}
                     >
                         <SplitCellsHorizontal fontSize="small" />
+                    </IconButton>
+                </span>
+            </Tooltip>
+
+            <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
+
+            {/* Header toggle controls */}
+            <Tooltip title="상단 헤더 토글">
+                <span>
+                    <IconButton
+                        size="small"
+                        onClick={() => editor.chain().focus().toggleHeaderRow().run()}
+                    >
+                        <BorderTopIcon fontSize="small" />
+                    </IconButton>
+                </span>
+            </Tooltip>
+            <Tooltip title="좌측 헤더 토글">
+                <span>
+                    <IconButton
+                        size="small"
+                        onClick={() => editor.chain().focus().toggleHeaderColumn().run()}
+                    >
+                        <BorderLeftIcon fontSize="small" />
                     </IconButton>
                 </span>
             </Tooltip>

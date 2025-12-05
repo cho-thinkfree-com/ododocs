@@ -140,7 +140,7 @@ const ImageFloatingToolbar = () => {
     const isValidAnchor = Boolean(anchorEl && document.body.contains(anchorEl))
     const open = isValidAnchor && Boolean(editor?.isEditable)
 
-    const widthPresets = ['50%', '75%', '100%', '150%']
+    const widthPresets = ['50%', '100%', '150%']
 
     // Calculate current percentage from stored width (using floor for consistency)
     const getCurrentPercent = (): number | null => {
