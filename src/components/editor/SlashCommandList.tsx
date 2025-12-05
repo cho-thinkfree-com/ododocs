@@ -53,6 +53,27 @@ const SlashCommandList = forwardRef((props: SlashCommandListProps, ref) => {
                 return true
             }
 
+            if (event.key === 'PageUp' || event.key === 'PageDown') {
+                const container = scrollContainerRef.current
+                let visibleCount = 5 // fallback
+
+                if (container) {
+                    const containerHeight = container.clientHeight
+                    const firstItem = container.querySelector('[data-index="0"]') as HTMLElement
+                    if (firstItem) {
+                        const itemHeight = firstItem.offsetHeight
+                        visibleCount = Math.max(1, Math.floor(containerHeight / itemHeight))
+                    }
+                }
+
+                if (event.key === 'PageUp') {
+                    setSelectedIndex(Math.max(0, selectedIndex - visibleCount))
+                } else {
+                    setSelectedIndex(Math.min(props.items.length - 1, selectedIndex + visibleCount))
+                }
+                return true
+            }
+
             if (event.key === 'Enter') {
                 selectItem(selectedIndex)
                 return true
