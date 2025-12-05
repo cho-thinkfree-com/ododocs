@@ -64,24 +64,18 @@ const CodeBlockFloatingToolbar = () => {
 
                 codeBlockNode = (node as HTMLElement | null)?.closest('pre') ?? null
 
-                if (codeBlockNode) {
-                    // Get language from code element's class (hljs adds language-xxx class)
-                    const codeEl = codeBlockNode.querySelector('code')
-                    if (codeEl) {
-                        const classList = Array.from(codeEl.classList)
-                        const langClass = classList.find(c => c.startsWith('language-'))
-                        if (langClass) {
-                            lang = langClass.replace('language-', '')
-                        }
-                    }
+                if (codeBlockNode && document.body.contains(codeBlockNode)) {
+                    // Get language from the codeBlock node attributes
+                    const codeBlockAttrs = editor.getAttributes('codeBlock')
+                    lang = codeBlockAttrs?.language || ''
                 }
             }
 
-            if (codeBlockNode) {
+            if (codeBlockNode && document.body.contains(codeBlockNode)) {
                 setAnchorEl((prev) => (prev === codeBlockNode ? prev : codeBlockNode))
                 setLanguage(lang)
             } else {
-                setAnchorEl((prev) => (prev !== null ? null : prev))
+                setAnchorEl(null)
             }
         }
 
@@ -107,8 +101,28 @@ const CodeBlockFloatingToolbar = () => {
 
     const handleLanguageChange = (newLanguage: string) => {
         if (editor) {
+            // Clear anchor temporarily to avoid stale reference
+            setAnchorEl(null)
+
             editor.chain().focus().updateAttributes('codeBlock', { language: newLanguage }).run()
             setLanguage(newLanguage)
+
+            // Re-acquire anchor after a short delay
+            setTimeout(() => {
+                if (editor.isActive('codeBlock')) {
+                    const { state, view } = editor
+                    const { from } = state.selection
+                    const resolved = view.domAtPos(from)
+                    let node: Node | null = resolved.node
+                    if (node.nodeType !== Node.ELEMENT_NODE) {
+                        node = node.parentNode
+                    }
+                    const preNode = (node as HTMLElement | null)?.closest('pre')
+                    if (preNode && document.body.contains(preNode)) {
+                        setAnchorEl(preNode)
+                    }
+                }
+            }, 50)
         }
     }
 
@@ -134,7 +148,9 @@ const CodeBlockFloatingToolbar = () => {
         }
     }
 
-    const open = Boolean(anchorEl) && Boolean(editor?.isEditable)
+    // Validate anchorEl is still in document before rendering Popper
+    const isValidAnchor = anchorEl && document.body.contains(anchorEl)
+    const open = Boolean(isValidAnchor) && Boolean(editor?.isEditable)
 
     return (
         <Popper

@@ -173,6 +173,74 @@ export const createBaseExtensions = (strings: AppStrings, _options?: BaseExtensi
     HorizontalRule,
     CodeBlockLowlight.configure({
       lowlight,
+    }).extend({
+      addKeyboardShortcuts() {
+        return {
+          ...this.parent?.(),
+          Tab: () => {
+            if (this.editor.isActive('codeBlock')) {
+              const { state } = this.editor.view
+              const { from } = state.selection
+              const $from = state.doc.resolve(from)
+
+              // Get the entire code block content
+              const blockStart = $from.start()
+              const blockText = state.doc.textBetween(blockStart, from)
+
+              // Find the start of the current line (after the last newline)
+              const lastNewline = blockText.lastIndexOf('\n')
+              const columnPosition = lastNewline === -1 ? (from - blockStart) : (from - blockStart - lastNewline - 1)
+
+              // Calculate spaces needed to reach next tab stop (multiple of 4)
+              const spacesToInsert = 4 - (columnPosition % 4)
+
+              return this.editor.commands.insertContent(' '.repeat(spacesToInsert))
+            }
+            return false
+          },
+          'Shift-Tab': () => {
+            console.log('[Shift-Tab] Handler called')
+            console.log('[Shift-Tab] isActive codeBlock:', this.editor.isActive('codeBlock'))
+
+            if (this.editor.isActive('codeBlock')) {
+              const { state, dispatch } = this.editor.view
+              const { from } = state.selection
+              const $from = state.doc.resolve(from)
+
+              // Get the entire code block content
+              const blockStart = $from.start()
+              const blockText = state.doc.textBetween(blockStart, from)
+
+              // Find the start of the current line (after the last newline)
+              const lastNewline = blockText.lastIndexOf('\n')
+              const lineStart = lastNewline === -1 ? blockStart : blockStart + lastNewline + 1
+
+              // Get the text from line start to cursor
+              const lineTextBeforeCursor = state.doc.textBetween(lineStart, from)
+
+              console.log('[Shift-Tab] from:', from)
+              console.log('[Shift-Tab] blockStart:', blockStart)
+              console.log('[Shift-Tab] lineStart:', lineStart)
+              console.log('[Shift-Tab] lineTextBeforeCursor:', JSON.stringify(lineTextBeforeCursor))
+
+              // Check how many leading spaces (up to 4)
+              const leadingSpaces = lineTextBeforeCursor.match(/^ {1,4}/)?.[0]?.length || 0
+              console.log('[Shift-Tab] leadingSpaces:', leadingSpaces)
+
+              if (leadingSpaces > 0) {
+                console.log('[Shift-Tab] Deleting', leadingSpaces, 'spaces from position', lineStart)
+                const tr = state.tr.delete(lineStart, lineStart + leadingSpaces)
+                dispatch(tr)
+              }
+              // Always return true to prevent focus from leaving the code block
+              console.log('[Shift-Tab] Returning true')
+              return true
+            }
+            console.log('[Shift-Tab] Not in codeBlock, returning false')
+            return false
+          },
+        }
+      },
     }),
     Image.extend({
       addAttributes() {
