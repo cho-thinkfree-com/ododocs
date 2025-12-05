@@ -161,16 +161,14 @@ const ResizableImageView = ({ node, updateAttributes, selected }: NodeViewProps)
 
         // Border styles
         if (border === 'thin') {
-            style.border = '1px solid #ccc'
+            style.boxShadow = '0 0 0 1px #ccc'
         } else if (border === 'medium') {
-            style.border = '3px solid #666'
+            style.boxShadow = '0 0 0 3px #666'
         }
 
         // Border radius styles
         if (borderRadius === 'rounded') {
-            style.borderRadius = '8px'
-        } else if (borderRadius === 'circle') {
-            style.borderRadius = '9999px'
+            style.borderRadius = '16px'
         }
 
         return style

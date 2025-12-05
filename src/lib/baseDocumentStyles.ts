@@ -44,10 +44,10 @@ export const baseDocumentStyles: SxProps<Theme> = {
 
     // Image border styles (thin: 얇은 테두리, medium: 굵은 테두리)
     '& img[data-border="thin"]': {
-        border: '1px solid #ccc',
+        boxShadow: '0 0 0 1px #ccc',
     },
     '& img[data-border="medium"]': {
-        border: '3px solid #666',
+        boxShadow: '0 0 0 3px #666',
     },
     '& img[data-border-radius="rounded"]': {
         borderRadius: '8px',

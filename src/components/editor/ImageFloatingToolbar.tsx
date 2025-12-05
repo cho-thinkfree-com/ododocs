@@ -5,7 +5,7 @@ import FormatAlignLeftIcon from '@mui/icons-material/FormatAlignLeft'
 import FormatAlignCenterIcon from '@mui/icons-material/FormatAlignCenter'
 import FormatAlignRightIcon from '@mui/icons-material/FormatAlignRight'
 import RoundedCornerIcon from '@mui/icons-material/RoundedCorner'
-import CircleOutlinedIcon from '@mui/icons-material/CircleOutlined'
+
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline'
 
 // Custom border icons
@@ -254,6 +254,7 @@ const ImageFloatingToolbar = () => {
                         size="small"
                         onClick={() => handleBorderRadiusChange('none')}
                         color={currentBorderRadius === 'none' ? 'primary' : 'default'}
+                        disabled={currentBorder === 'none'}
                     >
                         <BorderThinIcon fontSize="small" />
                     </IconButton>
@@ -263,19 +264,12 @@ const ImageFloatingToolbar = () => {
                         size="small"
                         onClick={() => handleBorderRadiusChange('rounded')}
                         color={currentBorderRadius === 'rounded' ? 'primary' : 'default'}
+                        disabled={currentBorder === 'none'}
                     >
                         <RoundedCornerIcon fontSize="small" />
                     </IconButton>
                 </Tooltip>
-                <Tooltip title="원형">
-                    <IconButton
-                        size="small"
-                        onClick={() => handleBorderRadiusChange('circle')}
-                        color={currentBorderRadius === 'circle' ? 'primary' : 'default'}
-                    >
-                        <CircleOutlinedIcon fontSize="small" />
-                    </IconButton>
-                </Tooltip>
+
 
                 <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
 
