@@ -17,6 +17,7 @@ export const CalloutExtension = Node.create({
   group: 'block',
   content: 'block+',
   draggable: true,
+  isolating: true,
 
   addAttributes() {
     return {
