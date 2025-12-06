@@ -26,16 +26,23 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
     const { workspaceId } = useParams<{ workspaceId?: string }>();
     const location = useLocation();
     const currentWorkspaceRef = useRef<string | null>(null);
+    const socketRef = useRef<Socket | null>(null);
 
     // Initialize socket connection
     useEffect(() => {
         if (!isAuthenticated) {
             // Disconnect if not authenticated
-            if (socket) {
-                socket.disconnect();
+            if (socketRef.current) {
+                socketRef.current.disconnect();
+                socketRef.current = null;
                 setSocket(null);
                 setIsConnected(false);
             }
+            return;
+        }
+
+        // Prevent duplicate connections
+        if (socketRef.current?.connected) {
             return;
         }
 
@@ -45,6 +52,8 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
             withCredentials: true,
             autoConnect: true,
         });
+
+        socketRef.current = newSocket;
 
         newSocket.on('connect', () => {
             console.log('Socket connected:', newSocket.id);
@@ -65,6 +74,7 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
 
         return () => {
             newSocket.disconnect();
+            socketRef.current = null;
         };
     }, [isAuthenticated]);
 

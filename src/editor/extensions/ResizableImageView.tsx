@@ -9,7 +9,6 @@ const SNAP_THRESHOLD = 2 // Snap when within ±2% of a snap point
 const ResizableImageView = ({ node, updateAttributes, selected }: NodeViewProps) => {
     const containerRef = useRef<HTMLDivElement>(null)
     const [isResizing, setIsResizing] = useState(false)
-    const [naturalWidth, setNaturalWidth] = useState(0)
     const [snapIndicator, setSnapIndicator] = useState<number | null>(null)
     const [currentPercent, setCurrentPercent] = useState<number>(100) // Current percentage during drag
     const [liveWidth, setLiveWidth] = useState<number | null>(null) // Pixel width during drag
@@ -17,13 +16,32 @@ const ResizableImageView = ({ node, updateAttributes, selected }: NodeViewProps)
     const startWidthRef = useRef(0)
     const handlePositionRef = useRef<HandlePosition>('bottom-right')
 
-    const { src, alt, title, width, textAlign, border, borderRadius } = node.attrs
+    const {
+        src, alt, title, width, textAlign, border, borderRadius,
+        naturalWidth: storedNaturalWidth,
+        naturalHeight: storedNaturalHeight
+    } = node.attrs
+
+    // Initialize from stored values or default to 0
+    const [naturalWidth, setNaturalWidth] = useState(storedNaturalWidth || 0)
+    const [naturalHeight, setNaturalHeight] = useState(storedNaturalHeight || 0)
 
     // Get original image dimensions when loaded
     const handleImageLoad = useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
         const img = e.currentTarget
-        setNaturalWidth(img.naturalWidth)
-    }, [])
+        const imgNaturalWidth = img.naturalWidth
+        const imgNaturalHeight = img.naturalHeight
+        setNaturalWidth(imgNaturalWidth)
+        setNaturalHeight(imgNaturalHeight)
+
+        // Save to node attributes if not already saved
+        if (!storedNaturalWidth || !storedNaturalHeight) {
+            updateAttributes({
+                naturalWidth: imgNaturalWidth,
+                naturalHeight: imgNaturalHeight,
+            })
+        }
+    }, [storedNaturalWidth, storedNaturalHeight, updateAttributes])
 
     const handleMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
         e.preventDefault()
@@ -142,14 +160,24 @@ const ResizableImageView = ({ node, updateAttributes, selected }: NodeViewProps)
                     containerWidth = (naturalWidth * percent) / 100
                 }
             }
+        } else if (naturalWidth) {
+            // No width set yet - use natural width as default to prevent CLS
+            containerWidth = naturalWidth
         }
 
-        return {
+        const style: React.CSSProperties = {
             position: 'relative',
             display: 'inline-block',
             width: containerWidth,
             maxWidth: '100%',
         }
+
+        // Add aspect-ratio to reserve space before image loads (prevents CLS)
+        if (naturalWidth && naturalHeight) {
+            style.aspectRatio = `${naturalWidth} / ${naturalHeight}`
+        }
+
+        return style
     }
 
     const getImageStyle = (): React.CSSProperties => {
@@ -187,6 +215,7 @@ const ResizableImageView = ({ node, updateAttributes, selected }: NodeViewProps)
                     title={title || ''}
                     style={getImageStyle()}
                     draggable={false}
+                    loading="lazy"
                     onLoad={handleImageLoad}
                 />
                 {/* Resize percentage indicator */}

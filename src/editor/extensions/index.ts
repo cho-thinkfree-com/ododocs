@@ -267,6 +267,22 @@ export const createBaseExtensions = (strings: AppStrings, _options?: BaseExtensi
           'data-odocs-url': {
             default: null,
           },
+          naturalWidth: {
+            default: null,
+            parseHTML: element => parseInt(element.getAttribute('data-natural-width') || '') || null,
+            renderHTML: attributes => {
+              if (!attributes.naturalWidth) return {}
+              return { 'data-natural-width': attributes.naturalWidth }
+            },
+          },
+          naturalHeight: {
+            default: null,
+            parseHTML: element => parseInt(element.getAttribute('data-natural-height') || '') || null,
+            renderHTML: attributes => {
+              if (!attributes.naturalHeight) return {}
+              return { 'data-natural-height': attributes.naturalHeight }
+            },
+          },
           width: {
             default: null,
             parseHTML: element => element.getAttribute('width') || element.style.width || null,

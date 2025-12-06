@@ -13,6 +13,22 @@ const readFileAsDataUrl = (file: File) =>
     reader.readAsDataURL(file)
   })
 
+// Helper to get image dimensions from file
+const getImageDimensions = (file: File): Promise<{ width: number; height: number }> =>
+  new Promise((resolve) => {
+    const url = URL.createObjectURL(file)
+    const img = new window.Image()
+    img.onload = () => {
+      resolve({ width: img.naturalWidth, height: img.naturalHeight })
+      URL.revokeObjectURL(url)
+    }
+    img.onerror = () => {
+      resolve({ width: 0, height: 0 })
+      URL.revokeObjectURL(url)
+    }
+    img.src = url
+  })
+
 export const filesToImageAttributes = async (
   files: File[],
   context?: { workspaceId: string; documentId: string }
@@ -21,20 +37,31 @@ export const filesToImageAttributes = async (
 
   if (!context) {
     // Fallback to Data URL if no context (e.g. not in a workspace document)
-    const sources = await Promise.all(imageFiles.map((file) => readFileAsDataUrl(file)))
-    return sources
-      .map((src, index) => ({
-        src,
-        alt: imageFiles[index]?.name ?? 'Embedded image',
-        title: imageFiles[index]?.name,
-      }))
-      .filter((image) => Boolean(image.src))
+    const results = await Promise.all(
+      imageFiles.map(async (file) => {
+        const [src, dimensions] = await Promise.all([
+          readFileAsDataUrl(file),
+          getImageDimensions(file),
+        ])
+        return {
+          src,
+          alt: file.name ?? 'Embedded image',
+          title: file.name,
+          naturalWidth: dimensions.width || undefined,
+          naturalHeight: dimensions.height || undefined,
+        }
+      })
+    )
+    return results.filter((image) => Boolean(image.src))
   }
 
   // Upload to S3
   return Promise.all(
     imageFiles.map(async (file) => {
       try {
+        // Get image dimensions first
+        const dimensions = await getImageDimensions(file)
+
         // 1. Get Presigned URL
         const { uploadUrl, odocsUrl } = await getAssetUploadUrl(context.workspaceId, context.documentId, file.type)
 
@@ -52,12 +79,14 @@ export const filesToImageAttributes = async (
           alt: file.name,
           title: file.name,
           'data-odocs-url': odocsUrl, // Custom attribute to store the permanent URL
+          naturalWidth: dimensions.width || undefined,
+          naturalHeight: dimensions.height || undefined,
         }
       } catch (error) {
         console.error(`Failed to upload image ${file.name}:`, error)
         return null
       }
     })
-  ).then((results) => results.filter((result): result is ImageNodeAttributes => result !== null))
+  ).then((results) => results.filter((result): result is any => result !== null))
 }
 

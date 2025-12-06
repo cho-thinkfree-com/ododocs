@@ -32,7 +32,7 @@ Standardized offsets for consistency:
 | :--- | :--- | :--- | :--- | :--- |
 | **PostgreSQL** | **0** | `9700` | - | |
 | **MinIO** | **1** | `9710` (API) | `9711` (Console) | |
-| **Redis** | **2** | `9720` | - | Reserved |
+| **Redis** | **2** | `9720` | - | Hocuspocus 스케일링용 |
 | **RabbitMQ** | **3** | `9730` | `9731` (Mgmt) | Reserved |
 
 ### Special Services (98xx)
@@ -47,3 +47,4 @@ Standardized offsets for consistency:
 | **WWW** | **0** | `9900` | `9901` | `9902` |
 | **My** | **1** | `9910` | `9911` | `9912` |
 | **API Server** | **2** | `9920` | `9921` | `9922` |
+| **Hocuspocus** | **3** | `9930` | `9931` | `9932` |
