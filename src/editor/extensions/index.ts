@@ -47,6 +47,7 @@ import CalloutNodeView from './CalloutNodeView.tsx'
 import ResizableImageView from './ResizableImageView'
 import { SlashCommand } from './slashCommand'
 import { DocumentLayout } from './DocumentLayout'
+import { BlockLimit } from './BlockLimit'
 import {
   addRowBeforeWithAttrs,
   addRowAfterWithAttrs,
@@ -82,9 +83,10 @@ lowlight.registerAlias({
 const HEADING_LEVELS = [1, 2, 3, 4, 5, 6] as const
 
 export type BaseExtensionOptions = {
+  onBlockLimitReached?: () => void
 }
 
-export const createBaseExtensions = (strings: AppStrings, _options?: BaseExtensionOptions): Extension[] => {
+export const createBaseExtensions = (strings: AppStrings, options?: BaseExtensionOptions): Extension[] => {
   const ExclusiveSubscript = Subscript.extend({
     addCommands() {
       const parent = this.parent?.()
@@ -374,5 +376,9 @@ export const createBaseExtensions = (strings: AppStrings, _options?: BaseExtensi
       }
     }),
     DocumentLayout,
+    BlockLimit.configure({
+      maxBlocks: 1000,
+      onLimitReached: options?.onBlockLimitReached,
+    }),
   ] as Extension[]
 }

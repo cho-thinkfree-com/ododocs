@@ -1,4 +1,4 @@
-import { Alert, Box, Button, CircularProgress } from '@mui/material';
+import { Alert, Box, Button, CircularProgress, Snackbar } from '@mui/material';
 import { useCallback, useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { updateDocumentContent, renameFileSystemEntry, type FileSystemEntry } from '../../lib/api';
@@ -22,6 +22,7 @@ const ConnectedEditor = ({ document, initialContent }: ConnectedEditorProps) => 
     const { isAuthenticated } = useAuth();
     const { strings } = useI18n();
     const [saveStatus, setSaveStatus] = useState<'saved' | 'unsaved' | 'saving'>('saved');
+    const [blockLimitSnackbar, setBlockLimitSnackbar] = useState(false);
 
     const [currentDocument, setCurrentDocument] = useState(document);
     const [editorError, setEditorError] = useState<string | null>(null);
@@ -46,10 +47,18 @@ const ConnectedEditor = ({ document, initialContent }: ConnectedEditorProps) => 
         resolve();
     }, [initialContent, document.workspaceId, document.id]);
 
+    // Handle block limit reached
+    const handleBlockLimitReached = useCallback(() => {
+        setBlockLimitSnackbar(true);
+    }, []);
+
     // This hook is now called ONLY when ConnectedEditor mounts, which happens after data is loaded.
     const editor = useEditorInstance({
         content: resolvedContent,
         waitForContent: true,
+        extensionOptions: {
+            onBlockLimitReached: handleBlockLimitReached,
+        },
         onError: () => {
             setEditorError('The document content is invalid or corrupted.');
         }
@@ -219,6 +228,21 @@ const ConnectedEditor = ({ document, initialContent }: ConnectedEditorProps) => 
                 onCloseNow={handleCloseNow}
                 onDismiss={handleCloseDismiss}
             />
+
+            <Snackbar
+                open={blockLimitSnackbar}
+                autoHideDuration={4000}
+                onClose={() => setBlockLimitSnackbar(false)}
+                anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+            >
+                <Alert
+                    onClose={() => setBlockLimitSnackbar(false)}
+                    severity="error"
+                    variant="filled"
+                >
+                    문서 블록 수가 1,000개 제한에 도달했습니다. 새 블록을 추가하려면 기존 블록을 삭제해주세요.
+                </Alert>
+            </Snackbar>
         </>
     );
 };
