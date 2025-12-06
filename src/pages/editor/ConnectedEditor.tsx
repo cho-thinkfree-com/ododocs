@@ -1,15 +1,15 @@
 import { Alert, Box, Button, CircularProgress, Snackbar } from '@mui/material';
 import { useCallback, useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { updateDocumentContent, renameFileSystemEntry, type FileSystemEntry } from '../../lib/api';
+import { updateDocumentContent, renameFileSystemEntry, type FileSystemEntry, getFileSystemEntry } from '../../lib/api';
 import EditorLayout from '../../components/layout/EditorLayout';
 import useEditorInstance from '../../editor/useEditorInstance';
 import { useDebouncedCallback } from '../../lib/useDebounce';
 import { broadcastSync } from '../../lib/syncEvents';
 import { usePageTitle } from '../../hooks/usePageTitle';
-import { useI18n } from '../../lib/i18n';
 import CloseOverlay from '../../components/editor/CloseOverlay';
 import { processContentForLoad, processContentForSave } from '../../lib/editorUtils';
+import { useFileEvents } from '../../hooks/useFileEvents';
 
 type ConnectedEditorProps = {
     document: FileSystemEntry;
@@ -20,7 +20,6 @@ type CloseFlowState = null | 'saving' | 'success' | 'error';
 
 const ConnectedEditor = ({ document, initialContent }: ConnectedEditorProps) => {
     const { isAuthenticated } = useAuth();
-    const { strings } = useI18n();
     const [saveStatus, setSaveStatus] = useState<'saved' | 'unsaved' | 'saving'>('saved');
     const [blockLimitSnackbar, setBlockLimitSnackbar] = useState(false);
 
@@ -46,6 +45,28 @@ const ConnectedEditor = ({ document, initialContent }: ConnectedEditorProps) => 
         };
         resolve();
     }, [initialContent, document.workspaceId, document.id]);
+
+    // Listen for file updates to keep document metadata (like share links) in sync
+    useFileEvents({
+        workspaceId: document.workspaceId,
+        onFileUpdated: async (event) => {
+            if (event.fileId === document.id) {
+                try {
+                    // Fetch latest document data to get updated share links, etc.
+                    const updatedDoc = await getFileSystemEntry(document.id);
+                    setCurrentDocument(prev => ({
+                        ...prev,
+                        ...updatedDoc,
+                        // Preserve local name if it's being edited, though usually it syncs fast enough
+                        // For now just taking server truth for metadata is safer
+                        shareLinks: updatedDoc.shareLinks
+                    }));
+                } catch (error) {
+                    console.error('Failed to update document metadata from event:', error);
+                }
+            }
+        }
+    });
 
     // Handle block limit reached
     const handleBlockLimitReached = useCallback(() => {

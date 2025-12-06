@@ -16,6 +16,7 @@ import type { ViewerTemplate } from '../../lib/viewerTemplates';
 import AuthorInfoButton from '../viewer/AuthorInfoButton';
 import PublicIcon from '@mui/icons-material/Public';
 import PublicOffIcon from '@mui/icons-material/PublicOff';
+import LinkIcon from '@mui/icons-material/Link';
 
 interface EditorLayoutProps {
     editor: Editor | null;
@@ -130,7 +131,7 @@ const EditorLayout = ({ editor, document, onContentChange, onTitleChange, onClos
     const [showSavedStatus, setShowSavedStatus] = useState(true);
     const [viewerWidth, setViewerWidth] = useState(initialWidth);
     const [viewerTemplate, setViewerTemplate] = useState<ViewerTemplate>('original');
-    const [publicStatus, setPublicStatus] = useState<'none' | 'active' | 'expired'>('none');
+    const [publicStatus, setPublicStatus] = useState<'none' | 'public' | 'link' | 'expired'>('none');
     const { strings } = useI18n();
 
     useEffect(() => {
@@ -156,7 +157,11 @@ const EditorLayout = ({ editor, document, onContentChange, onTitleChange, onClos
             if (activeLink.expiresAt && new Date(activeLink.expiresAt) <= new Date()) {
                 setPublicStatus('expired');
             } else {
-                setPublicStatus('active');
+                if (activeLink.accessType === 'public') {
+                    setPublicStatus('public');
+                } else {
+                    setPublicStatus('link');
+                }
             }
         } catch (error) {
             console.error('Failed to check public status:', error);
@@ -165,7 +170,7 @@ const EditorLayout = ({ editor, document, onContentChange, onTitleChange, onClos
 
     useEffect(() => {
         checkPublicStatus();
-    }, [document.id, shareOpen, readOnly]);
+    }, [document, shareOpen, readOnly]);
 
     // Auto-hide "Saved" status after 2 seconds
     useEffect(() => {
@@ -366,10 +371,19 @@ const EditorLayout = ({ editor, document, onContentChange, onTitleChange, onClos
                                         }}
                                         sx={{ minWidth: 200 }}
                                     />
-                                    {publicStatus === 'active' && (
+                                    {publicStatus === 'public' && (
                                         <Tooltip title="Published to web">
                                             <PublicIcon
                                                 color="success"
+                                                fontSize="small"
+                                                sx={{ ml: 1 }}
+                                            />
+                                        </Tooltip>
+                                    )}
+                                    {publicStatus === 'link' && (
+                                        <Tooltip title="Shared via link">
+                                            <LinkIcon
+                                                color="primary"
                                                 fontSize="small"
                                                 sx={{ ml: 1 }}
                                             />
