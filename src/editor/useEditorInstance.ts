@@ -59,7 +59,7 @@ const useEditorInstance = (options?: UseEditorInstanceOptions) => {
   const hasInitialized = useRef(false)
 
   const editor = useEditor({
-    autofocus: editorConfig.autofocus ?? 'end',
+    autofocus: editorConfig.autofocus ?? 'start',
     ...editorConfig,
     content: undefined, // Defer content loading to validate first
     extensions,

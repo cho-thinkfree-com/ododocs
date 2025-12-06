@@ -9,6 +9,7 @@ const SNAP_THRESHOLD = 2 // Snap when within ±2% of a snap point
 const ResizableImageView = ({ node, updateAttributes, selected }: NodeViewProps) => {
     const containerRef = useRef<HTMLDivElement>(null)
     const [isResizing, setIsResizing] = useState(false)
+    const [isLoaded, setIsLoaded] = useState(false)
     const [snapIndicator, setSnapIndicator] = useState<number | null>(null)
     const [currentPercent, setCurrentPercent] = useState<number>(100) // Current percentage during drag
     const [liveWidth, setLiveWidth] = useState<number | null>(null) // Pixel width during drag
@@ -33,6 +34,7 @@ const ResizableImageView = ({ node, updateAttributes, selected }: NodeViewProps)
         const imgNaturalHeight = img.naturalHeight
         setNaturalWidth(imgNaturalWidth)
         setNaturalHeight(imgNaturalHeight)
+        setIsLoaded(true)
 
         // Save to node attributes if not already saved
         if (!storedNaturalWidth || !storedNaturalHeight) {
@@ -209,11 +211,46 @@ const ResizableImageView = ({ node, updateAttributes, selected }: NodeViewProps)
                 style={getContainerStyle()}
                 className={`resizable-image-container ${selected ? 'selected' : ''} ${isResizing ? 'resizing' : ''}`}
             >
+                {/* Loading placeholder - shown until image loads */}
+                {!isLoaded && naturalWidth > 0 && (
+                    <div
+                        style={{
+                            position: 'absolute',
+                            top: 0,
+                            left: 0,
+                            width: '100%',
+                            height: '100%',
+                            backgroundColor: '#f5f5f5',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            borderRadius: borderRadius === 'rounded' ? '16px' : 0,
+                        }}
+                    >
+                        <svg
+                            width="48"
+                            height="48"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="#bdbdbd"
+                            strokeWidth="1.5"
+                            style={{ opacity: 0.7 }}
+                        >
+                            <rect x="3" y="3" width="18" height="18" rx="2" />
+                            <circle cx="8.5" cy="8.5" r="1.5" fill="#bdbdbd" stroke="none" />
+                            <path d="M21 15l-5-5L5 21" />
+                        </svg>
+                    </div>
+                )}
                 <img
                     src={src}
                     alt={alt || ''}
                     title={title || ''}
-                    style={getImageStyle()}
+                    style={{
+                        ...getImageStyle(),
+                        opacity: isLoaded ? 1 : 0,
+                        transition: 'opacity 0.2s ease-in-out',
+                    }}
                     draggable={false}
                     loading="lazy"
                     onLoad={handleImageLoad}
