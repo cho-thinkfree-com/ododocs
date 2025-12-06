@@ -1,0 +1,44 @@
+name: Hocuspocus CI/CD (Docker Hub)
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+      - product-*
+      - production-*
+    paths:
+      - "server/**"
+      - "prisma/**"
+      - "package.json"
+      - "package-lock.json"
+      - "tsconfig*.json"
+      - "Dockerfile.hopo"
+      - ".github/workflows/hopo-ci-cd.yml"
+  workflow_dispatch:
+    inputs:
+      branch_name:
+        description: Branch to build (defaults to the branch you dispatch from)
+        required: false
+        default: ""
+      image_name:
+        description: Docker image name (repo part after username)
+        required: false
+        default: "odocs-hocuspocus"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  call-build-push:
+    uses: ./.github/workflows/reusable-build-push.yml
+    with:
+      default_image_name: "odocs-hocuspocus"
+      dockerfile: "./Dockerfile.hopo"
+      override_branch_name: ${{ inputs.branch_name }}
+      override_image_name: ${{ inputs.image_name }}
+    secrets: inherit

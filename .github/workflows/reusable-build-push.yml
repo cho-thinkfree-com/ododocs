@@ -1,0 +1,154 @@
+name: Reusable Build and Push
+
+on:
+  workflow_call:
+    inputs:
+      default_image_name:
+        required: true
+        type: string
+        description: "Default Docker image name (e.g. odocs-frontend)"
+      dockerfile:
+        required: true
+        type: string
+        description: "Path to Dockerfile"
+      override_branch_name:
+        required: false
+        type: string
+        description: "Branch name override from dispatch"
+      override_image_name:
+        required: false
+        type: string
+        description: "Image name override from dispatch"
+    secrets:
+      DOCKERHUB_USERNAME:
+        required: true
+      DOCKERHUB_TOKEN:
+        required: true
+      GOOGLE_CHAT_WEBHOOK_URL:
+        required: false
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    env:
+      GOOGLE_CHAT_WEBHOOK_URL: ${{ secrets.GOOGLE_CHAT_WEBHOOK_URL }}
+      DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+      IMAGE_NAME: ${{ inputs.default_image_name }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up QEMU (for cross-builds)
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Compute tags (mirror Jenkins logic)
+        id: meta
+        shell: bash
+        env:
+          INPUT_BRANCH: ${{ inputs.override_branch_name }}
+          INPUT_IMAGE_NAME: ${{ inputs.override_image_name }}
+          FALLBACK_IMAGE_NAME: ${{ env.IMAGE_NAME }}
+        run: |
+          set -euo pipefail
+          BRANCH_NAME="${INPUT_BRANCH:-${GITHUB_HEAD_REF:-${GITHUB_REF_NAME}}}"
+          SHORT_COMMIT_HASH=$(git rev-parse --short HEAD)
+          IMAGE_NAME_EFFECTIVE="${INPUT_IMAGE_NAME:-$FALLBACK_IMAGE_NAME}"
+
+          if [[ "$BRANCH_NAME" == product-* || "$BRANCH_NAME" == production-* ]]; then
+            # Strip either prefix (product- or production-) to get the version/date payload
+            without_prefix="${BRANCH_NAME#product-}"
+            if [[ "$without_prefix" == "$BRANCH_NAME" ]]; then
+              without_prefix="${BRANCH_NAME#production-}"
+            fi
+            IFS='-' read -r -a parts <<< "$without_prefix"
+            if [[ ${#parts[@]} -lt 2 ]]; then
+              echo "Branch name format incorrect. Expected 'product|production-<version>-<YYYYMMDD>'." >&2; exit 1
+            fi
+            # The last token is the date, everything before it is the version (which may contain hyphens like 1.5.0-beta)
+            last_index=$(( ${#parts[@]} - 1 ))
+            date_part="${parts[$last_index]}"
+            if [[ ${#date_part} -lt 8 || ${date_part:0:2} != "20" ]]; then
+              echo "Date format incorrect in branch name. Expected YYYYMMDD starting with '20'." >&2; exit 1
+            fi
+            version=$(IFS='-'; echo "${parts[*]:0:$last_index}")
+            modified_date=${date_part:2}
+            final_tag="${version}-${modified_date}-${SHORT_COMMIT_HASH}"
+          else
+            sanitized_branch=${BRANCH_NAME//\//_}
+            final_tag="${sanitized_branch}-${SHORT_COMMIT_HASH}"
+          fi
+          IS_LATEST=false
+          [[ "$BRANCH_NAME" == "develop" || "$BRANCH_NAME" == "main" ]] && IS_LATEST=true
+
+          DEST_TAGS=("${DOCKERHUB_USERNAME}/${IMAGE_NAME_EFFECTIVE}:${final_tag}")
+          $IS_LATEST && DEST_TAGS+=("${DOCKERHUB_USERNAME}/${IMAGE_NAME_EFFECTIVE}:latest")
+
+          {
+            echo "branch_name=$BRANCH_NAME"
+          } >> "$GITHUB_OUTPUT"
+
+          {
+            echo "tags<<__TAGS__"
+            printf '%s\n' "${DEST_TAGS[@]}"
+            echo "__TAGS__"
+          } >> "$GITHUB_OUTPUT"
+
+          {
+            echo "images_built<<__IMAGES__"
+            for t in "${DEST_TAGS[@]}"; do echo "• \`$t\`"; done
+            echo "__IMAGES__"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ${{ inputs.dockerfile }}
+          push: true
+          platforms: linux/amd64
+          tags: ${{ steps.meta.outputs.tags }}
+          cache-from: "type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:buildcache"
+          cache-to: "type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:buildcache,mode=max"
+          provenance: false
+
+      - name: Notify (Google Chat) – success
+        if: success() && env.GOOGLE_CHAT_WEBHOOK_URL != ''
+        shell: bash
+        env:
+          JOB_NAME: ${{ github.workflow }}
+          RUN_NUMBER: ${{ github.run_number }}
+          REPO: ${{ github.repository }}
+          BRANCH_NAME: ${{ steps.meta.outputs.branch_name }}
+          IMAGES_BUILT: ${{ steps.meta.outputs.images_built }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          MSG=$'✅ *Build Success*\n*Job*: `'"${JOB_NAME} #${RUN_NUMBER}"$'`\n*Branch*: `'"${BRANCH_NAME}"$'`\n*Images Built*:\n'"${IMAGES_BUILT}"$'\n*Details*:\n• Build: '"${RUN_URL}"$'\n• Repository: https://github.com/'"${REPO}"$'\n• Branch: https://github.com/'"${REPO}"$'/tree/'"${BRANCH_NAME}"$'\n• Docker Hub: https://hub.docker.com/repositories/'"${DOCKERHUB_USERNAME}"
+          curl -s -X POST -H 'Content-Type: application/json' \
+            -d "$(jq -n --arg text "$MSG" '{text:$text}')" "$GOOGLE_CHAT_WEBHOOK_URL"
+
+      - name: Notify (Google Chat) – failure
+        if: failure() && env.GOOGLE_CHAT_WEBHOOK_URL != ''
+        shell: bash
+        env:
+          JOB_NAME: ${{ github.workflow }}
+          RUN_NUMBER: ${{ github.run_number }}
+          REPO: ${{ github.repository }}
+          BRANCH_NAME: ${{ github.ref_name }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          COMMIT_URL: ${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}
+        run: |
+          MSG=$'<users/all>\n❌ *Build Failure*\n*Job*: `'"${JOB_NAME} #${RUN_NUMBER}"$'`\n*Branch*: `'"${BRANCH_NAME}"$'`\n*Details*:\n• Build: '"${RUN_URL}"$'\n• Repository: https://github.com/'"${REPO}"$'\n• Console: '"${RUN_URL}"$'\n• Commit: '"${COMMIT_URL}"
+          curl -s -X POST -H 'Content-Type: application/json' \
+            -d "$(jq -n --arg text "$MSG" '{text:$text}')" "$GOOGLE_CHAT_WEBHOOK_URL"
