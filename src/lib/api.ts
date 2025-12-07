@@ -1,4 +1,4 @@
-// API client for tiptap-example backend
+// API client for ododocs backend
 // Base URL from environment or default to localhost
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:9920'

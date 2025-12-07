@@ -9,7 +9,7 @@ export class StorageService {
 
     constructor() {
         this.region = process.env.OBJECT_STORAGE_REGION || 'us-east-1'
-        this.bucket = process.env.OBJECT_STORAGE_BUCKET || 'tiptap-example'
+        this.bucket = process.env.OBJECT_STORAGE_BUCKET || 'ododocs'
 
         this.s3 = new S3Client({
             region: this.region,
