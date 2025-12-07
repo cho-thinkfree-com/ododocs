@@ -8,6 +8,9 @@ RUN npm ci
 COPY . .
 # Build both FE and Server (since built together in this repo usually, or just to be safe with types)
 # But strictly for FE we only need 'vite build'. However, 'npm run build' runs 'tsc -b && vite build'.
+# Generate prisma client (needed for tsc to pass on server files)
+RUN npx prisma generate
+
 RUN npm run build
 
 FROM nginx:alpine
