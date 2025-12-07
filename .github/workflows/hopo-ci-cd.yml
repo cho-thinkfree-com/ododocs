@@ -37,7 +37,7 @@ jobs:
   call-build-push:
     uses: ./.github/workflows/reusable-build-push.yml
     with:
-      default_image_name: "odocs-hocuspocus"
+      default_image_name: "ododocs-hocuspocus"
       dockerfile: "./Dockerfile.hopo"
       override_branch_name: ${{ inputs.branch_name }}
       override_image_name: ${{ inputs.image_name }}

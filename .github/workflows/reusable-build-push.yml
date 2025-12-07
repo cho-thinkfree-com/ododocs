@@ -6,7 +6,7 @@ on:
       default_image_name:
         required: true
         type: string
-        description: "Default Docker image name (e.g. odocs-frontend)"
+        description: "Default Docker image name (e.g. ododocs-frontend)"
       dockerfile:
         required: true
         type: string
