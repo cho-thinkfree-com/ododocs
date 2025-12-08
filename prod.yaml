@@ -1,0 +1,68 @@
+services:
+  # 1. Reverse Proxy
+  nginx:
+    image: nginx:alpine
+    container_name: ododocs-nginx
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx-proxy.conf:/etc/nginx/nginx.conf:ro
+      - /etc/letsencrypt:/etc/letsencrypt:ro # Mount Host Certs
+      - ${HOME}/volumes/ododocs/nginx_logs:/var/log/nginx
+    depends_on:
+      - frontend
+      - backend
+      - hopo
+    networks:
+      - ododocs-network
+
+  # 2. Application Services
+  frontend:
+    image: cszero/ododocs-frontend:latest
+    container_name: ododocs-frontend
+    restart: always
+    expose:
+      - "9910"
+    networks:
+      - ododocs-network
+
+  backend:
+    image: cszero/ododocs-backend:latest
+    container_name: ododocs-backend
+    restart: always
+    expose:
+      - "9920"
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: ${POSTGRES_PORT}
+      REDIS_HOST: redis
+      REDIS_PORT: ${REDIS_PORT}
+      # Minio config needed here too if used by backend
+    networks:
+      - ododocs-network
+
+  hopo:
+    image: cszero/ododocs-hocuspocus:latest
+    container_name: ododocs-hopo
+    restart: always
+    expose:
+      - "9930"
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: ${POSTGRES_PORT}
+      REDIS_HOST: redis
+      REDIS_PORT: ${REDIS_PORT}
+    networks:
+      - ododocs-network
+
+networks:
+  ododocs-network:
+    external: true

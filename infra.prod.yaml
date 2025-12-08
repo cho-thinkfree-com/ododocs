@@ -1,0 +1,47 @@
+services:
+  # Infrastructure Services
+  postgres:
+    image: postgres:15-alpine
+    container_name: ododocs-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - ${HOME}/volumes/ododocs/postgres:/var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT}:${POSTGRES_PORT}"
+    networks:
+      - ododocs-network
+
+  redis:
+    image: redis:alpine
+    container_name: ododocs-redis
+    restart: always
+    volumes:
+      - ${HOME}/volumes/ododocs/redis:/data
+    ports:
+      - "127.0.0.1:${REDIS_PORT}:6379"
+    networks:
+      - ododocs-network
+
+  minio:
+    image: minio/minio
+    container_name: ododocs-minio
+    restart: always
+    command: server /data --console-address ":9001" --address ":9000"
+    environment:
+      MINIO_ROOT_USER: ${OBJECT_STORAGE_ACCESS_KEY}
+      MINIO_ROOT_PASSWORD: ${OBJECT_STORAGE_SECRET_KEY}
+    volumes:
+      - ${HOME}/volumes/ododocs/minio:/data
+    ports:
+      - "127.0.0.1:${MINIO_PORT_API}:9000"
+      - "127.0.0.1:${MINIO_PORT_CONSOLE}:9001"
+    networks:
+      - ododocs-network
+
+networks:
+  ododocs-network:
+    driver: bridge
