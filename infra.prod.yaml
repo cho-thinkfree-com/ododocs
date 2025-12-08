@@ -44,4 +44,5 @@ services:
 
 networks:
   ododocs-network:
+    name: ododocs-network
     driver: bridge

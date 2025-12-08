@@ -136,32 +136,58 @@ init() {
     fi
 
     # 4. Setup Cloudflare Credentials
-    read -p "Do you want to setup Cloudflare credentials now? (y/n): " -r RESPONSE
-    if [[ "$RESPONSE" =~ ^[Yy]$ ]]; then
-        source "$ENV_FILE"
-        if [ -z "$CLOUDFLARE_API_TOKEN" ]; then
-            read -p "Enter Cloudflare API Token: " CLOUDFLARE_API_TOKEN
-            # Update .env purely for reference if needed
-        fi
+    generate_cloudflare_ini
+    
+    log "Initialization complete."
+}
+
+generate_cloudflare_ini() {
+    check_env
+    
+    # Try to get from env if not set
+    if [ -z "$CLOUDFLARE_API_TOKEN" ]; then
+        warn "CLOUDFLARE_API_TOKEN is not set in .env."
+        read -p "Enter Cloudflare API Token (input will be saved to .env): " INPUT_TOKEN
         
-        if [ -n "$CLOUDFLARE_API_TOKEN" ]; then
-            echo "dns_cloudflare_api_token = $CLOUDFLARE_API_TOKEN" > "$CLOUDFLARE_INI"
-            chmod 600 "$CLOUDFLARE_INI"
-            log "Created $CLOUDFLARE_INI with secure permissions."
+        # Trim input
+        INPUT_TOKEN=$(echo "$INPUT_TOKEN" | xargs)
+        
+        if [ -n "$INPUT_TOKEN" ]; then
+            # Append to .env if not exists, or replace? Simple append for now if missing
+            if grep -q "CLOUDFLARE_API_TOKEN=" "$ENV_FILE"; then
+                sed -i "s|CLOUDFLARE_API_TOKEN=.*|CLOUDFLARE_API_TOKEN=$INPUT_TOKEN|" "$ENV_FILE"
+            else
+                echo "" >> "$ENV_FILE"
+                echo "CLOUDFLARE_API_TOKEN=$INPUT_TOKEN" >> "$ENV_FILE"
+            fi
+            CLOUDFLARE_API_TOKEN="$INPUT_TOKEN"
         else
-            error "No API Token provided. Skipping cloudflare.ini creation."
+            error "No token provided."
+            return 1
         fi
     fi
 
-    log "Initialization complete."
+    # Trim token from env
+    local TRIMMED_TOKEN=$(echo "$CLOUDFLARE_API_TOKEN" | xargs)
+
+    if [ -n "$TRIMMED_TOKEN" ]; then
+        echo "dns_cloudflare_api_token = $TRIMMED_TOKEN" > "$CLOUDFLARE_INI"
+        chmod 600 "$CLOUDFLARE_INI"
+        log "Regenerated $CLOUDFLARE_INI (token: ${TRIMMED_TOKEN:0:4}...)"
+    else
+        error "CLOUDFLARE_API_TOKEN is empty."
+        exit 1
+    fi
 }
 
 cert_issue() {
     check_env
+    generate_cloudflare_ini # Ensure INI is fresh from ENV
+    
     log "Issuing Certificate for *.ododocs.com..."
 
     if [ ! -f "$CLOUDFLARE_INI" ]; then
-        error "Cloudflare credentials not found at $CLOUDFLARE_INI. Run 'Init' first."
+        error "Cloudflare credentials check failed."
         exit 1
     fi
 
