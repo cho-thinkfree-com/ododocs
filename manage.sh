@@ -104,7 +104,10 @@ deploy() {
     log "Deploying services..."
     check_docker
     
-    docker compose -f "$COMPOSE_FILE" up -d --build --remove-orphans
+    # Pull latest images
+    docker compose -f "$COMPOSE_FILE" pull
+    
+    docker compose -f "$COMPOSE_FILE" up -d --remove-orphans
     
     log "Deployment completed. Checking status..."
     docker compose -f "$COMPOSE_FILE" ps

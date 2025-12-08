@@ -32,12 +32,7 @@ services:
 
   # 3. Application Services
   frontend:
-    build:
-      context: .
-      dockerfile: Dockerfile.fe
-      args:
-        VITE_API_BASE_URL: ${BUILD_VITE_API_BASE_URL}
-        VITE_HOCUSPOCUS_URL: ${BUILD_VITE_HOCUSPOCUS_URL}
+    image: cszero/ododocs-frontend:latest
     container_name: ododocs-frontend
     restart: always
     expose:
@@ -46,9 +41,7 @@ services:
       - ododocs-network
 
   backend:
-    build:
-      context: .
-      dockerfile: Dockerfile.be
+    image: cszero/ododocs-backend:latest
     container_name: ododocs-backend
     restart: always
     expose:
@@ -69,9 +62,7 @@ services:
       - ododocs-network
 
   hopo:
-    build:
-      context: .
-      dockerfile: Dockerfile.hopo
+    image: cszero/ododocs-hocuspocus:latest
     container_name: ododocs-hopo
     restart: always
     expose:
