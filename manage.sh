@@ -275,6 +275,42 @@ reload_nginx() {
     log "Nginx Reloaded."
 }
 
+setup_firewall() {
+    log "Setting up UFW Firewall..."
+    
+    # Install UFW if missing
+    if ! command -v ufw &> /dev/null; then
+        warn "UFW is not installed. Installing..."
+        sudo apt-get update
+        sudo apt-get install -y ufw
+    fi
+
+    log "Configuring default policies..."
+    sudo ufw default deny incoming
+    sudo ufw default allow outgoing
+
+    # SSH
+    read -p "Enter your SSH port [Default: 22]: " SSH_PORT
+    SSH_PORT=${SSH_PORT:-22}
+    sudo ufw allow "$SSH_PORT/tcp"
+    log "Allowed SSH port $SSH_PORT"
+
+    # HTTP/HTTPS
+    sudo ufw allow 80/tcp
+    sudo ufw allow 443/tcp
+    log "Allowed HTTP (80) & HTTPS (443)"
+
+    log "Enabling Firewall..."
+    # 'yes' to confirm potentially disrupting ssh connections
+    echo "y" | sudo ufw enable
+    
+    log "Firewall setup complete. Status:"
+    sudo ufw status verbose
+    
+    warn "IMPORTANT: Docker published ports (0.0.0.0:xxxx) often bypass UFW via iptables."
+    warn "For maximum security, please configure Vultr VPC Firewall to block ports 9700/9720/etc from public access."
+}
+
 # --- Interactive Menu ---
 
 menu() {
@@ -288,9 +324,10 @@ menu() {
         echo "5. Stop All"
         echo "6. View Logs"
         echo "7. Reload Nginx"
-        echo "8. Exit"
+        echo "8. Setup Firewall (UFW)"
+        echo "9. Exit"
         echo ""
-        read -p "Select an option [1-8]: " choice
+        read -p "Select an option [1-9]: " choice
 
         case $choice in
             1) init ;;
@@ -300,7 +337,8 @@ menu() {
             5) down ;;
             6) logs ;;
             7) reload_nginx ;;
-            8) exit 0 ;;
+            8) setup_firewall ;;
+            9) exit 0 ;;
             *) echo "Invalid option." ;;
         esac
         
@@ -323,9 +361,10 @@ else
         down) down ;;
         logs) logs ;;
         reload-nginx) reload_nginx ;;
+        setup-firewall) setup_firewall ;;
         *)
             echo "Usage: ./manage.sh [command]"
-            echo "Commands: init, cert-issue, cert-renew, setup-cron, deploy, down, logs, reload-nginx"
+            echo "Commands: init, cert-issue, cert-renew, setup-cron, deploy, down, logs, reload-nginx, setup-firewall"
             exit 1
             ;;
     esac
