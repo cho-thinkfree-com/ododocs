@@ -194,3 +194,91 @@ export const StealDialog: React.FC<StealDialogProps> = ({
         </Dialog>
     );
 };
+
+
+interface DuplicateSessionBannerProps {
+    onCloseOtherSessions: () => void;
+}
+
+export const DuplicateSessionBanner: React.FC<DuplicateSessionBannerProps> = ({
+    onCloseOtherSessions
+}) => {
+    return (
+        <Box
+            sx={{
+                width: '100%',
+                bgcolor: '#ffebeb', // Light red background
+                color: '#d32f2f',   // Dark red text
+                p: '10px 24px',
+                borderBottom: '1px solid #ffcdd2',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 2,
+                fontSize: '0.95rem',
+                fontWeight: 500,
+                zIndex: 10
+            }}
+        >
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <span>⚠️ 동일한 계정으로 다른 창에서 편집 중입니다. 확인해주세요.</span>
+            </Box>
+            <button
+                onClick={onCloseOtherSessions}
+                style={{
+                    padding: '4px 10px',
+                    backgroundColor: 'white',
+                    color: '#d32f2f',
+                    border: '1px solid #d32f2f',
+                    borderRadius: '4px',
+                    cursor: 'pointer',
+                    fontSize: '0.85rem',
+                    fontWeight: 600
+                }}
+            >
+                현재 창 외 다른 편집창 종료하기
+            </button>
+        </Box>
+    );
+};
+
+interface SessionClosingDialogProps {
+    open: boolean;
+    countdown: number;
+    onCloseNow: () => void;
+}
+
+export const SessionClosingDialog: React.FC<SessionClosingDialogProps> = ({
+    open,
+    countdown,
+    onCloseNow
+}) => {
+    return (
+        <Dialog open={open} maxWidth="sm" fullWidth>
+            <DialogTitle sx={{ color: '#d32f2f', fontWeight: 'bold' }}>
+                편집 세션 종료 안내
+            </DialogTitle>
+            <DialogContent>
+                <Box sx={{ py: 2 }}>
+                    <Typography variant="body1" gutterBottom>
+                        다른 창에서 이 편집 세션을 종료 요청했습니다.
+                    </Typography>
+                    <Typography variant="h5" color="error" align="center" sx={{ my: 3, fontWeight: 'bold' }}>
+                        {countdown}초 뒤에 창이 닫힙니다.
+                    </Typography>
+                    <LinearProgress
+                        variant="determinate"
+                        value={(countdown / 5) * 100}
+                        sx={{ mt: 2, height: 8, borderRadius: 4 }}
+                        color="error"
+                    />
+                </Box>
+            </DialogContent>
+            <DialogActions>
+                <Button onClick={onCloseNow} variant="contained" color="error" fullWidth>
+                    지금 닫기
+                </Button>
+            </DialogActions>
+        </Dialog>
+    );
+};

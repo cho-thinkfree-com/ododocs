@@ -1,4 +1,4 @@
-import { Alert, Box, CircularProgress, Snackbar, Avatar, Tooltip } from '@mui/material';
+import { Alert, Box, CircularProgress, Snackbar, Avatar, Tooltip, Button } from '@mui/material';
 import { useCallback, useState, useEffect, useMemo, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
@@ -15,8 +15,9 @@ import Collaboration from '@tiptap/extension-collaboration';
 import CollaborationCaret from '@tiptap/extension-collaboration-caret';
 import * as Y from 'yjs';
 import { useDocumentLock, type LockStatus } from '../../hooks/useDocumentLock';
-import { LockBanner, StealDialog } from '../../components/editor/LockComponents';
+import { LockBanner, StealDialog, DuplicateSessionBanner, SessionClosingDialog } from '../../components/editor/LockComponents';
 import { HOCUSPOCUS_URL } from '../../lib/env';
+import { SYNC_CHANNEL_NAME, type SyncEvent } from '../../lib/syncEvents';
 
 // Random color generator for cursors
 const getRandomColor = () => {
@@ -336,8 +337,92 @@ const CollaborativeEditorCore = ({
     const [currentDocument, setCurrentDocument] = useState(initialDocument);
     const [activeUsers, setActiveUsers] = useState<any[]>([]);
     const [closeFlowState, setCloseFlowState] = useState<CloseFlowState>(null);
+    const [hasDuplicateSession, setHasDuplicateSession] = useState(false);
+
+    // Forced Close State
+    const [forceCloseState, setForceCloseState] = useState<'none' | 'warning' | 'final'>('none');
+    const [forceCloseCountdown, setForceCloseCountdown] = useState<number | null>(null);
 
     usePageTitle(currentDocument.name, saveStatus === 'unsaved' || saveStatus === 'saving');
+
+    // Duplicate Detection
+    useEffect(() => {
+        const myName = userProfile.displayName;
+        if (!myName) return;
+        const myClientId = provider.document.clientID;
+
+        // precise duplicate check: same user name, different client ID
+        const duplicates = activeUsers.filter(u => u.name === myName && !u.isLocal);
+        setHasDuplicateSession(duplicates.length > 0);
+    }, [activeUsers, userProfile, provider.document.clientID]);
+
+    // Force Close Logic (Listener)
+    useEffect(() => {
+        if (typeof BroadcastChannel === 'undefined') return;
+        const channel = new BroadcastChannel(SYNC_CHANNEL_NAME);
+
+        channel.onmessage = (event) => {
+            const syncEvent = event.data as SyncEvent;
+            if (syncEvent.type === 'session-force-close' && syncEvent.documentId === currentDocument.id) {
+                // Check if I am the target (same user, different client)
+                const payload = syncEvent.data;
+                if (payload.targetName === userProfile.displayName && payload.initiatorClientId !== provider.document.clientID) {
+                    // Start closing sequence
+                    startClosingSequence();
+                }
+            }
+        };
+
+        return () => channel.close();
+    }, [currentDocument.id, userProfile.displayName, provider.document.clientID]);
+
+    const startClosingSequence = () => {
+        setForceCloseState('warning');
+        setForceCloseCountdown(10);
+
+        // 10s Timer (Warning Phase)
+        let timer = 10;
+        const interval = setInterval(() => {
+            timer -= 1;
+            setForceCloseCountdown(timer);
+
+            if (timer <= 0) {
+                // Warning Phase End -> Switch to Final Phase (Dimmed Dialog)
+                clearInterval(interval);
+                enterFinalClosingPhase();
+            }
+        }, 1000);
+    };
+
+    const enterFinalClosingPhase = () => {
+        setForceCloseState('final');
+        setForceCloseCountdown(5);
+
+        let timer = 5;
+        const interval = setInterval(() => {
+            timer -= 1;
+            setForceCloseCountdown(timer);
+
+            if (timer <= 0) {
+                clearInterval(interval);
+                window.close();
+            }
+        }, 1000);
+    };
+
+    const handleCloseOtherSessions = () => {
+        broadcastSync({
+            type: 'session-force-close',
+            workspaceId: currentDocument.workspaceId,
+            documentId: currentDocument.id,
+            data: {
+                targetName: userProfile.displayName,
+                initiatorClientId: provider.document.clientID
+            }
+        });
+        // Optimistically hide banner for me? No, keep it until they disappear (which happens when they leave).
+        // Actually, they will leave in 15 seconds.
+    };
 
     useEffect(() => {
         if (!provider) return;
@@ -474,6 +559,32 @@ const CollaborativeEditorCore = ({
     return (
         <>
             <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+                {forceCloseState !== 'none' && (
+                    <Alert
+                        severity="error"
+                        action={forceCloseState === 'warning' ? (
+                            <Button color="inherit" size="small" onClick={() => {
+                                // Maybe allow cancel? User didn't ask for cancel. 
+                                // User said: "0s -> Dimmed Dialog". 
+                                // Warning Text: "Checking duplicate session..." "Closing in ..."
+                            }}>
+                                {forceCloseCountdown}초
+                            </Button>
+                        ) : null}
+                        sx={{ width: '100%', zIndex: 11 }}
+                    >
+                        {forceCloseState === 'warning'
+                            ? `다른 창에서 세션 종료를 요청했습니다. ${forceCloseCountdown}초 후 화면이 잠깁니다.`
+                            : `세션이 만료되었습니다.`
+                        }
+                    </Alert>
+                )}
+
+                {/* Duplicate Banner (Only show if NOT in closing sequence) */}
+                {hasDuplicateSession && forceCloseState === 'none' && (
+                    <DuplicateSessionBanner onCloseOtherSessions={handleCloseOtherSessions} />
+                )}
+
                 {lockBanner}
                 <EditorLayout
                     editor={editor}
@@ -569,6 +680,12 @@ const CollaborativeEditorCore = ({
                 state={closeFlowState || 'saving'}
                 onCloseNow={() => window.close()}
                 onDismiss={() => setCloseFlowState(null)}
+            />
+
+            <SessionClosingDialog
+                open={forceCloseState === 'final'}
+                countdown={forceCloseCountdown || 0}
+                onCloseNow={() => window.close()}
             />
         </>
     );

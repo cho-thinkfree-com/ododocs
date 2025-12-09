@@ -3,7 +3,8 @@ export type SyncEventType =
     | 'document-updated'
     | 'document-deleted'
     | 'folder-created'
-    | 'folder-renamed';
+    | 'folder-renamed'
+    | 'session-force-close';
 
 export interface SyncEvent {
     type: SyncEventType;
