@@ -42,6 +42,22 @@ services:
     networks:
       - ododocs-infra-network
 
+  createbuckets:
+    image: minio/mc
+    container_name: ododocs-createbuckets
+    restart: "no"
+    depends_on:
+      - minio
+    entrypoint: >
+      /bin/sh -c "
+      /usr/bin/mc config host add myminio http://minio:9000 ${OBJECT_STORAGE_ACCESS_KEY} ${OBJECT_STORAGE_SECRET_KEY};
+      /usr/bin/mc mb myminio/${OBJECT_STORAGE_BUCKET} || echo 'Bucket already exists';
+      /usr/bin/mc anonymous set download myminio/${OBJECT_STORAGE_BUCKET};
+      exit 0;
+      "
+    networks:
+      - ododocs-infra-network
+
 networks:
   ododocs-infra-network:
     name: ododocs-infra-network
