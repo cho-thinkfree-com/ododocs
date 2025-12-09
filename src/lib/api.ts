@@ -1,7 +1,8 @@
+import { API_BASE_URL } from './env';
+
 // API client for ododocs backend
 // Base URL from environment or default to localhost
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:9920'
+// Used for REST API calls
 
 function buildQuery(params?: Record<string, string | number | boolean | undefined>) {
   if (!params) return ''

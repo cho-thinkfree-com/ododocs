@@ -33,9 +33,9 @@ import {
     Edit as EditIcon,
     Delete as DeleteIcon,
     Download as DownloadIcon,
-
     People as PeopleIcon,
 } from '@mui/icons-material';
+import { API_BASE_URL } from '../../lib/env';
 import { useAuth } from '../../context/AuthContext';
 import { useUpload } from '../../context/UploadContext';
 import { useI18n } from '../../lib/i18n';
@@ -568,7 +568,6 @@ const WorkspaceFilesPage = () => {
         const item = contextMenu.item;
 
         // Use API_BASE_URL to ensure request goes to backend server (9920), not frontend (9910)
-        const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:9920';
 
         try {
             // Get download URL from backend (with authentication)

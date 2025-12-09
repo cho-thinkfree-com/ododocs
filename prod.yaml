@@ -20,9 +20,14 @@ services:
 
   # 2. Application Services
   frontend:
-    image: cszero/ododocs-frontend:latest
+    build:
+      context: .
+      dockerfile: Dockerfile.fe
     container_name: ododocs-frontend
     restart: always
+    environment:
+      VITE_API_BASE_URL: ${VITE_API_BASE_URL}
+      VITE_HOCUSPOCUS_URL: ${VITE_HOCUSPOCUS_URL}
     expose:
       - "9910"
     networks:

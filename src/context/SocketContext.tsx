@@ -1,7 +1,8 @@
-import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
+```typescript
+import { API_BASE_URL } from '../lib/env';
+import React, { createContext, useContext, useEffect, useState } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { useAuth } from './AuthContext';
-import { useParams, useLocation } from 'react-router-dom';
 
 interface SocketContextType {
     socket: Socket | null;
@@ -15,26 +16,17 @@ const SocketContext = createContext<SocketContextType>({
 
 export const useSocket = () => useContext(SocketContext);
 
-interface SocketProviderProps {
-    children: React.ReactNode;
-}
-
-export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
-    const { isAuthenticated } = useAuth();
+export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+    const { user, isLoading } = useAuth();
     const [socket, setSocket] = useState<Socket | null>(null);
     const [isConnected, setIsConnected] = useState(false);
-    const { workspaceId } = useParams<{ workspaceId?: string }>();
-    const location = useLocation();
-    const currentWorkspaceRef = useRef<string | null>(null);
-    const socketRef = useRef<Socket | null>(null);
 
     // Initialize socket connection
     useEffect(() => {
-        if (!isAuthenticated) {
-            // Disconnect if not authenticated
-            if (socketRef.current) {
-                socketRef.current.disconnect();
-                socketRef.current = null;
+        if (isLoading || !user) {
+            // Disconnect if not authenticated or loading
+            if (socket) {
+                socket.disconnect();
                 setSocket(null);
                 setIsConnected(false);
             }
@@ -47,7 +39,11 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
         }
 
         // Create socket connection
-        const serverUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:9920';
+        import { API_BASE_URL } from '../lib/env';
+
+        // ... imports
+
+        const serverUrl = API_BASE_URL;
         const newSocket = io(serverUrl, {
             withCredentials: true,
             autoConnect: true,

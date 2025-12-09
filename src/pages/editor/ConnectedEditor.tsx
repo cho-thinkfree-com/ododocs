@@ -15,6 +15,7 @@ import Collaboration from '@tiptap/extension-collaboration';
 import * as Y from 'yjs';
 import { useDocumentLock, type LockStatus } from '../../hooks/useDocumentLock';
 import { LockBanner, StealDialog } from '../../components/editor/LockComponents';
+import { HOCUSPOCUS_URL } from '../../lib/env';
 
 // Random color generator for cursors
 const getRandomColor = () => {
@@ -560,7 +561,7 @@ const ConnectedEditor = ({ document, initialContent }: ConnectedEditorProps) => 
 
         const ydoc = new Y.Doc();
         const newProvider = new HocuspocusProvider({
-            url: import.meta.env.VITE_HOCUSPOCUS_URL || 'http://localhost:9930', // Use HTTP/WS URL logic properly
+            url: HOCUSPOCUS_URL,
             name: document.id,
             document: ydoc,
             onAuthenticationFailed: () => console.error('Authentication failed'),
