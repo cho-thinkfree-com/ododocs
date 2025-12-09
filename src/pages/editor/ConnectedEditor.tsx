@@ -349,7 +349,6 @@ const CollaborativeEditorCore = ({
     useEffect(() => {
         const myName = userProfile.displayName;
         if (!myName) return;
-        const myClientId = provider.document.clientID;
 
         // precise duplicate check: same user name, different client ID
         const duplicates = activeUsers.filter(u => u.name === myName && !u.isLocal);
@@ -780,7 +779,7 @@ const CollaborativeEditorInternal = ({
 };
 
 const ConnectedEditor = ({ document, initialContent }: ConnectedEditorProps) => {
-    const { isAuthenticated, user } = useAuth();
+    const { user } = useAuth();
     const [blockLimitSnackbar, setBlockLimitSnackbar] = useState(false);
     const [searchParams, setSearchParams] = useSearchParams();
 
