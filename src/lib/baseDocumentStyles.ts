@@ -65,6 +65,16 @@ export const getBaseDocumentStyles = (theme: Theme): SxProps<Theme> => ({
         // paddingLeft: '1.5em',
     },
 
+    // Horizontal Rule styles
+    '& hr': {
+        border: 'none',
+        borderTop: '3px solid',
+        borderColor: theme.palette.grey[400], // Sophisticated gray
+        marginTop: '1.5rem',
+        marginBottom: '1.5rem',
+        width: '100%',
+    },
+
     // Code block styles
     '& pre': {
         // background: '#f5f5f5',

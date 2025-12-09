@@ -17,6 +17,7 @@ import bash from 'highlight.js/lib/languages/bash'
 import yaml from 'highlight.js/lib/languages/yaml'
 import dockerfile from 'highlight.js/lib/languages/dockerfile'
 import type { Extension } from '@tiptap/core'
+import { nodeInputRule } from '@tiptap/core'
 import Color from '@tiptap/extension-color'
 import Dropcursor from '@tiptap/extension-dropcursor'
 import FontFamily from '@tiptap/extension-font-family'
@@ -195,7 +196,16 @@ export const createBaseExtensions = (strings: AppStrings, options?: BaseExtensio
     TaskItem.configure({
       nested: true,
     }),
-    HorizontalRule,
+    HorizontalRule.extend({
+      addInputRules() {
+        return [
+          nodeInputRule({
+            find: /^(?:---|—-|___|\*\*\*|\/-+|\/_+|\/\*+)$/,
+            type: this.type,
+          }),
+        ]
+      },
+    }),
     CodeBlockLowlight.configure({
       lowlight,
     }).extend({
