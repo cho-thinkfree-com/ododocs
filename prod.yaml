@@ -17,6 +17,7 @@ services:
       - hopo
     networks:
       - ododocs-app-network
+      - ododocs-infra-network
 
   # 2. Application Services
   frontend:
@@ -53,6 +54,7 @@ services:
       REDIS_PORT: ${REDIS_PORT}
       # MinIO (Object Storage)
       OBJECT_STORAGE_ENDPOINT: http://host.docker.internal:${MINIO_PORT_API}
+      OBJECT_STORAGE_PUBLIC_ENDPOINT: https://assets.ododocs.com
       OBJECT_STORAGE_ACCESS_KEY: ${OBJECT_STORAGE_ACCESS_KEY}
       OBJECT_STORAGE_SECRET_KEY: ${OBJECT_STORAGE_SECRET_KEY}
       OBJECT_STORAGE_BUCKET: ${OBJECT_STORAGE_BUCKET}
@@ -65,6 +67,7 @@ services:
       COOKIE_SAME_SITE: ${COOKIE_SAME_SITE}
     networks:
       - ododocs-app-network
+      - ododocs-infra-network
 
   hopo:
     image: cszero/ododocs-hocuspocus:latest
@@ -87,6 +90,7 @@ services:
       REDIS_PORT: ${REDIS_PORT}
       # MinIO
       OBJECT_STORAGE_ENDPOINT: http://host.docker.internal:${MINIO_PORT_API}
+      OBJECT_STORAGE_PUBLIC_ENDPOINT: https://assets.ododocs.com
       OBJECT_STORAGE_ACCESS_KEY: ${OBJECT_STORAGE_ACCESS_KEY}
       OBJECT_STORAGE_SECRET_KEY: ${OBJECT_STORAGE_SECRET_KEY}
       OBJECT_STORAGE_BUCKET: ${OBJECT_STORAGE_BUCKET}
@@ -99,8 +103,12 @@ services:
       COOKIE_SAME_SITE: ${COOKIE_SAME_SITE}
     networks:
       - ododocs-app-network
+      - ododocs-infra-network
 
 networks:
   ododocs-app-network:
     name: ododocs-app-network
     driver: bridge
+  ododocs-infra-network:
+    external: true
+    name: ododocs-infra-network
