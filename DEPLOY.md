@@ -47,6 +47,13 @@
 - `prod.yaml`: Nginx, Frontend, Backend 실행.
 - 순서대로 실행되며 서비스가 올라옵니다.
 
+### 5단계: 방화벽 설정 (Firewall)
+> Menu: **8. Setup Firewall (UFW)**
+
+- `ufw`를 설치하고 SSH(사용자 지정 포트), HTTP, HTTPS 포트만 허용합니다.
+- 나머지는 모두 차단합니다. **Infra 서비스 포트(9700 등)의 외부 접근을 막기 위해 필수입니다.**
+- 단, Docker가 `iptables`를 건드려 포트를 강제로 열 수 있으므로, 가능하다면 Vultr Firewall 사용을 권장합니다.
+
 ## 3. 보안 및 접속
 
 관리자 (`db` 등) 접속은 SSH 터널링을 통해서만 가능합니다.
