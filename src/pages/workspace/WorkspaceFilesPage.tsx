@@ -34,6 +34,7 @@ import {
     Delete as DeleteIcon,
     Download as DownloadIcon,
     People as PeopleIcon,
+    LockPerson as LockPersonIcon,
 } from '@mui/icons-material';
 import { API_BASE_URL } from '../../lib/env';
 import { useAuth } from '../../context/AuthContext';
@@ -353,7 +354,7 @@ const WorkspaceFilesPage = () => {
         if (item.type === 'folder') {
             navigate(`/workspace/${workspaceId}/folder/${item.id}`);
         } else if (item.mimeType === 'application/x-odocs') {
-            window.open(`/workspace/${workspaceId}/files/${item.id}/edit`, '_blank');
+            window.open(`/workspace/${workspaceId}/files/${item.id}/edit?mode=collaboration`, '_blank');
         } else {
             // Download file
             window.open(`/api/files/${item.id}/download`, '_blank');
@@ -1156,16 +1157,16 @@ const WorkspaceFilesPage = () => {
                     <MenuItem
                         onClick={() => {
                             if (contextMenu) {
-                                window.open(`/workspace/${workspaceId}/files/${contextMenu.item.id}/edit?mode=collaboration`, '_blank');
+                                window.open(`/workspace/${workspaceId}/files/${contextMenu.item.id}/edit`, '_blank');
                                 handleCloseContextMenu();
                             }
                         }}
                         disabled={selectedIds.size > 1}
                     >
                         <ListItemIcon>
-                            <PeopleIcon fontSize="small" />
+                            <LockPersonIcon fontSize="small" />
                         </ListItemIcon>
-                        <ListItemText>Collaborative Edit</ListItemText>
+                        <ListItemText>Edit with Lock</ListItemText>
                     </MenuItem>
                 )}
 
