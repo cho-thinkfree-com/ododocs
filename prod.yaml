@@ -21,6 +21,7 @@ services:
   # 2. Application Services
   frontend:
     image: cszero/ododocs-frontend:latest
+    pull_policy: always
     container_name: ododocs-frontend
     restart: always
     environment:
@@ -33,6 +34,7 @@ services:
 
   backend:
     image: cszero/ododocs-backend:latest
+    pull_policy: always
     container_name: ododocs-backend
     restart: always
     extra_hosts:
@@ -53,6 +55,7 @@ services:
 
   hopo:
     image: cszero/ododocs-hocuspocus:latest
+    pull_policy: always
     container_name: ododocs-hopo
     restart: always
     extra_hosts:
