@@ -33,7 +33,6 @@ import {
     Edit as EditIcon,
     Delete as DeleteIcon,
     Download as DownloadIcon,
-    People as PeopleIcon,
     LockPerson as LockPersonIcon,
 } from '@mui/icons-material';
 import { API_BASE_URL } from '../../lib/env';
