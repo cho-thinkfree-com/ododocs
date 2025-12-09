@@ -14,6 +14,9 @@ import {
 import GridOffIcon from '@mui/icons-material/GridOff'
 import BorderTopIcon from '@mui/icons-material/BorderTop'
 import BorderLeftIcon from '@mui/icons-material/BorderLeft'
+import FormatAlignLeftIcon from '@mui/icons-material/FormatAlignLeft'
+import FormatAlignCenterIcon from '@mui/icons-material/FormatAlignCenter'
+import FormatAlignRightIcon from '@mui/icons-material/FormatAlignRight'
 import TableCellColorPicker from './TableCellColorPicker'
 
 const CustomTableControls = () => {
@@ -146,6 +149,43 @@ const CustomTableControls = () => {
 
             {/* Cell background color */}
             <TableCellColorPicker />
+
+            <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
+
+            {/* Alignment controls */}
+            <Tooltip title="왼쪽 정렬">
+                <span>
+                    <IconButton
+                        size="small"
+                        onClick={() => editor.chain().focus().setTextAlign('left').run()}
+                        color={editor.isActive({ textAlign: 'left' }) ? 'primary' : 'default'}
+                    >
+                        <FormatAlignLeftIcon fontSize="small" />
+                    </IconButton>
+                </span>
+            </Tooltip>
+            <Tooltip title="가운데 정렬">
+                <span>
+                    <IconButton
+                        size="small"
+                        onClick={() => editor.chain().focus().setTextAlign('center').run()}
+                        color={editor.isActive({ textAlign: 'center' }) ? 'primary' : 'default'}
+                    >
+                        <FormatAlignCenterIcon fontSize="small" />
+                    </IconButton>
+                </span>
+            </Tooltip>
+            <Tooltip title="오른쪽 정렬">
+                <span>
+                    <IconButton
+                        size="small"
+                        onClick={() => editor.chain().focus().setTextAlign('right').run()}
+                        color={editor.isActive({ textAlign: 'right' }) ? 'primary' : 'default'}
+                    >
+                        <FormatAlignRightIcon fontSize="small" />
+                    </IconButton>
+                </span>
+            </Tooltip>
 
             <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
 

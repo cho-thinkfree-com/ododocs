@@ -189,7 +189,7 @@ export const createBaseExtensions = (strings: AppStrings, options?: BaseExtensio
     ExclusiveSubscript,
     ExclusiveSuperscript,
     TextAlign.configure({
-      types: ['heading', 'paragraph'],
+      types: ['heading', 'paragraph', 'tableCell', 'tableHeader'],
     }),
     TaskList,
     TaskItem.configure({
