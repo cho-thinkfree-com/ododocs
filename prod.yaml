@@ -47,6 +47,8 @@ services:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_HOST: host.docker.internal
       POSTGRES_PORT: ${POSTGRES_PORT}
+      # Database URL for Prisma
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@host.docker.internal:${POSTGRES_PORT}/${POSTGRES_DB}?schema=public
       REDIS_HOST: host.docker.internal
       REDIS_PORT: ${REDIS_PORT}
       # CORS & Auth
@@ -73,6 +75,8 @@ services:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_HOST: host.docker.internal
       POSTGRES_PORT: ${POSTGRES_PORT}
+      # Database URL for Prisma
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@host.docker.internal:${POSTGRES_PORT}/${POSTGRES_DB}?schema=public
       REDIS_HOST: host.docker.internal
       REDIS_PORT: ${REDIS_PORT}
       # CORS & Auth
