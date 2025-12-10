@@ -57,6 +57,7 @@ import {
   addColumnBeforeWithAttrs,
   addColumnAfterWithAttrs
 } from './tableCommands'
+import { filesToImageAttributes } from '../../lib/imageUpload'
 
 const lowlight = createLowlight()
 lowlight.register('javascript', javascript)
@@ -87,6 +88,10 @@ const HEADING_LEVELS = [1, 2, 3, 4, 5, 6] as const
 
 export type BaseExtensionOptions = {
   onBlockLimitReached?: () => void
+  uploadContext?: {
+    workspaceId: string
+    documentId: string
+  }
   history?: boolean
 }
 
@@ -336,6 +341,54 @@ export const createBaseExtensions = (strings: AppStrings, options?: BaseExtensio
             },
           },
         }
+      },
+      addProseMirrorPlugins() {
+        const uploadContext = options?.uploadContext
+
+        return [
+          new Plugin({
+            key: new PluginKey('image-paste-handler'),
+            props: {
+              handlePaste: (view, event) => {
+                const files = Array.from(event.clipboardData?.files || [])
+                const imageFiles = files.filter(file => file.type.startsWith('image/'))
+
+                if (imageFiles.length === 0) return false
+
+                event.preventDefault()
+
+                if (!uploadContext) {
+                  console.warn('Image paste detected but no upload context provided')
+                  return false
+                }
+
+                filesToImageAttributes(imageFiles, uploadContext).then(attributesList => {
+                  const { state, dispatch } = view
+                  if (attributesList.length === 0) return
+
+                  const nodes = attributesList.map(attrs =>
+                    state.schema.nodes.image.create(attrs)
+                  )
+
+                  const tr = state.tr
+                  const { selection } = state
+
+                  // Insert all images at the current selection
+                  tr.replaceSelectionWith(nodes[0]) // Insert first one to replace selection
+
+                  // Insert remaining images after
+                  for (let i = 1; i < nodes.length; i++) {
+                    tr.insert(tr.mapping.map(selection.to) + i, nodes[i])
+                  }
+
+                  dispatch(tr)
+                })
+
+                return true
+              }
+            }
+          })
+        ]
       },
       addNodeView() {
         return ReactNodeViewRenderer(ResizableImageView)

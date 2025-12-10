@@ -123,7 +123,11 @@ const StandardEditorInternal = ({
 
     const extensionOptions = useMemo(() => ({
         onBlockLimitReached,
-    }), [onBlockLimitReached]);
+        uploadContext: {
+            workspaceId: currentDocument.workspaceId,
+            documentId: currentDocument.id
+        }
+    }), [onBlockLimitReached, currentDocument.workspaceId, currentDocument.id]);
 
     const editor = useEditorInstance({
         content: initialContent,
@@ -475,7 +479,11 @@ const CollaborativeEditorCore = ({
     const extensionOptions = useMemo(() => ({
         onBlockLimitReached,
         history: false,
-    }), [onBlockLimitReached]);
+        uploadContext: {
+            workspaceId: currentDocument.workspaceId,
+            documentId: currentDocument.id
+        }
+    }), [onBlockLimitReached, currentDocument.workspaceId, currentDocument.id]);
 
     const collaborationExtensions = useMemo(() => {
         return [
