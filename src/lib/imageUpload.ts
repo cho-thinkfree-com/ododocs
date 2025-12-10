@@ -1,5 +1,5 @@
 import type { ImageNodeAttributes } from 'mui-tiptap'
-import { getAssetUploadUrl, uploadAssetToS3, resolveAssetUrls } from './api'
+import { getAssetUploadUrl, uploadAssetToS3 } from './api'
 
 const readFileAsDataUrl = (file: File) =>
   new Promise<string>((resolve, reject) => {
@@ -68,17 +68,10 @@ export const filesToImageAttributes = async (
         // 2. Upload
         await uploadAssetToS3(uploadUrl, file)
 
-        // 3. Resolve to Presigned URL for display
-        // Use the remote URL immediately so it works for collaborators too
-        let src = URL.createObjectURL(file) // Fallback
-        try {
-          const resolvedMap = await resolveAssetUrls(context.workspaceId, context.documentId, [odocsUrl])
-          if (resolvedMap[odocsUrl]) {
-            src = resolvedMap[odocsUrl]
-          }
-        } catch (e) {
-          console.warn('Failed to resolve uploaded asset URL immediately', e)
-        }
+        // 3. Use Permanent URL (odocsassets://) for src
+        // The ResizableImageView component will resolve this to a viewable URL on mount.
+        // This ensures that the document always contains the permanent reference.
+        const src = odocsUrl
 
         return {
           src,

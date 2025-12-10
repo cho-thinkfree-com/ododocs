@@ -1,3 +1,4 @@
+import { resolveAssetUrls } from '../../lib/api'
 import { NodeViewWrapper, type NodeViewProps } from '@tiptap/react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 
@@ -13,6 +14,7 @@ const ResizableImageView = ({ node, updateAttributes, selected }: NodeViewProps)
     const [snapIndicator, setSnapIndicator] = useState<number | null>(null)
     const [currentPercent, setCurrentPercent] = useState<number>(100) // Current percentage during drag
     const [liveWidth, setLiveWidth] = useState<number | null>(null) // Pixel width during drag
+    const [viewSrc, setViewSrc] = useState<string>('')
     const startXRef = useRef(0)
     const startWidthRef = useRef(0)
     const handlePositionRef = useRef<HandlePosition>('bottom-right')
@@ -26,6 +28,45 @@ const ResizableImageView = ({ node, updateAttributes, selected }: NodeViewProps)
     // Initialize from stored values or default to 0
     const [naturalWidth, setNaturalWidth] = useState(storedNaturalWidth || 0)
     const [naturalHeight, setNaturalHeight] = useState(storedNaturalHeight || 0)
+
+    // Resolve URL effect
+    useEffect(() => {
+        let mounted = true
+        const resolveUrl = async () => {
+            if (!src) return
+
+            // If it's a remote asset URL (odocsassets://), resolve it
+            if (src.startsWith('odocsassets://remote/')) {
+                // Parse workspaceId and documentId from URL
+                // Format: odocsassets://remote/workspaces/:workspaceId/files/:documentId/assets/:assetId
+                try {
+                    const path = src.replace('odocsassets://remote/', '')
+                    const parts = path.split('/')
+                    // parts[0] = 'workspaces', parts[1] = workspaceId, parts[2] = 'files', parts[3] = documentId
+                    if (parts.length >= 4 && parts[1] && parts[3]) {
+                        const workspaceId = parts[1]
+                        const documentId = parts[3]
+
+                        const resolvedMap = await resolveAssetUrls(workspaceId, documentId, [src])
+                        if (mounted && resolvedMap[src]) {
+                            setViewSrc(resolvedMap[src])
+                            return
+                        }
+                    }
+                } catch (e) {
+                    console.error('Failed to resolve asset URL', e)
+                }
+            }
+
+            // Fallback (or standard URL): use as is
+            if (mounted) {
+                setViewSrc(src)
+            }
+        }
+
+        resolveUrl()
+        return () => { mounted = false }
+    }, [src])
 
     // Get original image dimensions when loaded
     const handleImageLoad = useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
@@ -242,19 +283,21 @@ const ResizableImageView = ({ node, updateAttributes, selected }: NodeViewProps)
                         </svg>
                     </div>
                 )}
-                <img
-                    src={src}
-                    alt={alt || ''}
-                    title={title || ''}
-                    style={{
-                        ...getImageStyle(),
-                        opacity: isLoaded ? 1 : 0,
-                        transition: 'opacity 0.2s ease-in-out',
-                    }}
-                    draggable={false}
-                    loading="lazy"
-                    onLoad={handleImageLoad}
-                />
+                {viewSrc && (
+                    <img
+                        src={viewSrc}
+                        alt={alt || ''}
+                        title={title || ''}
+                        style={{
+                            ...getImageStyle(),
+                            opacity: isLoaded ? 1 : 0,
+                            transition: 'opacity 0.2s ease-in-out',
+                        }}
+                        draggable={false}
+                        loading="lazy"
+                        onLoad={handleImageLoad}
+                    />
+                )}
                 {/* Resize percentage indicator */}
                 {isResizing && (
                     <div
